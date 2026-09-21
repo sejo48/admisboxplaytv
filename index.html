@@ -1,3 +1,41 @@
+(index):64 cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+(anonymous) @ (index):64
+transformScriptTags.ts:271 You are using the in-browser Babel transformer. Be sure to precompile your scripts for production - https://babeljs.io/docs/setup/
+(anonymous) @ transformScriptTags.ts:271
+admisboxplaytv/peliculas.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/playlist.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/listaoficial.m3u?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/videoteca.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/animados.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/peliculas2.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/tudum.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+admisboxplaytv/radios.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
+react-dom.production.min.js:121 ReferenceError: handleAutoFetchMetadata is not defined
+    at VideotecaEditor (<anonymous>:3328:14)
+    at mf (react-dom.production.min.js:105:412)
+    at zf (react-dom.production.min.js:127:55)
+    at Qk (react-dom.production.min.js:251:489)
+    at Ri (react-dom.production.min.js:195:185)
+    at Ok (react-dom.production.min.js:195:116)
+    at Nd (react-dom.production.min.js:194:492)
+    at Qf (react-dom.production.min.js:187:439)
+    at Li (react-dom.production.min.js:189:234)
+    at db (react-dom.production.min.js:79:182)
+    at react-dom.production.min.js:184:289
+wf @ react-dom.production.min.js:121
+Inline Babel script:35 ErrorBoundary caught: ReferenceError: handleAutoFetchMetadata is not defined
+    at VideotecaEditor (<anonymous>:3328:14)
+    at mf (react-dom.production.min.js:105:412)
+    at zf (react-dom.production.min.js:127:55)
+    at Qk (react-dom.production.min.js:251:489)
+    at Ri (react-dom.production.min.js:195:185)
+    at Ok (react-dom.production.min.js:195:116)
+    at Nd (react-dom.production.min.js:194:492)
+    at Qf (react-dom.production.min.js:187:439)
+    at Li (react-dom.production.min.js:189:234)
+    at db (react-dom.production.min.js:79:182)
+    at react-dom.production.min.js:184:289 Object
+componentDidCatch @ Inline Babel script:35
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -544,132 +582,7 @@
         };
         // --- COMPONENTE EDITOR: NETFLIX TUDUM ---
         const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
-            const [editingItem, setEditingItem] = useState(null); 
-            const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
-            const [modalForm, setModalForm] = useState({
-                album: '',
-                artist: '',
-                year: '1970',
-                genre: 'Rock',
-                cover: '',
-                musicUrl: '',
-                description: ''
-            });
-
-            useEffect(() => {
-                if (editingItem) {
-                    setModalForm({
-                        album: editingItem.album || editingItem.titulo || editingItem.title || '',
-                        artist: editingItem.artist || editingItem.artista || '',
-                        year: String(editingItem.year || editingItem.año || '1970'),
-                        genre: mapLegacyGenre(editingItem.genre || editingItem.genero || 'Rock'),
-                        cover: editingItem.cover || editingItem.imagen || editingItem.image || '',
-                        musicUrl: editingItem.musicUrl || editingItem.urlDrive || editingItem.url || '',
-                        description: editingItem.description || editingItem.descripcion || ''
-                    });
-                }
-            }, [editingItem]);
-
-            const handleAutoFetchMetadata = async () => {
-                const albumQuery = (modalForm.album || '').trim();
-                const artistQuery = (modalForm.artist || '').trim();
-                const searchCombined = (artistQuery ? `${artistQuery} ${albumQuery}` : albumQuery).trim();
-
-                if (!searchCombined) {
-                    showToast('Por favor introduce el nombre del álbum o artista para buscar metadatos');
-                    return;
-                }
-
-                setIsFetchingMetadata(true);
-                showToast('Buscando metadatos en iTunes y Wikipedia...', 'info');
-
-                let updated = { ...modalForm };
-
-                // 1. Consulta a iTunes Search API (CORS abierto, metadatos y portadas de alta fidelidad)
-                try {
-                    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchCombined)}&entity=album&limit=5`;
-                    const res = await fetch(itunesUrl);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.results && data.results.length > 0) {
-                            const match = data.results.find(r => 
-                                !artistQuery || (r.artistName || '').toLowerCase().includes(artistQuery.toLowerCase())
-                            ) || data.results[0];
-
-                            if (match) {
-                                if (match.collectionName && (!albumQuery || albumQuery.length < 5)) updated.album = match.collectionName;
-                                if (match.artistName) updated.artist = match.artistName;
-                                if (match.releaseDate) {
-                                    const yr = new Date(match.releaseDate).getFullYear();
-                                    if (yr && !isNaN(yr)) updated.year = String(yr);
-                                }
-                                if (match.primaryGenreName) {
-                                    updated.genre = mapLegacyGenre(match.primaryGenreName);
-                                }
-                                if (match.artworkUrl100) {
-                                    updated.cover = match.artworkUrl100.replace(/100x100bb/g, '1000x1000bb');
-                                }
-                            }
-                        }
-                    }
-                } catch (err) {
-                    console.warn('Error al consultar iTunes API:', err);
-                }
-
-                // 2. Consulta a Wikipedia para Reseña Histórica / Sinopsis en español
-                try {
-                    const targetAlbum = updated.album || albumQuery;
-                    const targetArtist = updated.artist || artistQuery;
-                    let wikiText = '';
-
-                    const queries = [
-                        targetAlbum,
-                        `${targetAlbum} (álbum)`,
-                        `${targetAlbum} (álbum de ${targetArtist})`,
-                        `${targetArtist} ${targetAlbum}`
-                    ];
-
-                    for (const q of queries) {
-                        if (wikiText) break;
-                        try {
-                            const wikiRes = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
-                            if (wikiRes.ok) {
-                                const wData = await wikiRes.json();
-                                if (wData.extract && !wData.title?.toLowerCase().includes('desambiguación')) {
-                                    wikiText = wData.extract;
-                                }
-                            }
-                        } catch (e) {}
-                    }
-
-                    if (!wikiText) {
-                        for (const q of [targetAlbum, `${targetAlbum} (album)`]) {
-                            if (wikiText) break;
-                            try {
-                                const enRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
-                                if (enRes.ok) {
-                                    const enData = await enRes.json();
-                                    if (enData.extract && !enData.title?.toLowerCase().includes('disambiguation')) {
-                                        wikiText = enData.extract;
-                                    }
-                                }
-                            } catch (e) {}
-                        }
-                    }
-
-                    if (wikiText) {
-                        updated.description = wikiText;
-                    } else if (!updated.description) {
-                        updated.description = `Producción discográfica clásica de ${updated.artist || 'artista'}, lanzada originalmente en el año ${updated.year}. Obra cumbre dentro de la categoría ${updated.genre}, conservada en calidad máster para la colección BoxPlayMusic.`;
-                    }
-                } catch (err) {
-                    console.warn('Error al consultar Wikipedia:', err);
-                }
-
-                setModalForm(updated);
-                setIsFetchingMetadata(false);
-                showToast('¡Metadatos y portada HD autocompletados con éxito!');
-            };
+            const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
             const handleSave = (e) => {
@@ -2370,6 +2283,132 @@
                 if (/reggae|soul|funk|r&b|ska/i.test(lower)) return 'Reggae & Soul';
                 if (/rock|metal/i.test(lower)) return 'Rock';
                 return g;
+            };
+
+            const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
+            const [modalForm, setModalForm] = useState({
+                album: '',
+                artist: '',
+                year: '1970',
+                genre: 'Rock',
+                cover: '',
+                musicUrl: '',
+                description: ''
+            });
+
+            useEffect(() => {
+                if (editingItem) {
+                    setModalForm({
+                        album: editingItem.album || editingItem.titulo || editingItem.title || '',
+                        artist: editingItem.artist || editingItem.artista || '',
+                        year: String(editingItem.year || editingItem.año || '1970'),
+                        genre: mapLegacyGenre(editingItem.genre || editingItem.genero || 'Rock'),
+                        cover: editingItem.cover || editingItem.imagen || editingItem.image || '',
+                        musicUrl: editingItem.musicUrl || editingItem.urlDrive || editingItem.url || '',
+                        description: editingItem.description || editingItem.descripcion || ''
+                    });
+                }
+            }, [editingItem]);
+
+            const handleAutoFetchMetadata = async () => {
+                const albumQuery = (modalForm.album || '').trim();
+                const artistQuery = (modalForm.artist || '').trim();
+                const searchCombined = (artistQuery ? `${artistQuery} ${albumQuery}` : albumQuery).trim();
+
+                if (!searchCombined) {
+                    showToast('Por favor escribe el nombre del álbum o artista para buscar metadatos');
+                    return;
+                }
+
+                setIsFetchingMetadata(true);
+                showToast('Buscando metadatos en iTunes y Wikipedia...', 'info');
+
+                let updated = { ...modalForm };
+
+                // 1. Consulta a iTunes Search API (CORS abierto, metadatos y portadas de alta fidelidad)
+                try {
+                    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchCombined)}&entity=album&limit=5`;
+                    const res = await fetch(itunesUrl);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.results && data.results.length > 0) {
+                            const match = data.results.find(r => 
+                                !artistQuery || (r.artistName || '').toLowerCase().includes(artistQuery.toLowerCase())
+                            ) || data.results[0];
+
+                            if (match) {
+                                if (match.collectionName && (!albumQuery || albumQuery.length < 5)) updated.album = match.collectionName;
+                                if (match.artistName) updated.artist = match.artistName;
+                                if (match.releaseDate) {
+                                    const yr = new Date(match.releaseDate).getFullYear();
+                                    if (yr && !isNaN(yr)) updated.year = String(yr);
+                                }
+                                if (match.primaryGenreName) {
+                                    updated.genre = mapLegacyGenre(match.primaryGenreName);
+                                }
+                                if (match.artworkUrl100) {
+                                    updated.cover = match.artworkUrl100.replace(/100x100bb/g, '1000x1000bb');
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Error al consultar iTunes API:', err);
+                }
+
+                // 2. Consulta a Wikipedia para Reseña Histórica / Sinopsis en español
+                try {
+                    const targetAlbum = updated.album || albumQuery;
+                    const targetArtist = updated.artist || artistQuery;
+                    let wikiText = '';
+
+                    const queries = [
+                        targetAlbum,
+                        `${targetAlbum} (álbum)`,
+                        `${targetAlbum} (álbum de ${targetArtist})`,
+                        `${targetArtist} ${targetAlbum}`
+                    ];
+
+                    for (const q of queries) {
+                        if (wikiText) break;
+                        try {
+                            const wikiRes = await fetch(`https://es.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
+                            if (wikiRes.ok) {
+                                const wData = await wikiRes.json();
+                                if (wData.extract && !wData.title?.toLowerCase().includes('desambiguación')) {
+                                    wikiText = wData.extract;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+
+                    if (!wikiText) {
+                        for (const q of [targetAlbum, `${targetAlbum} (album)`]) {
+                            if (wikiText) break;
+                            try {
+                                const enRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
+                                if (enRes.ok) {
+                                    const enData = await enRes.json();
+                                    if (enData.extract && !enData.title?.toLowerCase().includes('disambiguation')) {
+                                        wikiText = enData.extract;
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                    }
+
+                    if (wikiText) {
+                        updated.description = wikiText;
+                    } else if (!updated.description) {
+                        updated.description = `Producción discográfica clásica de ${updated.artist || 'artista'}, lanzada originalmente en el año ${updated.year}. Obra cumbre dentro de la categoría ${updated.genre}, conservada en calidad máster para la colección BoxPlayMusic.`;
+                    }
+                } catch (err) {
+                    console.warn('Error al consultar Wikipedia:', err);
+                }
+
+                setModalForm(updated);
+                setIsFetchingMetadata(false);
+                showToast('¡Metadatos y portada HD autocompletados con éxito!');
             };
 
             const exportData = () => {
