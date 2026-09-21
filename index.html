@@ -1,42 +1,4 @@
-(index):64 cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
-(anonymous) @ (index):64
-transformScriptTags.ts:271 You are using the in-browser Babel transformer. Be sure to precompile your scripts for production - https://babeljs.io/docs/setup/
-(anonymous) @ transformScriptTags.ts:271
-admisboxplaytv/peliculas.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/playlist.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/listaoficial.m3u?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/videoteca.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/animados.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/peliculas2.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/tudum.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-admisboxplaytv/radios.json?t=1789991903385:1  Failed to load resource: the server responded with a status of 404 ()
-react-dom.production.min.js:121 ReferenceError: handleAutoFetchMetadata is not defined
-    at VideotecaEditor (<anonymous>:3328:14)
-    at mf (react-dom.production.min.js:105:412)
-    at zf (react-dom.production.min.js:127:55)
-    at Qk (react-dom.production.min.js:251:489)
-    at Ri (react-dom.production.min.js:195:185)
-    at Ok (react-dom.production.min.js:195:116)
-    at Nd (react-dom.production.min.js:194:492)
-    at Qf (react-dom.production.min.js:187:439)
-    at Li (react-dom.production.min.js:189:234)
-    at db (react-dom.production.min.js:79:182)
-    at react-dom.production.min.js:184:289
-wf @ react-dom.production.min.js:121
-Inline Babel script:35 ErrorBoundary caught: ReferenceError: handleAutoFetchMetadata is not defined
-    at VideotecaEditor (<anonymous>:3328:14)
-    at mf (react-dom.production.min.js:105:412)
-    at zf (react-dom.production.min.js:127:55)
-    at Qk (react-dom.production.min.js:251:489)
-    at Ri (react-dom.production.min.js:195:185)
-    at Ok (react-dom.production.min.js:195:116)
-    at Nd (react-dom.production.min.js:194:492)
-    at Qf (react-dom.production.min.js:187:439)
-    at Li (react-dom.production.min.js:189:234)
-    at db (react-dom.production.min.js:79:182)
-    at react-dom.production.min.js:184:289 Object
-componentDidCatch @ Inline Babel script:35
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -77,6 +39,7 @@ componentDidCatch @ Inline Babel script:35
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+
     <script>
         if (typeof Babel !== 'undefined') {
             Babel.registerPreset('react-classic', {
@@ -87,8 +50,10 @@ componentDidCatch @ Inline Babel script:35
         }
     </script>
 
+
     <!-- Tipografía Inter y Orbitron -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
 
     <style>
         body { 
@@ -122,8 +87,10 @@ componentDidCatch @ Inline Babel script:35
         </div>
     </div>
 
+
     <script type="text/babel" data-presets="react-classic">
         const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
+
 
         const SOURCE_URLS = {
             TV: './listaoficial.m3u',
@@ -136,6 +103,7 @@ componentDidCatch @ Inline Babel script:35
             TUDUM: './tudum.json'
         };
 
+
         const RAW_URLS = {
             TV: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/listaoficial.m3u',
             SERIES: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/playlist.json',
@@ -146,6 +114,7 @@ componentDidCatch @ Inline Babel script:35
             VIDEOTECA: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/videoteca.json',
             TUDUM: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/tudum.json'
         };
+
 
         class ErrorBoundary extends Component {
             constructor(props) {
@@ -197,7 +166,9 @@ componentDidCatch @ Inline Babel script:35
                 }
                 if (fileId) return `https://drive.google.com/file/d/${fileId}/preview`;
             }
-            if (url.includes('archive.org/details/') || url.includes('archive.org/download/')) {
+            const cleanUrlLower = url.toLowerCase();
+            const isAudioExt = cleanUrlLower.endsWith('.mp3') || cleanUrlLower.endsWith('.m4a') || cleanUrlLower.includes('.mp3') || cleanUrlLower.includes('.m4a');
+            if (!isAudioExt && (url.includes('archive.org/details/') || url.includes('archive.org/download/'))) {
                 const match = url.match(/archive\.org\/(?:details|download)\/([^\/\?]+)/);
                 if (match && match[1]) {
                     return `https://archive.org/embed/${match[1]}`;
@@ -206,11 +177,13 @@ componentDidCatch @ Inline Babel script:35
             return url;
         };
 
+
         const getArchiveIdFromUrl = (url) => {
             if (!url) return null;
             const match = url.match(/archive\.org\/(?:details|download|embed)\/([^\/\?]+)/);
             return match ? match[1] : null;
         };
+
 
         const downloadFile = (content, filename, type) => {
             const blob = new Blob([content], { type: type });
@@ -224,6 +197,7 @@ componentDidCatch @ Inline Babel script:35
             URL.revokeObjectURL(url);
         };
 
+
         const generateM3U = (channels) => {
             let m3u = '#EXTM3U\n';
             channels.forEach(ch => {
@@ -232,6 +206,7 @@ componentDidCatch @ Inline Babel script:35
             });
             return m3u;
         };
+
 
         const parseM3U = (data) => {
             if (!data) return [];
@@ -256,17 +231,22 @@ componentDidCatch @ Inline Babel script:35
             return channels;
         };
 
+
+        const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
+
         const fetchSmart = async (localUrl, rawUrl, isJson = true) => {
             const cacheBust = `?t=${Date.now()}`;
-            try {
-                const res = await fetch(localUrl + cacheBust);
-                if (res.ok) {
-                    const text = await res.text();
-                    if (!text.trim().startsWith('<!DOCTYPE html') && !text.trim().startsWith('<html')) {
-                        return isJson ? JSON.parse(text) : text;
+            if (!isFileProtocol && localUrl) {
+                try {
+                    const res = await fetch(localUrl + cacheBust);
+                    if (res.ok) {
+                        const text = await res.text();
+                        if (!text.trim().startsWith('<!DOCTYPE html') && !text.trim().startsWith('<html')) {
+                            return isJson ? JSON.parse(text) : text;
+                        }
                     }
-                }
-            } catch (e) {}
+                } catch (e) {}
+            }
 
             try {
                 const resRaw = await fetch(rawUrl + cacheBust);
@@ -277,6 +257,7 @@ componentDidCatch @ Inline Babel script:35
 
             return isJson ? [] : '';
         };
+
 
         const Icon = ({ name, size = 18, className = "" }) => {
             switch (name) {
@@ -310,11 +291,13 @@ componentDidCatch @ Inline Babel script:35
             }
         };
 
+
         const Toast = ({ message, type = 'success', onClose }) => {
             useEffect(() => { 
                 const timer = setTimeout(onClose, 3200); 
                 return () => clearTimeout(timer); 
             }, [onClose]);
+
 
             const bgStyle = type === 'success' ? 'bg-emerald-600 text-white' : type === 'info' ? 'bg-cyan-600 text-white' : 'bg-rose-600 text-white';
             return (
@@ -324,6 +307,7 @@ componentDidCatch @ Inline Babel script:35
                 </div>
             );
         };
+
 
         const ConfirmModal = ({ isOpen, message, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar" }) => {
             if (!isOpen) return null;
@@ -350,11 +334,13 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         const PlayerModal = ({ isOpen, title, url, onClose }) => {
             const videoRef = useRef(null);
             const audioRef = useRef(null);
             const hlsRef = useRef(null);
             const [playerError, setPlayerError] = useState(false);
+
 
             const converted = useMemo(() => convertUrl(url), [url]);
             const isEmbed = useMemo(() => {
@@ -365,15 +351,18 @@ componentDidCatch @ Inline Babel script:35
                        converted.includes('archive.org/embed');
             }, [converted]);
 
+
             const isAudioStream = useMemo(() => {
                 if (!url) return false;
                 const lower = url.toLowerCase();
                 return lower.endsWith('.mp3') || lower.endsWith('.m4a') || lower.endsWith('.aac') || lower.includes('/stream') || lower.includes('icecast') || lower.includes('streamtheworld') || lower.includes('turadio.stream');
             }, [url]);
 
+
             useEffect(() => {
                 setPlayerError(false);
                 if (!isOpen || !url || isEmbed) return;
+
 
                 if (isAudioStream) {
                     const audio = audioRef.current;
@@ -384,8 +373,10 @@ componentDidCatch @ Inline Babel script:35
                     return;
                 }
 
+
                 const video = videoRef.current;
                 if (!video) return;
+
 
                 if (url.includes('.m3u8')) {
                     if (Hls.isSupported()) {
@@ -411,6 +402,7 @@ componentDidCatch @ Inline Babel script:35
                     video.play().catch(() => {});
                 }
 
+
                 return () => {
                     if (hlsRef.current) {
                         hlsRef.current.destroy();
@@ -419,7 +411,9 @@ componentDidCatch @ Inline Babel script:35
                 };
             }, [isOpen, url, isEmbed, isAudioStream]);
 
+
             if (!isOpen) return null;
+
 
             return (
                 <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[550] flex items-center justify-center p-4 animate-fade-in">
@@ -433,6 +427,7 @@ componentDidCatch @ Inline Babel script:35
                                 <Icon name="x" size={18} />
                             </button>
                         </div>
+
 
                         <div className="p-2 sm:p-4 bg-black aspect-video flex items-center justify-center relative overflow-hidden">
                             {isEmbed ? (
@@ -455,6 +450,7 @@ componentDidCatch @ Inline Babel script:35
                                 <video ref={videoRef} controls className="w-full h-full max-h-[60vh] bg-black rounded-2xl"></video>
                             )}
 
+
                             {playerError && (
                                 <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 text-center">
                                     <div className="text-rose-400 text-xs font-bold space-y-2">
@@ -464,6 +460,7 @@ componentDidCatch @ Inline Babel script:35
                                 </div>
                             )}
                         </div>
+
 
                         <div className="p-3 bg-slate-950 text-[11px] text-slate-400 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-2">
                             <span className="truncate max-w-md font-mono text-cyan-300">URL: {converted || url}</span>
@@ -476,6 +473,7 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         const GithubSyncModal = ({ isOpen, onClose, onSync }) => {
             const [token, setToken] = useState(() => localStorage.getItem('boxplay_github_pat') || localStorage.getItem('magis_github_pat') || '');
             const [repo, setRepo] = useState(() => localStorage.getItem('boxplay_github_repo') || localStorage.getItem('magis_github_repo') || 'sejo48/StreamTube-V20');
@@ -483,7 +481,9 @@ componentDidCatch @ Inline Babel script:35
             const [syncing, setSyncing] = useState(false);
             const [syncStep, setSyncStep] = useState('');
 
+
             if (!isOpen) return null;
+
 
             const handleSaveAndSync = async (e) => {
                 e.preventDefault();
@@ -496,6 +496,7 @@ componentDidCatch @ Inline Babel script:35
                 setSyncStep('');
                 onClose();
             };
+
 
             return (
                 <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[500] flex items-center justify-center p-4 animate-fade-in">
@@ -513,6 +514,7 @@ componentDidCatch @ Inline Babel script:35
                             <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700"><Icon name="x" size={18} /></button>
                         </div>
 
+
                         <form onSubmit={handleSaveAndSync} className="space-y-3.5">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Repositorio de Destino (usuario/repo)</label>
@@ -525,6 +527,7 @@ componentDidCatch @ Inline Babel script:35
                                     placeholder="sejo48/StreamTube-V20" 
                                 />
                             </div>
+
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -543,6 +546,7 @@ componentDidCatch @ Inline Babel script:35
                                 </div>
                             </div>
 
+
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">GitHub Personal Access Token (PAT)</label>
                                 <input 
@@ -556,12 +560,14 @@ componentDidCatch @ Inline Babel script:35
                                 <span className="text-[10px] text-slate-400 block mt-1">Requiere permisos de 'repo' o 'contents:write'.</span>
                             </div>
 
+
                             {syncStep && (
                                 <div className="p-2.5 bg-cyan-50 text-cyan-800 rounded-xl text-xs font-mono font-bold flex items-center gap-2 border border-cyan-200">
                                     <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-ping"></div>
                                     <span>{syncStep}</span>
                                 </div>
                             )}
+
 
                             <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                 <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-colors">
@@ -585,10 +591,12 @@ componentDidCatch @ Inline Babel script:35
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
+
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
+
 
                 const existingIndex = tudumList.findIndex(t => 
                     (t.title || t.titulo || '').toLowerCase() === title.toLowerCase() && 
@@ -598,6 +606,7 @@ componentDidCatch @ Inline Babel script:35
                     showToast(`El estreno "${title}" ya existe en la lista Tudum.`, 'error');
                     return;
                 }
+
 
                 const newItem = {
                     id: editingItem.id || `tudum-${Date.now()}`,
@@ -619,6 +628,7 @@ componentDidCatch @ Inline Babel script:35
                     puntuacion: formData.get('score') || '9.0 / 10'
                 };
 
+
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setTudumList(tudumList.map(t => t.id === editingItem.id ? newItem : t));
                     showToast('Estreno Tudum actualizado');
@@ -628,6 +638,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setEditingItem(null);
             };
+
 
             const exportData = () => {
                 const exportList = tudumList.map(({ id, ...rest }) => ({
@@ -644,11 +655,13 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo tudum.json generado');
             };
 
+
             const filteredList = tudumList.filter(t => 
                 (t.title || t.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (t.genre || t.genero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (t.synopsis || t.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -673,6 +686,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     </div>
 
+
                     <div className="relative">
                         <input 
                             type="text" 
@@ -683,6 +697,7 @@ componentDidCatch @ Inline Babel script:35
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+
 
                     {editingItem && (
                         <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
@@ -734,6 +749,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredList.map((item, index) => {
                             const poster = item.image || item.imagen;
@@ -741,6 +757,7 @@ componentDidCatch @ Inline Babel script:35
                             const genre = item.genre || item.genero;
                             const release = item.releaseDate || item.fechaEstreno;
                             const trailer = item.trailerUrl || item.urlTrailer;
+
 
                             return (
                                 <div key={item.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -775,22 +792,26 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         // --- COMPONENTE EDITOR: TV EN VIVO (M3U) ---
         const TvEditor = ({ channels, setChannels, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [draggedIndex, setDraggedIndex] = useState(null);
 
+
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
+
 
                 const existingIndex = channels.findIndex(c => c.title.toLowerCase() === title.toLowerCase() && (!editingItem || c.id !== editingItem.id));
                 if (existingIndex !== -1) {
                     showToast(`El canal "${title}" ya existe.`, 'error');
                     return;
                 }
+
 
                 const newChannel = {
                     id: editingItem.id || `tv-${Date.now()}`,
@@ -799,6 +820,7 @@ componentDidCatch @ Inline Babel script:35
                     group: formData.get('group') || 'General',
                     url: formData.get('url') || ''
                 };
+
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setChannels(channels.map(c => c.id === editingItem.id ? newChannel : c));
@@ -810,11 +832,13 @@ componentDidCatch @ Inline Babel script:35
                 setEditingItem(null);
             };
 
+
             const exportData = () => {
                 const m3uString = generateM3U(channels);
                 downloadFile(m3uString, 'listaoficial.m3u', 'audio/x-mpegurl');
                 showToast('Archivo listaoficial.m3u generado');
             };
+
 
             const moveItem = (index, direction) => {
                 const newChs = [...channels];
@@ -825,6 +849,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setChannels(newChs);
             };
+
 
             const handleDragStart = (e, index) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; };
             const handleDragOver = (e, index) => {
@@ -839,10 +864,12 @@ componentDidCatch @ Inline Babel script:35
             };
             const handleDragEnd = () => { setDraggedIndex(null); showToast('Orden de canales actualizado'); };
 
+
             const filteredChannels = channels.filter(c => 
                 (c.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (c.group || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -867,6 +894,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     </div>
 
+
                     <div className="relative">
                         <input 
                             type="text" 
@@ -877,6 +905,7 @@ componentDidCatch @ Inline Babel script:35
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+
 
                     {editingItem && (
                         <div className="bg-cyan-50/70 p-5 md:p-6 rounded-2xl border border-cyan-200/80 animate-fade-in space-y-4">
@@ -911,6 +940,7 @@ componentDidCatch @ Inline Babel script:35
                             </form>
                         </div>
                     )}
+
 
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredChannels.map((channel, index) => (
@@ -958,21 +988,25 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         // --- COMPONENTE EDITOR: PELÍCULAS ---
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+
 
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
 
+
                 const existingIndex = movies.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
                 if (existingIndex !== -1) {
                     showToast(`La película "${titulo}" ya existe.`, 'error');
                     return;
                 }
+
 
                 const newMovie = {
                     id: editingItem.id || `mov-${Date.now()}`,
@@ -988,6 +1022,7 @@ componentDidCatch @ Inline Babel script:35
                     qualityTag: formData.get('qualityTag') || ''
                 };
 
+
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setMovies(movies.map(m => m.id === editingItem.id ? newMovie : m));
                     showToast('Película actualizada');
@@ -997,6 +1032,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setEditingItem(null);
             };
+
 
             const exportData = () => {
                 const exportMovies = movies.map(({ id, ...rest }) => ({
@@ -1012,6 +1048,7 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo peliculas.json generado');
             };
 
+
             const moveItem = (index, direction) => {
                 const newMovies = [...movies];
                 if (direction === 'up' && index > 0) {
@@ -1022,10 +1059,12 @@ componentDidCatch @ Inline Babel script:35
                 setMovies(newMovies);
             };
 
+
             const filteredMovies = movies.filter(m => 
                 (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -1050,6 +1089,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     </div>
 
+
                     <div className="relative">
                         <input 
                             type="text" 
@@ -1060,6 +1100,7 @@ componentDidCatch @ Inline Babel script:35
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+
 
                     {editingItem && (
                         <div className="bg-blue-50/70 p-5 md:p-6 rounded-2xl border border-blue-200/80 animate-fade-in space-y-4">
@@ -1107,11 +1148,13 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredMovies.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
+
 
                             return (
                                 <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -1151,21 +1194,25 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         // --- COMPONENTE EDITOR: ESTRENOS 2026 ---
         const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+
 
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
 
+
                 const existingIndex = estrenos.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
                 if (existingIndex !== -1) {
                     showToast(`El estreno "${titulo}" ya existe.`, 'error');
                     return;
                 }
+
 
                 const newItem = {
                     id: editingItem.id || `est-${Date.now()}`,
@@ -1181,6 +1228,7 @@ componentDidCatch @ Inline Babel script:35
                     qualityTag: formData.get('qualityTag') || ''
                 };
 
+
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setEstrenos(estrenos.map(m => m.id === editingItem.id ? newItem : m));
                     showToast('Estreno 2026 actualizado');
@@ -1190,6 +1238,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setEditingItem(null);
             };
+
 
             const exportData = () => {
                 const exportEstrenos = estrenos.map(({ id, ...rest }) => ({
@@ -1205,6 +1254,7 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo peliculas2.json generado');
             };
 
+
             const moveItem = (index, direction) => {
                 const newItems = [...estrenos];
                 if (direction === 'up' && index > 0) {
@@ -1215,10 +1265,12 @@ componentDidCatch @ Inline Babel script:35
                 setEstrenos(newItems);
             };
 
+
             const filteredEstrenos = estrenos.filter(m => 
                 (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -1243,6 +1295,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     </div>
 
+
                     <div className="relative">
                         <input 
                             type="text" 
@@ -1253,6 +1306,7 @@ componentDidCatch @ Inline Babel script:35
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+
 
                     {editingItem && (
                         <div className="bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
@@ -1300,11 +1354,13 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredEstrenos.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
+
 
                             return (
                                 <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -1351,6 +1407,7 @@ componentDidCatch @ Inline Babel script:35
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
 
+
             const exportData = () => {
                 const exportSeries = series.map(({ id, ...s }) => ({
                     tituloSerie: s.tituloSerie,
@@ -1370,16 +1427,19 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo playlist.json generado');
             };
 
+
             const saveSerieBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloSerie = formData.get('tituloSerie').trim();
+
 
                 const existingIndex = series.findIndex(s => s.tituloSerie.toLowerCase() === tituloSerie.toLowerCase() && (!editingSerie || s.id !== editingSerie.id));
                 if (existingIndex !== -1) {
                     showToast(`La serie "${tituloSerie}" ya existe.`, 'error');
                     return;
                 }
+
 
                 const newData = {
                     tituloSerie,
@@ -1401,6 +1461,7 @@ componentDidCatch @ Inline Babel script:35
                 setEditingSerie(null);
             };
 
+
             const addSeason = () => {
                 if (!selectedSerie) return;
                 const newSeasonNum = (selectedSerie.temporadas || []).length + 1;
@@ -1411,6 +1472,7 @@ componentDidCatch @ Inline Babel script:35
                 setSeries(series.map(s => s.id === selectedSerie.id ? updatedSerie : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
             };
+
 
             const deleteSeason = (sIdx) => {
                 requestConfirm(`¿Eliminar la Temporada ${selectedSerie.temporadas[sIdx].numeroTemporada}?`, () => {
@@ -1423,6 +1485,7 @@ componentDidCatch @ Inline Babel script:35
                 });
             };
 
+
             const saveEpisode = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -1430,11 +1493,13 @@ componentDidCatch @ Inline Babel script:35
                 const updatedTemporadas = [...selectedSerie.temporadas];
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
 
+
                 const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
                 if (existingEpIndex !== -1) {
                     showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error');
                     return;
                 }
+
 
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 
@@ -1451,6 +1516,7 @@ componentDidCatch @ Inline Babel script:35
                 setEditingEpisode(null);
             };
 
+
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
                     const updatedTemporadas = [...selectedSerie.temporadas];
@@ -1460,10 +1526,12 @@ componentDidCatch @ Inline Babel script:35
                 });
             };
 
+
             const filteredSeries = series.filter(s => 
                 (s.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (s.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -1486,6 +1554,7 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         </div>
 
+
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -1496,6 +1565,7 @@ componentDidCatch @ Inline Babel script:35
                             />
                         </div>
 
+
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredSeries.length === 0 ? (
                                 <p className="text-xs text-slate-400 text-center py-6">No se encontraron series</p>
@@ -1503,6 +1573,7 @@ componentDidCatch @ Inline Babel script:35
                                 filteredSeries.map(serie => {
                                     const isSelected = selectedSerieId === serie.id;
                                     const totalEps = (serie.temporadas || []).reduce((acc, t) => acc + (t.episodios?.length || 0), 0);
+
 
                                     return (
                                         <div 
@@ -1523,6 +1594,7 @@ componentDidCatch @ Inline Babel script:35
                             )}
                         </div>
                     </div>
+
 
                     {/* Detalle de Temporadas y Episodios */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -1559,6 +1631,7 @@ componentDidCatch @ Inline Babel script:35
                                     </div>
                                 </div>
 
+
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                                         <span>Temporadas y Capítulos</span>
@@ -1570,6 +1643,7 @@ componentDidCatch @ Inline Babel script:35
                                         <Icon name="plus" size={12} /> Añadir Temporada
                                     </button>
                                 </div>
+
 
                                 <div className="space-y-4">
                                     {(selectedSerie.temporadas || []).length === 0 ? (
@@ -1590,6 +1664,7 @@ componentDidCatch @ Inline Babel script:35
                                                         </button>
                                                     </div>
                                                 </div>
+
 
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (
@@ -1629,6 +1704,7 @@ componentDidCatch @ Inline Babel script:35
                         )}
                     </div>
 
+
                     {/* Modal Crear/Editar Serie Base */}
                     {editingSerie && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1666,6 +1742,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     {/* Modal Crear/Editar Episodio */}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1692,6 +1769,7 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         // --- COMPONENTE EDITOR: ANIMADOS ---
         const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer }) => {
             const [selectedItemId, setSelectedItemId] = useState(null);
@@ -1699,6 +1777,7 @@ componentDidCatch @ Inline Babel script:35
             const [editingEpisode, setEditingEpisode] = useState(null); 
             const [searchTerm, setSearchTerm] = useState('');
             const selectedItem = animados.find(s => s.id === selectedItemId);
+
 
             const exportData = () => {
                 const exportArray = animados.map(({ id, ...s }) => {
@@ -1725,16 +1804,19 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo animados.json generado');
             };
 
+
             const saveItemBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
+
 
                 const existingIndex = animados.findIndex(a => (a.titulo || a.tituloSerie || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || a.id !== editingItem.id));
                 if (existingIndex !== -1) {
                     showToast(`El animado "${titulo}" ya existe.`, 'error');
                     return;
                 }
+
 
                 const newData = {
                     titulo,
@@ -1758,6 +1840,7 @@ componentDidCatch @ Inline Babel script:35
                 setEditingItem(null);
             };
 
+
             const addSeason = () => {
                 if (!selectedItem) return;
                 const newSeasonNum = (selectedItem.temporadas || []).length + 1;
@@ -1768,6 +1851,7 @@ componentDidCatch @ Inline Babel script:35
                 setAnimados(animados.map(s => s.id === selectedItem.id ? updatedItem : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
             };
+
 
             const deleteSeason = (sIdx) => {
                 requestConfirm(`¿Eliminar la Temporada ${selectedItem.temporadas[sIdx].numeroTemporada}?`, () => {
@@ -1780,6 +1864,7 @@ componentDidCatch @ Inline Babel script:35
                 });
             };
 
+
             const saveEpisode = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -1787,11 +1872,13 @@ componentDidCatch @ Inline Babel script:35
                 const updatedTemporadas = [...(selectedItem.temporadas || [])];
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
 
+
                 const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
                 if (existingEpIndex !== -1) {
                     showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error');
                     return;
                 }
+
 
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 
@@ -1808,6 +1895,7 @@ componentDidCatch @ Inline Babel script:35
                 setEditingEpisode(null);
             };
 
+
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
                     const updatedTemporadas = [...selectedItem.temporadas];
@@ -1817,10 +1905,12 @@ componentDidCatch @ Inline Babel script:35
                 });
             };
 
+
             const filteredAnimados = animados.filter(a => 
                 (a.titulo || a.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (a.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -1843,6 +1933,7 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         </div>
 
+
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -1853,6 +1944,7 @@ componentDidCatch @ Inline Babel script:35
                             />
                         </div>
 
+
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredAnimados.length === 0 ? (
                                 <p className="text-xs text-slate-400 text-center py-6">No hay animados registrados</p>
@@ -1860,6 +1952,7 @@ componentDidCatch @ Inline Babel script:35
                                 filteredAnimados.map(item => {
                                     const isSelected = selectedItemId === item.id;
                                     const isSeries = item.temporadas && item.temporadas.length > 0;
+
 
                                     return (
                                         <div 
@@ -1882,6 +1975,7 @@ componentDidCatch @ Inline Babel script:35
                             )}
                         </div>
                     </div>
+
 
                     {/* Detalle */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -1926,6 +2020,7 @@ componentDidCatch @ Inline Babel script:35
                                     </div>
                                 </div>
 
+
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                                         <span>Temporadas (Si es serie animada)</span>
@@ -1937,6 +2032,7 @@ componentDidCatch @ Inline Babel script:35
                                         <Icon name="plus" size={12} /> Añadir Temporada
                                     </button>
                                 </div>
+
 
                                 <div className="space-y-4">
                                     {(selectedItem.temporadas || []).length === 0 ? (
@@ -1959,6 +2055,7 @@ componentDidCatch @ Inline Babel script:35
                                                         </button>
                                                     </div>
                                                 </div>
+
 
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (
@@ -1997,6 +2094,7 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         )}
                     </div>
+
 
                     {/* Modal Crear/Editar Animado Base */}
                     {editingItem && (
@@ -2039,6 +2137,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     {/* Modal Crear/Editar Episodio Animado */}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -2065,21 +2164,25 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         // --- COMPONENTE EDITOR: RADIOS (CYBER RADIO PRO) ---
         const RadiosEditor = ({ radios, setRadios, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+
 
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
 
+
                 const existingIndex = radios.findIndex(r => (r.title || r.titulo || '').toLowerCase() === title.toLowerCase() && (!editingItem || r.id !== editingItem.id));
                 if (existingIndex !== -1) {
                     showToast(`La emisora "${title}" ya existe en la lista.`, 'error');
                     return;
                 }
+
 
                 const newRadio = {
                     id: editingItem.id || `radio-${Date.now()}`,
@@ -2095,6 +2198,7 @@ componentDidCatch @ Inline Babel script:35
                     stream: formData.get('url') || ''
                 };
 
+
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setRadios(radios.map(r => r.id === editingItem.id ? newRadio : r));
                     showToast('Emisora actualizada');
@@ -2104,6 +2208,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setEditingItem(null);
             };
+
 
             const exportData = () => {
                 const exportRadios = radios.map(({ id, ...rest }) => ({
@@ -2117,6 +2222,7 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo radios.json generado');
             };
 
+
             const moveItem = (index, direction) => {
                 const newRads = [...radios];
                 if (direction === 'up' && index > 0) {
@@ -2127,11 +2233,13 @@ componentDidCatch @ Inline Babel script:35
                 setRadios(newRads);
             };
 
+
             const filteredRadios = radios.filter(r => 
                 (r.title || r.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (r.group || r.categoria || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (r.genre || r.genero || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -2156,6 +2264,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     </div>
 
+
                     <div className="relative">
                         <input 
                             type="text" 
@@ -2166,6 +2275,7 @@ componentDidCatch @ Inline Babel script:35
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+
 
                     {editingItem && (
                         <div className="bg-emerald-50/70 p-5 md:p-6 rounded-2xl border border-emerald-200/80 animate-fade-in space-y-4">
@@ -2208,6 +2318,7 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
+
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredRadios.map((radio, index) => {
                             const logo = radio.logo || radio.imagen;
@@ -2215,6 +2326,7 @@ componentDidCatch @ Inline Babel script:35
                             const stream = radio.url || radio.stream;
                             const group = radio.group || radio.categoria || 'Nacionales';
                             const genre = radio.genre || radio.genero;
+
 
                             return (
                                 <div key={radio.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -2261,9 +2373,46 @@ componentDidCatch @ Inline Babel script:35
         const VideotecaEditor = ({ videoteca, setVideoteca, showToast, requestConfirm, onTestPlayer }) => {
             const [selectedItemId, setSelectedItemId] = useState(null);
             const [editingItem, setEditingItem] = useState(null); 
-            const [editingPista, setEditingPista] = useState(null); 
+            const [editingPista, setEditingPista] = useState(null);
+            const [isExtractingTracks, setIsExtractingTracks] = useState(false);
+            const [pistaForm, setPistaForm] = useState({
+                title: '',
+                audio: '',
+                archiveId: '',
+                duration: 'Álbum'
+            });
+
+            // Sincronizar el formulario de edición de pista cuando se abre una canción
+            useEffect(() => {
+                if (editingPista) {
+                    const track = editingPista.data || {};
+                    const trackAudio = track.audio || track.urlDrive || track.url || '';
+                    setPistaForm({
+                        title: track.title || track.titulo || '',
+                        audio: trackAudio,
+                        archiveId: track.archiveId || getArchiveIdFromUrl(trackAudio) || '',
+                        duration: track.duration || track.duracion || 'Álbum'
+                    });
+                }
+            }, [editingPista]);
+
+            // Garantizar que todos los álbumes tengan ID único para selección y guardado fiable
+            useEffect(() => {
+                let needsUpdate = false;
+                const withIds = videoteca.map((item, idx) => {
+                    if (!item.id) {
+                        needsUpdate = true;
+                        return { ...item, id: `alb-${Date.now()}-${idx}` };
+                    }
+                    return item;
+                });
+                if (needsUpdate) {
+                    setVideoteca(withIds);
+                }
+            }, [videoteca]); 
             const [searchTerm, setSearchTerm] = useState('');
             const selectedItem = videoteca.find(v => v.id === selectedItemId);
+
 
             const GENRES = [
                 'Rock',
@@ -2272,6 +2421,7 @@ componentDidCatch @ Inline Babel script:35
                 'Tropical & Salsa',
                 'Reggae & Soul'
             ];
+
 
             const mapLegacyGenre = (g) => {
                 if (!g) return 'Rock';
@@ -2285,6 +2435,7 @@ componentDidCatch @ Inline Babel script:35
                 return g;
             };
 
+
             const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
             const [modalForm, setModalForm] = useState({
                 album: '',
@@ -2295,6 +2446,7 @@ componentDidCatch @ Inline Babel script:35
                 musicUrl: '',
                 description: ''
             });
+
 
             useEffect(() => {
                 if (editingItem) {
@@ -2310,20 +2462,25 @@ componentDidCatch @ Inline Babel script:35
                 }
             }, [editingItem]);
 
+
             const handleAutoFetchMetadata = async () => {
                 const albumQuery = (modalForm.album || '').trim();
                 const artistQuery = (modalForm.artist || '').trim();
                 const searchCombined = (artistQuery ? `${artistQuery} ${albumQuery}` : albumQuery).trim();
+
 
                 if (!searchCombined) {
                     showToast('Por favor escribe el nombre del álbum o artista para buscar metadatos');
                     return;
                 }
 
+
                 setIsFetchingMetadata(true);
                 showToast('Buscando metadatos en iTunes y Wikipedia...', 'info');
 
+
                 let updated = { ...modalForm };
+
 
                 // 1. Consulta a iTunes Search API (CORS abierto, metadatos y portadas de alta fidelidad)
                 try {
@@ -2335,6 +2492,7 @@ componentDidCatch @ Inline Babel script:35
                             const match = data.results.find(r => 
                                 !artistQuery || (r.artistName || '').toLowerCase().includes(artistQuery.toLowerCase())
                             ) || data.results[0];
+
 
                             if (match) {
                                 if (match.collectionName && (!albumQuery || albumQuery.length < 5)) updated.album = match.collectionName;
@@ -2356,11 +2514,13 @@ componentDidCatch @ Inline Babel script:35
                     console.warn('Error al consultar iTunes API:', err);
                 }
 
+
                 // 2. Consulta a Wikipedia para Reseña Histórica / Sinopsis en español
                 try {
                     const targetAlbum = updated.album || albumQuery;
                     const targetArtist = updated.artist || artistQuery;
                     let wikiText = '';
+
 
                     const queries = [
                         targetAlbum,
@@ -2368,6 +2528,7 @@ componentDidCatch @ Inline Babel script:35
                         `${targetAlbum} (álbum de ${targetArtist})`,
                         `${targetArtist} ${targetAlbum}`
                     ];
+
 
                     for (const q of queries) {
                         if (wikiText) break;
@@ -2381,6 +2542,7 @@ componentDidCatch @ Inline Babel script:35
                             }
                         } catch (e) {}
                     }
+
 
                     if (!wikiText) {
                         for (const q of [targetAlbum, `${targetAlbum} (album)`]) {
@@ -2397,6 +2559,7 @@ componentDidCatch @ Inline Babel script:35
                         }
                     }
 
+
                     if (wikiText) {
                         updated.description = wikiText;
                     } else if (!updated.description) {
@@ -2406,10 +2569,12 @@ componentDidCatch @ Inline Babel script:35
                     console.warn('Error al consultar Wikipedia:', err);
                 }
 
+
                 setModalForm(updated);
                 setIsFetchingMetadata(false);
                 showToast('¡Metadatos y portada HD autocompletados con éxito!');
             };
+
 
             const exportData = () => {
                 const exportArray = videoteca.map(({ id, pistas, tracks, ...v }) => {
@@ -2424,12 +2589,15 @@ componentDidCatch @ Inline Babel script:35
                         description: v.description || v.descripcion || '',
                         tracks: rawTracks.map(({ id, ...p }) => {
                             const audioUrl = p.audio || p.urlDrive || p.url || '';
+                            const lowerAudio = audioUrl.toLowerCase();
+                            const isDirectAudio = lowerAudio.includes('.mp3') || lowerAudio.includes('.m4a') || lowerAudio.includes('.ogg') || lowerAudio.includes('.wav') || lowerAudio.includes('/download/') || lowerAudio.includes('/items/');
                             const extractedArchiveId = p.archiveId || getArchiveIdFromUrl(audioUrl);
+                            const cleanDuration = (p.duration && p.duration !== 'Álbum') ? p.duration : (p.duracion && p.duracion !== 'Álbum') ? p.duracion : '3:30';
                             return {
                                 title: p.title || p.titulo || 'Pista',
                                 audio: audioUrl,
-                                duration: p.duration || p.duracion || 'Álbum',
-                                type: (p.type === 'archive' || extractedArchiveId) ? 'archive' : 'audio',
+                                duration: cleanDuration,
+                                type: isDirectAudio ? 'audio' : ((p.type === 'archive' || extractedArchiveId) ? 'archive' : 'audio'),
                                 archiveId: extractedArchiveId || undefined
                             };
                         })
@@ -2439,6 +2607,7 @@ componentDidCatch @ Inline Babel script:35
                 showToast('Archivo videoteca.json de BoxPlayMusic generado correctamente');
             };
 
+
             const saveItemBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -2447,16 +2616,19 @@ componentDidCatch @ Inline Babel script:35
                 const rawMusicUrl = (formData.get('musicUrl') || '').trim();
                 const archiveId = getArchiveIdFromUrl(rawMusicUrl);
 
+
                 const existingIndex = videoteca.findIndex(v => 
                     (v.album || v.titulo || v.title || '').toLowerCase() === album.toLowerCase() &&
                     (v.artist || v.artista || '').toLowerCase() === artist.toLowerCase() &&
                     (!editingItem || v.id !== editingItem.id)
                 );
 
+
                 if (existingIndex !== -1) {
                     showToast(`El álbum "${album}" de ${artist} ya existe.`, 'error');
                     return;
                 }
+
 
                 const newData = {
                     artist,
@@ -2485,19 +2657,21 @@ componentDidCatch @ Inline Babel script:35
                 setEditingItem(null);
             };
 
+
             const savePista = (e) => {
                 e.preventDefault();
-                const formData = new FormData(e.target);
-                const title = (formData.get('title') || '').trim();
-                const audio = (formData.get('audio') || '').trim();
-                const customArchiveId = (formData.get('archiveId') || '').trim();
-                const extractedArchiveId = customArchiveId || getArchiveIdFromUrl(audio);
-                const currentTracks = selectedItem.tracks || selectedItem.pistas || [];
-                const updatedTracks = [...currentTracks];
+                if (!selectedItem) return;
 
-                const existingPistaIndex = updatedTracks.findIndex(p => 
+                const title = (pistaForm.title || '').trim();
+                const audio = (pistaForm.audio || '').trim();
+                const customArchiveId = (pistaForm.archiveId || '').trim();
+                const extractedArchiveId = customArchiveId || getArchiveIdFromUrl(audio);
+                const currentTracks = [...(selectedItem.tracks || selectedItem.pistas || [])];
+
+                // Comprobar duplicados excluyendo el índice que se está editando
+                const existingPistaIndex = currentTracks.findIndex((p, i) => 
                     (p.title || p.titulo || '').toLowerCase() === title.toLowerCase() && 
-                    (editingPista.isNew || updatedTracks[editingPista.index]?.title !== title)
+                    (!editingPista || editingPista.index !== i)
                 );
                 
                 if (existingPistaIndex !== -1) {
@@ -2506,36 +2680,122 @@ componentDidCatch @ Inline Babel script:35
                 }
 
                 const pistaData = { 
-                    title, 
+                    title: title || 'Pista de Audio', 
                     audio, 
                     url: audio,
                     urlDrive: audio,
-                    duration: formData.get('duration') || 'Álbum', 
+                    duration: (pistaForm.duration || 'Álbum').trim(), 
                     type: (extractedArchiveId || audio.includes('archive.org')) ? 'archive' : 'audio',
                     archiveId: extractedArchiveId || undefined,
-                    id: `pista-${Date.now()}` 
+                    id: (editingPista && !editingPista.isNew && currentTracks[editingPista.index]?.id) ? currentTracks[editingPista.index].id : `pista-${Date.now()}-${Math.random().toString(36).substr(2, 4)}` 
                 };
                 
                 if (editingPista.isNew) {
-                    updatedTracks.push(pistaData);
+                    currentTracks.push(pistaData);
                     showToast('Canción añadida al álbum');
                 } else {
-                    pistaData.id = updatedTracks[editingPista.index].id; 
-                    updatedTracks[editingPista.index] = pistaData;
+                    currentTracks[editingPista.index] = pistaData;
                     showToast('Canción actualizada');
                 }
                 
-                setVideoteca(videoteca.map(v => v.id === selectedItem.id ? { ...selectedItem, tracks: updatedTracks, pistas: updatedTracks } : v));
+                const updatedVideoteca = videoteca.map(v => 
+                    (v.id === selectedItem.id || v === selectedItem) 
+                        ? { ...v, tracks: currentTracks, pistas: currentTracks } 
+                        : v
+                );
+                setVideoteca(updatedVideoteca);
                 setEditingPista(null);
             };
 
             const deletePista = (idx) => {
                 requestConfirm('¿Eliminar esta canción del álbum?', () => {
-                    const currentTracks = selectedItem.tracks || selectedItem.pistas || [];
-                    const updatedTracks = currentTracks.filter((_, i) => i !== idx);
-                    setVideoteca(videoteca.map(v => v.id === selectedItem.id ? { ...selectedItem, tracks: updatedTracks, pistas: updatedTracks } : v));
+                    const currentTracks = [...(selectedItem.tracks || selectedItem.pistas || [])];
+                    currentTracks.splice(idx, 1);
+                    const updatedVideoteca = videoteca.map(v => 
+                        (v.id === selectedItem.id || v === selectedItem) 
+                            ? { ...v, tracks: currentTracks, pistas: currentTracks } 
+                            : v
+                    );
+                    setVideoteca(updatedVideoteca);
                     showToast('Canción eliminada');
                 });
+            };
+
+            const moveTrack = (idx, direction) => {
+                if (!selectedItem) return;
+                const currentTracks = [...(selectedItem.tracks || selectedItem.pistas || [])];
+                if (direction === 'up' && idx > 0) {
+                    [currentTracks[idx - 1], currentTracks[idx]] = [currentTracks[idx], currentTracks[idx - 1]];
+                } else if (direction === 'down' && idx < currentTracks.length - 1) {
+                    [currentTracks[idx + 1], currentTracks[idx]] = [currentTracks[idx], currentTracks[idx + 1]];
+                }
+                const updatedVideoteca = videoteca.map(v => 
+                    (v.id === selectedItem.id || v === selectedItem) 
+                        ? { ...v, tracks: currentTracks, pistas: currentTracks } 
+                        : v
+                );
+                setVideoteca(updatedVideoteca);
+            };
+
+            const handleExtractArchiveTracks = async () => {
+                const archId = selectedItem.archiveId || getArchiveIdFromUrl(selectedItem.musicUrl || selectedItem.urlDrive || '');
+                if (!archId) {
+                    showToast('No se encontró identificador de Archive.org en este disco');
+                    return;
+                }
+                setIsExtractingTracks(true);
+                showToast('Consultando canciones en Archive.org...', 'info');
+                try {
+                    const res = await fetch(`https://archive.org/metadata/${encodeURIComponent(archId)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const files = data.files || [];
+                        const audioFiles = files.filter(f => 
+                            f.format && (f.format.includes('VBR MP3') || f.format.includes('MP3') || f.format.includes('Audio') || (f.name || '').toLowerCase().endsWith('.mp3'))
+                        );
+
+                        if (audioFiles.length > 0) {
+                            const extracted = audioFiles.map((f, i) => {
+                                let rawTitle = f.title || f.name.replace(/\.[^/.]+$/, '').replace(/^[0-9]+[_\s-]+/, '');
+                                let dur = 'Álbum';
+                                if (f.length) {
+                                    const total = parseFloat(f.length);
+                                    if (!isNaN(total) && total > 0) {
+                                        const m = Math.floor(total / 60);
+                                        const s = Math.floor(total % 60);
+                                        dur = `${m}:${s < 10 ? '0' : ''}${s}`;
+                                    }
+                                }
+                                return {
+                                    title: rawTitle.replace(/_/g, ' '),
+                                    audio: `https://archive.org/download/${archId}/${encodeURIComponent(f.name)}`,
+                                    url: `https://archive.org/download/${archId}/${encodeURIComponent(f.name)}`,
+                                    urlDrive: `https://archive.org/download/${archId}/${encodeURIComponent(f.name)}`,
+                                    duration: dur,
+                                    type: 'audio',
+                                    archiveId: archId,
+                                    id: `pista-${Date.now()}-${i}`
+                                };
+                            });
+
+                            const updatedVideoteca = videoteca.map(v => 
+                                (v.id === selectedItem.id || v === selectedItem) 
+                                    ? { ...v, tracks: extracted, pistas: extracted } 
+                                    : v
+                            );
+                            setVideoteca(updatedVideoteca);
+                            showToast(`¡Se extrajeron ${extracted.length} canciones con éxito!`);
+                        } else {
+                            showToast('No se encontraron archivos de canciones en este registro de Archive.org');
+                        }
+                    } else {
+                        showToast('Error al conectar con el servidor de Archive.org');
+                    }
+                } catch (e) {
+                    console.warn(e);
+                    showToast('Error al procesar canciones de Archive.org');
+                }
+                setIsExtractingTracks(false);
             };
 
             const moveItem = (index, direction) => {
@@ -2548,6 +2808,7 @@ componentDidCatch @ Inline Babel script:35
                 setVideoteca(newItems);
             };
 
+
             const filteredVideoteca = videoteca.filter(v => {
                 const name = (v.album || v.titulo || v.title || '').toLowerCase();
                 const art = (v.artist || v.artista || '').toLowerCase();
@@ -2556,6 +2817,7 @@ componentDidCatch @ Inline Babel script:35
                 const q = searchTerm.toLowerCase();
                 return name.includes(q) || art.includes(q) || gen.includes(q) || yr.includes(q);
             });
+
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -2578,6 +2840,7 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         </div>
 
+
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -2587,6 +2850,7 @@ componentDidCatch @ Inline Babel script:35
                                 className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none text-xs"
                             />
                         </div>
+
 
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredVideoteca.length === 0 ? (
@@ -2598,6 +2862,7 @@ componentDidCatch @ Inline Babel script:35
                                     const coverImg = item.cover || item.imagen || item.image;
                                     const tracksCount = (item.tracks || item.pistas || []).length;
                                     const isSelected = selectedItemId === item.id;
+
 
                                     return (
                                         <div 
@@ -2621,9 +2886,19 @@ componentDidCatch @ Inline Babel script:35
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-                                                <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={12}/></button>
-                                                <button onClick={() => moveItem(index, 'down')} disabled={index === videoteca.length - 1} className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={12}/></button>
+                                            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => setEditingItem(item)} 
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors" 
+                                                    title="Editar Álbum"
+                                                >
+                                                    <Icon name="edit" size={13}/>
+                                                </button>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20" title="Subir"><Icon name="up" size={10}/></button>
+                                                    <button onClick={() => moveItem(index, 'down')} disabled={index === videoteca.length - 1} className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20" title="Bajar"><Icon name="down" size={10}/></button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -2631,6 +2906,7 @@ componentDidCatch @ Inline Babel script:35
                             )}
                         </div>
                     </div>
+
 
                     {/* Detalle del Álbum y Canciones */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -2642,16 +2918,23 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-100 pb-5">
-                                    <div className="flex gap-4 items-start">
-                                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-black border-2 border-amber-500/50 shadow-md shrink-0">
+                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-5">
+                                    <div className="flex gap-3 sm:gap-4 items-start min-w-0 flex-1">
+                                        <div 
+                                            className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-black border-2 border-amber-500/50 shadow-md shrink-0 relative group cursor-pointer" 
+                                            onClick={() => setEditingItem(selectedItem)} 
+                                            title="Haz clic para editar la portada y datos del álbum"
+                                        >
                                             <img 
                                                 src={selectedItem.cover || selectedItem.imagen} 
-                                                className="w-full h-full object-cover" 
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
                                                 onError={(e) => { e.target.src='https://placehold.co/150x150/111/d4af37?text=DISCO'; }}
                                             />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity">
+                                                <Icon name="edit" size={18} />
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                                     {selectedItem.genre || 'Rock'}
@@ -2665,11 +2948,24 @@ componentDidCatch @ Inline Babel script:35
                                                     </span>
                                                 )}
                                             </div>
-                                            <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5 truncate">{selectedItem.album || selectedItem.titulo}</h1>
-                                            <h2 className="text-sm font-bold text-amber-800 truncate">{selectedItem.artist || selectedItem.artista}</h2>
+                                            
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <h1 className="text-lg sm:text-2xl font-black text-slate-900 truncate">
+                                                    {selectedItem.album || selectedItem.titulo}
+                                                </h1>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setEditingItem(selectedItem)} 
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors shrink-0" 
+                                                    title="Editar información del álbum"
+                                                >
+                                                    <Icon name="edit" size={15}/>
+                                                </button>
+                                            </div>
+                                            <h2 className="text-xs sm:text-sm font-bold text-amber-800 truncate">{selectedItem.artist || selectedItem.artista}</h2>
                                             
                                             {/* Indicador de URL */}
-                                            <div className="mt-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 max-w-md">
+                                            <div className="mt-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 max-w-full">
                                                 <div className="truncate">
                                                     <span className="font-bold text-amber-950 block text-[10px]">URL Principal del Álbum / Archive.org:</span>
                                                     <span className="text-[11px] font-mono text-slate-700 truncate block">
@@ -2686,22 +2982,35 @@ componentDidCatch @ Inline Babel script:35
                                                 )}
                                             </div>
 
-                                            <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-3">{selectedItem.description || selectedItem.descripcion || 'Sin descripción disponible.'}</p>
+                                            <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-2">{selectedItem.description || selectedItem.descripcion || 'Sin descripción disponible.'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 w-full sm:w-auto justify-end shrink-0">
-                                        <button onClick={() => setEditingItem(selectedItem)} className="px-3.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">
-                                            Editar Álbum
+
+                                    {/* BOTONES PRINCIPALES DE ACCIÓN: EDITAR Y BORRAR ÁLBUM */}
+                                    <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-end shrink-0 pt-2 lg:pt-0">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setEditingItem(selectedItem)} 
+                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all"
+                                            title="Editar portada, título, año, género y descripción de este álbum"
+                                        >
+                                            <Icon name="edit" size={14}/> Editar Álbum
                                         </button>
-                                        <button onClick={() => requestConfirm(`¿Eliminar "${selectedItem.album || selectedItem.titulo}" y todas sus canciones?`, () => {
-                                            setVideoteca(videoteca.filter(v => v.id !== selectedItem.id));
-                                            setSelectedItemId(null);
-                                            showToast('Álbum eliminado');
-                                        })} className="px-3.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors">
-                                            Borrar
+                                        <button 
+                                            type="button"
+                                            onClick={() => requestConfirm(`¿Eliminar "${selectedItem.album || selectedItem.titulo}" y todas sus canciones?`, () => {
+                                                setVideoteca(videoteca.filter(v => v.id !== selectedItem.id && v !== selectedItem));
+                                                setSelectedItemId(null);
+                                                showToast('Álbum eliminado');
+                                            })} 
+                                            className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-rose-200"
+                                            title="Eliminar este álbum completo"
+                                        >
+                                            <Icon name="trash" size={14}/> Borrar
                                         </button>
                                     </div>
                                 </div>
+
 
                                 {/* Lista de Canciones */}
                                 <div>
@@ -2712,10 +3021,28 @@ componentDidCatch @ Inline Babel script:35
                                             </h3>
                                             <p className="text-[11px] text-slate-400">Soporta enlaces directos MP3, Google Drive y embebidos de Archive.org.</p>
                                         </div>
-                                        <button onClick={() => setEditingPista({ isNew: true })} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all">
-                                            <Icon name="plus" size={12}/> Añadir Canción
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {(selectedItem.archiveId || getArchiveIdFromUrl(selectedItem.musicUrl || selectedItem.urlDrive || '')) && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleExtractArchiveTracks}
+                                                    disabled={isExtractingTracks}
+                                                    className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all disabled:opacity-50"
+                                                    title="Importar automáticamente todas las pistas MP3 de este álbum desde Archive.org"
+                                                >
+                                                    {isExtractingTracks ? (
+                                                        <span className="flex items-center gap-1"><span className="animate-spin">⏳</span> Extrayendo...</span>
+                                                    ) : (
+                                                        <><Icon name="archive" size={12}/> Extraer de Archive.org</>
+                                                    )}
+                                                </button>
+                                            )}
+                                            <button onClick={() => setEditingPista({ isNew: true, data: {} })} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all">
+                                                <Icon name="plus" size={12}/> Añadir Canción
+                                            </button>
+                                        </div>
                                     </div>
+
 
                                     <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
                                         {(!selectedItem.tracks && !selectedItem.pistas) || (selectedItem.tracks || selectedItem.pistas || []).length === 0 ? (
@@ -2738,6 +3065,7 @@ componentDidCatch @ Inline Babel script:35
                                                 const trackDur = track.duration || track.duracion || 'Álbum';
                                                 const isArchive = track.type === 'archive' || track.archiveId || trackAudio.includes('archive.org');
 
+
                                                 return (
                                                     <div key={track.id || idx} className="flex items-center justify-between p-3 border-b border-slate-100 last:border-b-0 hover:bg-amber-50/40 transition-colors text-xs">
                                                         <div className="min-w-0 pr-3 flex items-center gap-3">
@@ -2757,15 +3085,19 @@ componentDidCatch @ Inline Babel script:35
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <div className="flex gap-2 shrink-0 items-center">
+                                                        <div className="flex gap-1.5 shrink-0 items-center">
+                                                            <div className="flex gap-0.5" onClick={e => e.stopPropagation()}>
+                                                                <button onClick={() => moveTrack(idx, 'up')} disabled={idx === 0} className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20" title="Subir canción"><Icon name="up" size={11}/></button>
+                                                                <button onClick={() => moveTrack(idx, 'down')} disabled={idx === (selectedItem.tracks || selectedItem.pistas || []).length - 1} className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20" title="Bajar canción"><Icon name="down" size={11}/></button>
+                                                            </div>
                                                             <span className="text-[11px] font-mono text-slate-400 px-1">{trackDur}</span>
                                                             {(trackAudio || track.archiveId) && (
                                                                 <button onClick={() => onTestPlayer(trackTitle, track.archiveId ? `https://archive.org/embed/${track.archiveId}` : trackAudio)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[11px] font-bold px-2 flex items-center gap-1 transition-colors">
                                                                     <Icon name="play" size={11} /> Probar
                                                                 </button>
                                                             )}
-                                                            <button onClick={() => setEditingPista({ index: idx, data: track, isNew: false })} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg" title="Editar">
-                                                                <Icon name="edit" size={13}/>
+                                                            <button onClick={() => setEditingPista({ index: idx, data: track, isNew: false })} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg font-bold flex items-center gap-1 text-xs" title="Editar Canción">
+                                                                <Icon name="edit" size={13}/> <span className="hidden sm:inline">Editar</span>
                                                             </button>
                                                             <button onClick={() => deletePista(idx)} className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg" title="Eliminar">
                                                                 <Icon name="trash" size={13}/>
@@ -2781,6 +3113,7 @@ componentDidCatch @ Inline Babel script:35
                         )}
                     </div>
 
+
                     {/* Modal Crear/Editar Álbum con Generador Automático de Metadatos */}
                     {editingItem && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
@@ -2793,6 +3126,7 @@ componentDidCatch @ Inline Babel script:35
                                         <Icon name="x" size={18} />
                                     </button>
                                 </div>
+
 
                                 {/* Generador Inteligente de Metadatos */}
                                 <div className="bg-gradient-to-r from-amber-500/10 via-amber-400/10 to-yellow-500/10 border border-amber-500/30 p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-inner">
@@ -2820,6 +3154,7 @@ componentDidCatch @ Inline Babel script:35
                                     </button>
                                 </div>
 
+
                                 {/* Vista Previa Rápida del Álbum */}
                                 {modalForm.cover && (
                                     <div className="flex items-center gap-3 p-2.5 bg-slate-50 border border-slate-200 rounded-2xl animate-fade-in">
@@ -2834,6 +3169,7 @@ componentDidCatch @ Inline Babel script:35
                                         </div>
                                     </div>
                                 )}
+
 
                                 <form onSubmit={saveItemBase} className="space-y-3.5">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2864,6 +3200,7 @@ componentDidCatch @ Inline Babel script:35
                                         </div>
                                     </div>
 
+
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs font-bold mb-1 text-slate-700">Año de Lanzamiento</label>
@@ -2893,6 +3230,7 @@ componentDidCatch @ Inline Babel script:35
                                         </div>
                                     </div>
 
+
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">URL Portada Original del Disco</label>
                                         <input 
@@ -2904,6 +3242,7 @@ componentDidCatch @ Inline Babel script:35
                                             placeholder="https://..." 
                                         />
                                     </div>
+
 
                                     <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200">
                                         <label className="block text-xs font-bold mb-1 text-amber-950 flex items-center gap-1.5">
@@ -2921,6 +3260,7 @@ componentDidCatch @ Inline Babel script:35
                                         </span>
                                     </div>
 
+
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">Descripción / Reseña Histórica</label>
                                         <textarea 
@@ -2933,6 +3273,7 @@ componentDidCatch @ Inline Babel script:35
                                         ></textarea>
                                     </div>
 
+
                                     <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                         <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button>
                                         <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md">Guardar Álbum</button>
@@ -2942,17 +3283,30 @@ componentDidCatch @ Inline Babel script:35
                         </div>
                     )}
 
-                    {/* Modal Crear/Editar Pista Individual */}
+
+                    {/* Modal Crear/Editar Pista Individual con Estado Controlado */}
                     {editingPista && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4">
-                                <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                                    <Icon name="music" className="text-amber-600" /> {editingPista.isNew ? 'Añadir Canción / Disco' : 'Editar Canción'}
-                                </h3>
+                            <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4 animate-scale-in">
+                                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                                    <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                                        <Icon name="music" className="text-amber-600" /> {editingPista.isNew ? 'Añadir Canción / Disco' : 'Editar Canción'}
+                                    </h3>
+                                    <button onClick={() => setEditingPista(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+                                        <Icon name="x" size={16} />
+                                    </button>
+                                </div>
                                 <form onSubmit={savePista} className="space-y-3.5">
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">Título de la Canción</label>
-                                        <input name="title" defaultValue={editingPista.data?.title || editingPista.data?.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500" placeholder="Ej: Come Together" />
+                                        <input 
+                                            name="title" 
+                                            value={pistaForm.title} 
+                                            onChange={e => setPistaForm({ ...pistaForm, title: e.target.value })} 
+                                            required 
+                                            className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500" 
+                                            placeholder="Ej: Come Together o Rayando el Sol" 
+                                        />
                                     </div>
                                     
                                     <div>
@@ -2961,7 +3315,16 @@ componentDidCatch @ Inline Babel script:35
                                         </label>
                                         <input 
                                             name="audio" 
-                                            defaultValue={editingPista.data?.audio || editingPista.data?.urlDrive || editingPista.data?.url || ''} 
+                                            value={pistaForm.audio} 
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const autoArchId = getArchiveIdFromUrl(val);
+                                                setPistaForm({
+                                                    ...pistaForm,
+                                                    audio: val,
+                                                    archiveId: autoArchId || pistaForm.archiveId
+                                                });
+                                            }} 
                                             required 
                                             className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono" 
                                             placeholder="https://archive.org/details/... o link mp3" 
@@ -2970,12 +3333,24 @@ componentDidCatch @ Inline Babel script:35
 
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">Archive.org ID (Opcional si usas URL directa)</label>
-                                        <input name="archiveId" defaultValue={editingPista.data?.archiveId || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono" placeholder="Ej: abbey-road_1969" />
+                                        <input 
+                                            name="archiveId" 
+                                            value={pistaForm.archiveId} 
+                                            onChange={e => setPistaForm({ ...pistaForm, archiveId: e.target.value })} 
+                                            className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 font-mono" 
+                                            placeholder="Ej: abbey-road_1969" 
+                                        />
                                     </div>
 
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">Duración estimada</label>
-                                        <input name="duration" defaultValue={editingPista.data?.duration || editingPista.data?.duracion || 'Álbum'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500" placeholder="Ej: 4:20 o Álbum" />
+                                        <input 
+                                            name="duration" 
+                                            value={pistaForm.duration} 
+                                            onChange={e => setPistaForm({ ...pistaForm, duration: e.target.value })} 
+                                            className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500" 
+                                            placeholder="Ej: 4:20 o Álbum" 
+                                        />
                                     </div>
 
                                     <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -2998,6 +3373,7 @@ componentDidCatch @ Inline Babel script:35
             const [githubModalOpen, setGithubModalOpen] = useState(false);
             const [playerData, setPlayerData] = useState({ isOpen: false, title: '', url: '' });
 
+
             const [movies, setMovies] = useState([]);
             const [estrenos, setEstrenos] = useState([]);
             const [tudumList, setTudumList] = useState([]);
@@ -3008,18 +3384,23 @@ componentDidCatch @ Inline Babel script:35
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
 
+
             const [history, setHistory] = useState([]);
             const [historyIndex, setHistoryIndex] = useState(-1);
 
+
             const fileInputRef = useRef(null);
+
 
             const showToast = useCallback((msg, type = 'success') => {
                 setToast({ msg, type, id: Date.now() });
             }, []);
 
+
             const requestConfirm = useCallback((message, onConfirm) => {
                 setConfirmDialog({ isOpen: true, message, onConfirm });
             }, []);
+
 
             const openTestPlayer = useCallback((title, url) => {
                 if (!url) {
@@ -3028,6 +3409,7 @@ componentDidCatch @ Inline Babel script:35
                 }
                 setPlayerData({ isOpen: true, title, url });
             }, [showToast]);
+
 
             const recordStateChange = useCallback((newMovies, newEstrenos, newTudum, newSeries, newChannels, newAnimados, newRadios, newVideoteca) => {
                 const currentState = { 
@@ -3049,6 +3431,7 @@ componentDidCatch @ Inline Babel script:35
                 setHistoryIndex(prevIdx => Math.min(prevIdx + 1, 24));
             }, [historyIndex]);
 
+
             const handleUndo = () => {
                 if (historyIndex > 0) {
                     const prev = history[historyIndex - 1];
@@ -3066,6 +3449,7 @@ componentDidCatch @ Inline Babel script:35
                     showToast('No hay más acciones previas para deshacer', 'error');
                 }
             };
+
 
             const downloadAllBackups = () => {
                 const fullBackup = {
@@ -3100,10 +3484,12 @@ componentDidCatch @ Inline Babel script:35
                     tvM3U: generateM3U(channels)
                 };
 
+
                 const dateStr = new Date().toISOString().slice(0, 10);
                 downloadFile(JSON.stringify(fullBackup, null, 2), `boxplaytv_backup_completo_${dateStr}.json`, 'application/json');
                 showToast('Copia de seguridad completa descargada');
             };
+
 
             const fetchFromCloud = async () => {
                 setLoading(true);
@@ -3119,6 +3505,7 @@ componentDidCatch @ Inline Babel script:35
                         fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
                     ]);
 
+
                     const parsedChannels = parseM3U(resTV || '');
                     
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
@@ -3129,6 +3516,7 @@ componentDidCatch @ Inline Babel script:35
                             episodios: (t.episodios || []).map((ep, ei) => ({ ...ep, id: `ep-${i}-${ei}` }))
                         }))
                     }));
+
 
                     const parsedMovies = (Array.isArray(resMovies) ? resMovies : (resMovies?.peliculas || [])).map((m, i) => ({ ...m, id: `mov-${i}` }));
                     const parsedEstrenos = (Array.isArray(resEstrenos) ? resEstrenos : (resEstrenos?.peliculas2 || resEstrenos?.peliculas || [])).map((m, i) => ({ ...m, id: `est-${i}` }));
@@ -3143,6 +3531,7 @@ componentDidCatch @ Inline Babel script:35
                         }))
                     }));
 
+
                     const parsedRadios = (Array.isArray(resRadios) ? resRadios : (resRadios?.radios || [])).map((r, i) => ({ ...r, id: r.id || `cr-${i}` }));
                     
                     const parsedVideoteca = (Array.isArray(resVideoteca) ? resVideoteca : (resVideoteca?.videoteca || resVideoteca?.albumes || [])).map((v, i) => ({
@@ -3150,6 +3539,7 @@ componentDidCatch @ Inline Babel script:35
                         id: `vid-${i}`,
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
+
 
                     setChannels(parsedChannels);
                     setSeries(parsedSeries);
@@ -3159,6 +3549,7 @@ componentDidCatch @ Inline Babel script:35
                     setAnimados(parsedAnimados);
                     setRadios(parsedRadios);
                     setVideoteca(parsedVideoteca);
+
 
                     recordStateChange(parsedMovies, parsedEstrenos, parsedTudum, parsedSeries, parsedChannels, parsedAnimados, parsedRadios, parsedVideoteca);
                     showToast("Datos descargados y actualizados correctamente");
@@ -3170,6 +3561,7 @@ componentDidCatch @ Inline Babel script:35
                     setDataInitialized(true);
                 }
             };
+
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
                 const datasets = {
@@ -3268,16 +3660,20 @@ componentDidCatch @ Inline Babel script:35
                     'listaoficial.m3u': generateM3U(channels)
                 };
 
+
                 try {
                     let count = 0;
                     const total = Object.keys(datasets).length;
+
 
                     for (const [filename, content] of Object.entries(datasets)) {
                         count++;
                         if (setStep) setStep(`[${count}/${total}] Actualizando ${filename}...`);
 
+
                         const fileContentStr = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
                         const base64Content = btoa(unescape(encodeURIComponent(fileContentStr)));
+
 
                         const getUrl = `https://api.github.com/repos/${repo}/contents/${filename}?ref=${encodeURIComponent(branch)}`;
                         const getRes = await fetch(getUrl, {
@@ -3287,11 +3683,13 @@ componentDidCatch @ Inline Babel script:35
                             }
                         });
 
+
                         let sha = null;
                         if (getRes.ok) {
                             const fileData = await getRes.json();
                             sha = fileData.sha;
                         }
+
 
                         const putUrl = `https://api.github.com/repos/${repo}/contents/${filename}`;
                         const putBody = {
@@ -3300,6 +3698,7 @@ componentDidCatch @ Inline Babel script:35
                             branch: branch
                         };
                         if (sha) putBody.sha = sha;
+
 
                         const putRes = await fetch(putUrl, {
                             method: 'PUT',
@@ -3311,11 +3710,13 @@ componentDidCatch @ Inline Babel script:35
                             body: JSON.stringify(putBody)
                         });
 
+
                         if (!putRes.ok) {
                             const errData = await putRes.json().catch(() => ({}));
                             throw new Error(`Error actualizando ${filename}: ${errData.message || putRes.statusText}`);
                         }
                     }
+
 
                     showToast('¡Los 8 archivos de Box Play TV se actualizaron en GitHub exitosamente!');
                 } catch (err) {
@@ -3323,6 +3724,7 @@ componentDidCatch @ Inline Babel script:35
                     showToast(`Error al sincronizar con GitHub: ${err.message}`, 'error');
                 }
             };
+
 
             const handleFileImport = (e) => {
                 const file = e.target.files[0];
@@ -3401,6 +3803,7 @@ componentDidCatch @ Inline Babel script:35
                 e.target.value = '';
             };
 
+
             // Restauración y guardado local seguro
             useEffect(() => {
                 const loadData = async () => {
@@ -3413,6 +3816,7 @@ componentDidCatch @ Inline Babel script:35
                     const localRadios = localStorage.getItem('boxplay_admin_radios') || localStorage.getItem('magis_admin_radios');
                     const localVideoteca = localStorage.getItem('boxplay_admin_videoteca') || localStorage.getItem('magis_admin_videoteca');
 
+
                     if (localMovies && localEstrenos && localTudum && localSeries && localTV && localAnimados && localVideoteca && localRadios) {
                         try {
                             const m = JSON.parse(localMovies);
@@ -3424,6 +3828,7 @@ componentDidCatch @ Inline Babel script:35
                             const r = JSON.parse(localRadios);
                             const v = JSON.parse(localVideoteca);
 
+
                             setMovies(m);
                             setEstrenos(est);
                             setTudumList(tud);
@@ -3433,6 +3838,7 @@ componentDidCatch @ Inline Babel script:35
                             setRadios(r);
                             setVideoteca(v);
                             recordStateChange(m, est, tud, s, t, a, r, v);
+
 
                             setLoading(false);
                             setDataInitialized(true);
@@ -3444,6 +3850,7 @@ componentDidCatch @ Inline Babel script:35
                 };
                 loadData();
             }, []);
+
 
             useEffect(() => { 
                 if (dataInitialized) {
@@ -3458,6 +3865,7 @@ componentDidCatch @ Inline Babel script:35
                 } 
             }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, dataInitialized]);
 
+
             if (loading) {
                 return (
                     <div className="flex flex-col items-center justify-center h-screen bg-[#0b0f19] text-white">
@@ -3467,6 +3875,7 @@ componentDidCatch @ Inline Babel script:35
                     </div>
                 );
             }
+
 
             const tabs = [
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
@@ -3478,6 +3887,7 @@ componentDidCatch @ Inline Babel script:35
                 { id: 'tv', label: 'TV en Vivo', icon: 'tv', count: channels.length, color: 'text-cyan-500' },
                 { id: 'radios', label: 'Radios HD', icon: 'radio', count: radios.length, color: 'text-emerald-500' }
             ];
+
 
             return (
                 <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
@@ -3502,6 +3912,7 @@ componentDidCatch @ Inline Babel script:35
                         url={playerData.url} 
                         onClose={() => setPlayerData({ isOpen: false, title: '', url: '' })} 
                     />
+
 
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json,.m3u,.m3u8" />
                     
@@ -3542,11 +3953,13 @@ componentDidCatch @ Inline Babel script:35
                                     <Icon name="download" size={13} /> <span>Backup</span>
                                 </button>
 
+
                                 <button onClick={() => requestConfirm('¿Descartar cambios no guardados y re-descargar desde GitHub?', fetchFromCloud)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm" title="Actualizar desde servidores remotos">
                                     <Icon name="refresh" size={13} /> <span>Recargar</span>
                                 </button>
                             </div>
                         </div>
+
 
                         {/* Barra de Pestañas con Contadores */}
                         <div className="bg-slate-900 border-t border-slate-800/80 px-4 py-2">
@@ -3572,6 +3985,7 @@ componentDidCatch @ Inline Babel script:35
                             </div>
                         </div>
                     </header>
+
 
                     {/* Contenido Dinámico */}
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
@@ -3651,6 +4065,7 @@ componentDidCatch @ Inline Babel script:35
                         </ErrorBoundary>
                     </main>
 
+
                     {/* Footer Informativo */}
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
@@ -3662,9 +4077,9 @@ componentDidCatch @ Inline Babel script:35
             );
         };
 
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
 </html>
-
