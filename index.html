@@ -39,7 +39,6 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-
     <script>
         if (typeof Babel !== 'undefined') {
             Babel.registerPreset('react-classic', {
@@ -50,10 +49,8 @@
         }
     </script>
 
-
     <!-- Tipografía Inter y Orbitron -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-
 
     <style>
         body { 
@@ -87,10 +84,8 @@
         </div>
     </div>
 
-
     <script type="text/babel" data-presets="react-classic">
         const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
-
 
         const SOURCE_URLS = {
             TV: './listaoficial.m3u',
@@ -103,7 +98,6 @@
             TUDUM: './tudum.json'
         };
 
-
         const RAW_URLS = {
             TV: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/listaoficial.m3u',
             SERIES: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/playlist.json',
@@ -114,7 +108,6 @@
             VIDEOTECA: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/videoteca.json',
             TUDUM: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/tudum.json'
         };
-
 
         class ErrorBoundary extends Component {
             constructor(props) {
@@ -142,6 +135,37 @@
                 return this.props.children;
             }
         }
+
+        // ✅ NUEVA FUNCIÓN: Normaliza URLs de imagen para evitar errores de carga
+        // Corrige espacios, protocolos faltantes y URLs malformadas que rompen <img>
+        const normalizeImageUrl = (url) => {
+            if (!url || typeof url !== 'string') return '';
+            let cleanUrl = url.trim();
+            if (cleanUrl.length === 0) return '';
+            
+            // Codificar espacios internos que rompen las URLs (si no están ya codificados)
+            if (cleanUrl.includes(' ') && !cleanUrl.includes('%20')) {
+                cleanUrl = cleanUrl.replace(/ /g, '%20');
+            }
+            
+            // Data URL o blob → devolver tal cual
+            if (cleanUrl.startsWith('data:') || cleanUrl.startsWith('blob:')) return cleanUrl;
+            
+            // Protocolo relativo //dominio.com → añadir https:
+            if (cleanUrl.startsWith('//')) return 'https:' + cleanUrl;
+            
+            // Ya tiene protocolo → devolver tal cual
+            if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) return cleanUrl;
+            
+            // Ruta relativa (./, ../, /) → devolver tal cual
+            if (cleanUrl.startsWith('/') || cleanUrl.startsWith('./') || cleanUrl.startsWith('../')) return cleanUrl;
+            
+            // Sin protocolo pero parece dominio → añadir https://
+            if (cleanUrl.includes('.') && !cleanUrl.includes(' ')) return 'https://' + cleanUrl;
+            
+            return cleanUrl;
+        };
+
         const convertUrl = (url) => {
             if (!url) return '';
             if (url.includes('ok.ru/video/search') || url.includes('ok.ru/search')) return url;
@@ -177,13 +201,22 @@
             return url;
         };
 
-
         const getArchiveIdFromUrl = (url) => {
             if (!url) return null;
             const match = url.match(/archive\.org\/(?:details|download|embed)\/([^\/\?]+)/);
             return match ? match[1] : null;
         };
 
+        // ✅ NUEVA FUNCIÓN: Codificación Base64 segura para UTF-8 (soporta emojis, tildes, ñ)
+        const utf8ToBase64 = (str) => {
+            const utf8Bytes = new TextEncoder().encode(str);
+            let binary = '';
+            const len = utf8Bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(utf8Bytes[i]);
+            }
+            return btoa(binary);
+        };
 
         const downloadFile = (content, filename, type) => {
             const blob = new Blob([content], { type: type });
@@ -197,7 +230,6 @@
             URL.revokeObjectURL(url);
         };
 
-
         const generateM3U = (channels) => {
             let m3u = '#EXTM3U\n';
             channels.forEach(ch => {
@@ -206,7 +238,6 @@
             });
             return m3u;
         };
-
 
         const parseM3U = (data) => {
             if (!data) return [];
@@ -230,7 +261,6 @@
             }
             return channels;
         };
-
 
         const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
 
@@ -257,7 +287,6 @@
 
             return isJson ? [] : '';
         };
-
 
         const Icon = ({ name, size = 18, className = "" }) => {
             switch (name) {
@@ -291,13 +320,11 @@
             }
         };
 
-
         const Toast = ({ message, type = 'success', onClose }) => {
             useEffect(() => { 
                 const timer = setTimeout(onClose, 3200); 
                 return () => clearTimeout(timer); 
             }, [onClose]);
-
 
             const bgStyle = type === 'success' ? 'bg-emerald-600 text-white' : type === 'info' ? 'bg-cyan-600 text-white' : 'bg-rose-600 text-white';
             return (
@@ -307,7 +334,6 @@
                 </div>
             );
         };
-
 
         const ConfirmModal = ({ isOpen, message, onConfirm, onCancel, confirmText = "Confirmar", cancelText = "Cancelar" }) => {
             if (!isOpen) return null;
@@ -334,13 +360,11 @@
             );
         };
 
-
         const PlayerModal = ({ isOpen, title, url, onClose }) => {
             const videoRef = useRef(null);
             const audioRef = useRef(null);
             const hlsRef = useRef(null);
             const [playerError, setPlayerError] = useState(false);
-
 
             const converted = useMemo(() => convertUrl(url), [url]);
             const isEmbed = useMemo(() => {
@@ -351,18 +375,15 @@
                        converted.includes('archive.org/embed');
             }, [converted]);
 
-
             const isAudioStream = useMemo(() => {
                 if (!url) return false;
                 const lower = url.toLowerCase();
                 return lower.endsWith('.mp3') || lower.endsWith('.m4a') || lower.endsWith('.aac') || lower.includes('/stream') || lower.includes('icecast') || lower.includes('streamtheworld') || lower.includes('turadio.stream');
             }, [url]);
 
-
             useEffect(() => {
                 setPlayerError(false);
                 if (!isOpen || !url || isEmbed) return;
-
 
                 if (isAudioStream) {
                     const audio = audioRef.current;
@@ -373,10 +394,8 @@
                     return;
                 }
 
-
                 const video = videoRef.current;
                 if (!video) return;
-
 
                 if (url.includes('.m3u8')) {
                     if (Hls.isSupported()) {
@@ -402,7 +421,6 @@
                     video.play().catch(() => {});
                 }
 
-
                 return () => {
                     if (hlsRef.current) {
                         hlsRef.current.destroy();
@@ -411,9 +429,7 @@
                 };
             }, [isOpen, url, isEmbed, isAudioStream]);
 
-
             if (!isOpen) return null;
-
 
             return (
                 <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[550] flex items-center justify-center p-4 animate-fade-in">
@@ -427,7 +443,6 @@
                                 <Icon name="x" size={18} />
                             </button>
                         </div>
-
 
                         <div className="p-2 sm:p-4 bg-black aspect-video flex items-center justify-center relative overflow-hidden">
                             {isEmbed ? (
@@ -450,7 +465,6 @@
                                 <video ref={videoRef} controls className="w-full h-full max-h-[60vh] bg-black rounded-2xl"></video>
                             )}
 
-
                             {playerError && (
                                 <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-6 text-center">
                                     <div className="text-rose-400 text-xs font-bold space-y-2">
@@ -460,7 +474,6 @@
                                 </div>
                             )}
                         </div>
-
 
                         <div className="p-3 bg-slate-950 text-[11px] text-slate-400 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-2">
                             <span className="truncate max-w-md font-mono text-cyan-300">URL: {converted || url}</span>
@@ -473,7 +486,6 @@
             );
         };
 
-
         const GithubSyncModal = ({ isOpen, onClose, onSync }) => {
             const [token, setToken] = useState(() => localStorage.getItem('boxplay_github_pat') || localStorage.getItem('magis_github_pat') || '');
             const [repo, setRepo] = useState(() => localStorage.getItem('boxplay_github_repo') || localStorage.getItem('magis_github_repo') || 'sejo48/StreamTube-V20');
@@ -481,9 +493,7 @@
             const [syncing, setSyncing] = useState(false);
             const [syncStep, setSyncStep] = useState('');
 
-
             if (!isOpen) return null;
-
 
             const handleSaveAndSync = async (e) => {
                 e.preventDefault();
@@ -496,7 +506,6 @@
                 setSyncStep('');
                 onClose();
             };
-
 
             return (
                 <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[500] flex items-center justify-center p-4 animate-fade-in">
@@ -514,7 +523,6 @@
                             <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700"><Icon name="x" size={18} /></button>
                         </div>
 
-
                         <form onSubmit={handleSaveAndSync} className="space-y-3.5">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Repositorio de Destino (usuario/repo)</label>
@@ -527,7 +535,6 @@
                                     placeholder="sejo48/StreamTube-V20" 
                                 />
                             </div>
-
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -546,7 +553,6 @@
                                 </div>
                             </div>
 
-
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">GitHub Personal Access Token (PAT)</label>
                                 <input 
@@ -560,14 +566,12 @@
                                 <span className="text-[10px] text-slate-400 block mt-1">Requiere permisos de 'repo' o 'contents:write'.</span>
                             </div>
 
-
                             {syncStep && (
                                 <div className="p-2.5 bg-cyan-50 text-cyan-800 rounded-xl text-xs font-mono font-bold flex items-center gap-2 border border-cyan-200">
                                     <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-ping"></div>
                                     <span>{syncStep}</span>
                                 </div>
                             )}
-
 
                             <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                 <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold transition-colors">
@@ -586,17 +590,16 @@
                 </div>
             );
         };
+
         // --- COMPONENTE EDITOR: NETFLIX TUDUM ---
         const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
-
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
-
 
                 const existingIndex = tudumList.findIndex(t => 
                     (t.title || t.titulo || '').toLowerCase() === title.toLowerCase() && 
@@ -607,6 +610,9 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen
+                const rawImage = formData.get('image') || '';
+                const normalizedImage = normalizeImageUrl(rawImage);
 
                 const newItem = {
                     id: editingItem.id || `tudum-${Date.now()}`,
@@ -618,8 +624,8 @@
                     genero: formData.get('genre') || 'Estreno',
                     synopsis: formData.get('synopsis') || '',
                     sinopsis: formData.get('synopsis') || '',
-                    image: formData.get('image') || '',
-                    imagen: formData.get('image') || '',
+                    image: normalizedImage,
+                    imagen: normalizedImage,
                     trailerUrl: formData.get('trailerUrl') || '',
                     urlTrailer: formData.get('trailerUrl') || '',
                     availability: formData.get('availability') || 'Costa Rica (Disponible)',
@@ -627,7 +633,6 @@
                     score: formData.get('score') || '9.0 / 10',
                     puntuacion: formData.get('score') || '9.0 / 10'
                 };
-
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setTudumList(tudumList.map(t => t.id === editingItem.id ? newItem : t));
@@ -638,7 +643,6 @@
                 }
                 setEditingItem(null);
             };
-
 
             const exportData = () => {
                 const exportList = tudumList.map(({ id, ...rest }) => ({
@@ -655,13 +659,11 @@
                 showToast('Archivo tudum.json generado');
             };
 
-
             const filteredList = tudumList.filter(t => 
                 (t.title || t.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (t.genre || t.genero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (t.synopsis || t.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -686,7 +688,6 @@
                         </div>
                     </div>
 
-
                     <div className="relative">
                         <input 
                             type="text" 
@@ -697,7 +698,6 @@
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
-
 
                     {editingItem && (
                         <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
@@ -749,7 +749,6 @@
                         </div>
                     )}
 
-
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredList.map((item, index) => {
                             const poster = item.image || item.imagen;
@@ -757,7 +756,6 @@
                             const genre = item.genre || item.genero;
                             const release = item.releaseDate || item.fechaEstreno;
                             const trailer = item.trailerUrl || item.urlTrailer;
-
 
                             return (
                                 <div key={item.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -792,19 +790,16 @@
             );
         };
 
-
         // --- COMPONENTE EDITOR: TV EN VIVO (M3U) ---
         const TvEditor = ({ channels, setChannels, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [draggedIndex, setDraggedIndex] = useState(null);
 
-
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
-
 
                 const existingIndex = channels.findIndex(c => c.title.toLowerCase() === title.toLowerCase() && (!editingItem || c.id !== editingItem.id));
                 if (existingIndex !== -1) {
@@ -812,15 +807,13 @@
                     return;
                 }
 
-
                 const newChannel = {
                     id: editingItem.id || `tv-${Date.now()}`,
                     title,
-                    logo: formData.get('logo') || '',
+                    logo: normalizeImageUrl(formData.get('logo') || ''),
                     group: formData.get('group') || 'General',
                     url: formData.get('url') || ''
                 };
-
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setChannels(channels.map(c => c.id === editingItem.id ? newChannel : c));
@@ -832,13 +825,11 @@
                 setEditingItem(null);
             };
 
-
             const exportData = () => {
                 const m3uString = generateM3U(channels);
                 downloadFile(m3uString, 'listaoficial.m3u', 'audio/x-mpegurl');
                 showToast('Archivo listaoficial.m3u generado');
             };
-
 
             const moveItem = (index, direction) => {
                 const newChs = [...channels];
@@ -849,7 +840,6 @@
                 }
                 setChannels(newChs);
             };
-
 
             const handleDragStart = (e, index) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; };
             const handleDragOver = (e, index) => {
@@ -864,12 +854,10 @@
             };
             const handleDragEnd = () => { setDraggedIndex(null); showToast('Orden de canales actualizado'); };
 
-
             const filteredChannels = channels.filter(c => 
                 (c.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (c.group || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -894,7 +882,6 @@
                         </div>
                     </div>
 
-
                     <div className="relative">
                         <input 
                             type="text" 
@@ -905,7 +892,6 @@
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
-
 
                     {editingItem && (
                         <div className="bg-cyan-50/70 p-5 md:p-6 rounded-2xl border border-cyan-200/80 animate-fade-in space-y-4">
@@ -940,7 +926,6 @@
                             </form>
                         </div>
                     )}
-
 
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredChannels.map((channel, index) => (
@@ -988,18 +973,15 @@
             );
         };
 
-
         // --- COMPONENTE EDITOR: PELÍCULAS ---
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
-
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
-
 
                 const existingIndex = movies.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
                 if (existingIndex !== -1) {
@@ -1007,6 +989,9 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen
+                const rawImage = formData.get('imagen') || '';
+                const normalizedImage = normalizeImageUrl(rawImage);
 
                 const newMovie = {
                     id: editingItem.id || `mov-${Date.now()}`,
@@ -1014,14 +999,13 @@
                     title: titulo,
                     descripcion: formData.get('descripcion') || '',
                     sinopsis: formData.get('descripcion') || '',
-                    imagen: formData.get('imagen') || '',
-                    image: formData.get('imagen') || '',
+                    imagen: normalizedImage,
+                    image: normalizedImage,
                     urlDrive: formData.get('urlDrive') || '',
                     urlOkRu: formData.get('urlOkRu') || '',
                     codigo: formData.get('codigo') || null,
                     qualityTag: formData.get('qualityTag') || ''
                 };
-
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setMovies(movies.map(m => m.id === editingItem.id ? newMovie : m));
@@ -1032,7 +1016,6 @@
                 }
                 setEditingItem(null);
             };
-
 
             const exportData = () => {
                 const exportMovies = movies.map(({ id, ...rest }) => ({
@@ -1048,7 +1031,6 @@
                 showToast('Archivo peliculas.json generado');
             };
 
-
             const moveItem = (index, direction) => {
                 const newMovies = [...movies];
                 if (direction === 'up' && index > 0) {
@@ -1059,12 +1041,10 @@
                 setMovies(newMovies);
             };
 
-
             const filteredMovies = movies.filter(m => 
                 (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -1089,7 +1069,6 @@
                         </div>
                     </div>
 
-
                     <div className="relative">
                         <input 
                             type="text" 
@@ -1100,7 +1079,6 @@
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
-
 
                     {editingItem && (
                         <div className="bg-blue-50/70 p-5 md:p-6 rounded-2xl border border-blue-200/80 animate-fade-in space-y-4">
@@ -1148,13 +1126,11 @@
                         </div>
                     )}
 
-
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredMovies.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
-
 
                             return (
                                 <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -1194,18 +1170,15 @@
             );
         };
 
-
         // --- COMPONENTE EDITOR: ESTRENOS 2026 ---
         const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
-
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
-
 
                 const existingIndex = estrenos.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
                 if (existingIndex !== -1) {
@@ -1213,6 +1186,9 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen
+                const rawImage = formData.get('imagen') || '';
+                const normalizedImage = normalizeImageUrl(rawImage);
 
                 const newItem = {
                     id: editingItem.id || `est-${Date.now()}`,
@@ -1220,14 +1196,13 @@
                     title: titulo,
                     descripcion: formData.get('descripcion') || '',
                     sinopsis: formData.get('descripcion') || '',
-                    imagen: formData.get('imagen') || '',
-                    image: formData.get('imagen') || '',
+                    imagen: normalizedImage,
+                    image: normalizedImage,
                     urlDrive: formData.get('urlDrive') || '',
                     urlOkRu: formData.get('urlOkRu') || '',
                     codigo: formData.get('codigo') || null,
                     qualityTag: formData.get('qualityTag') || ''
                 };
-
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setEstrenos(estrenos.map(m => m.id === editingItem.id ? newItem : m));
@@ -1238,7 +1213,6 @@
                 }
                 setEditingItem(null);
             };
-
 
             const exportData = () => {
                 const exportEstrenos = estrenos.map(({ id, ...rest }) => ({
@@ -1254,7 +1228,6 @@
                 showToast('Archivo peliculas2.json generado');
             };
 
-
             const moveItem = (index, direction) => {
                 const newItems = [...estrenos];
                 if (direction === 'up' && index > 0) {
@@ -1265,12 +1238,10 @@
                 setEstrenos(newItems);
             };
 
-
             const filteredEstrenos = estrenos.filter(m => 
                 (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -1295,7 +1266,6 @@
                         </div>
                     </div>
 
-
                     <div className="relative">
                         <input 
                             type="text" 
@@ -1306,7 +1276,6 @@
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
-
 
                     {editingItem && (
                         <div className="bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
@@ -1354,13 +1323,11 @@
                         </div>
                     )}
 
-
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredEstrenos.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
-
 
                             return (
                                 <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -1399,6 +1366,7 @@
                 </div>
             );
         };
+
         // --- COMPONENTE EDITOR: SERIES ---
         const SeriesEditor = ({ series, setSeries, showToast, requestConfirm, onTestPlayer }) => {
             const [selectedSerieId, setSelectedSerieId] = useState(null);
@@ -1406,7 +1374,6 @@
             const [editingEpisode, setEditingEpisode] = useState(null); 
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
-
 
             const exportData = () => {
                 const exportSeries = series.map(({ id, ...s }) => ({
@@ -1427,12 +1394,10 @@
                 showToast('Archivo playlist.json generado');
             };
 
-
             const saveSerieBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloSerie = formData.get('tituloSerie').trim();
-
 
                 const existingIndex = series.findIndex(s => s.tituloSerie.toLowerCase() === tituloSerie.toLowerCase() && (!editingSerie || s.id !== editingSerie.id));
                 if (existingIndex !== -1) {
@@ -1440,11 +1405,15 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen
+                const rawImage = formData.get('imagen') || '';
+                const normalizedImage = normalizeImageUrl(rawImage);
 
                 const newData = {
                     tituloSerie,
                     descripcion: formData.get('descripcion') || '',
-                    imagen: formData.get('imagen') || '',
+                    imagen: normalizedImage,
+                    image: normalizedImage,
                     codigo: formData.get('codigo') || null,
                     qualityTag: formData.get('qualityTag') || ''
                 };
@@ -1461,7 +1430,6 @@
                 setEditingSerie(null);
             };
 
-
             const addSeason = () => {
                 if (!selectedSerie) return;
                 const newSeasonNum = (selectedSerie.temporadas || []).length + 1;
@@ -1472,7 +1440,6 @@
                 setSeries(series.map(s => s.id === selectedSerie.id ? updatedSerie : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
             };
-
 
             const deleteSeason = (sIdx) => {
                 requestConfirm(`¿Eliminar la Temporada ${selectedSerie.temporadas[sIdx].numeroTemporada}?`, () => {
@@ -1485,7 +1452,6 @@
                 });
             };
 
-
             const saveEpisode = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -1493,13 +1459,11 @@
                 const updatedTemporadas = [...selectedSerie.temporadas];
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
 
-
                 const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
                 if (existingEpIndex !== -1) {
                     showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error');
                     return;
                 }
-
 
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 
@@ -1516,7 +1480,6 @@
                 setEditingEpisode(null);
             };
 
-
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
                     const updatedTemporadas = [...selectedSerie.temporadas];
@@ -1526,12 +1489,10 @@
                 });
             };
 
-
             const filteredSeries = series.filter(s => 
                 (s.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (s.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -1554,7 +1515,6 @@
                             </div>
                         </div>
 
-
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -1565,7 +1525,6 @@
                             />
                         </div>
 
-
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredSeries.length === 0 ? (
                                 <p className="text-xs text-slate-400 text-center py-6">No se encontraron series</p>
@@ -1573,7 +1532,6 @@
                                 filteredSeries.map(serie => {
                                     const isSelected = selectedSerieId === serie.id;
                                     const totalEps = (serie.temporadas || []).reduce((acc, t) => acc + (t.episodios?.length || 0), 0);
-
 
                                     return (
                                         <div 
@@ -1594,7 +1552,6 @@
                             )}
                         </div>
                     </div>
-
 
                     {/* Detalle de Temporadas y Episodios */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -1631,7 +1588,6 @@
                                     </div>
                                 </div>
 
-
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                                         <span>Temporadas y Capítulos</span>
@@ -1643,7 +1599,6 @@
                                         <Icon name="plus" size={12} /> Añadir Temporada
                                     </button>
                                 </div>
-
 
                                 <div className="space-y-4">
                                     {(selectedSerie.temporadas || []).length === 0 ? (
@@ -1664,7 +1619,6 @@
                                                         </button>
                                                     </div>
                                                 </div>
-
 
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (
@@ -1704,7 +1658,6 @@
                         )}
                     </div>
 
-
                     {/* Modal Crear/Editar Serie Base */}
                     {editingSerie && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1742,7 +1695,6 @@
                         </div>
                     )}
 
-
                     {/* Modal Crear/Editar Episodio */}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1769,7 +1721,6 @@
             );
         };
 
-
         // --- COMPONENTE EDITOR: ANIMADOS ---
         const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer }) => {
             const [selectedItemId, setSelectedItemId] = useState(null);
@@ -1777,7 +1728,6 @@
             const [editingEpisode, setEditingEpisode] = useState(null); 
             const [searchTerm, setSearchTerm] = useState('');
             const selectedItem = animados.find(s => s.id === selectedItemId);
-
 
             const exportData = () => {
                 const exportArray = animados.map(({ id, ...s }) => {
@@ -1804,12 +1754,10 @@
                 showToast('Archivo animados.json generado');
             };
 
-
             const saveItemBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
-
 
                 const existingIndex = animados.findIndex(a => (a.titulo || a.tituloSerie || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || a.id !== editingItem.id));
                 if (existingIndex !== -1) {
@@ -1817,12 +1765,16 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen
+                const rawImage = formData.get('imagen') || '';
+                const normalizedImage = normalizeImageUrl(rawImage);
 
                 const newData = {
                     titulo,
                     tituloSerie: titulo,
                     descripcion: formData.get('descripcion') || '',
-                    imagen: formData.get('imagen') || '',
+                    imagen: normalizedImage,
+                    image: normalizedImage,
                     urlDrive: formData.get('urlDrive') || '',
                     codigo: formData.get('codigo') || null,
                     qualityTag: formData.get('qualityTag') || ''
@@ -1840,7 +1792,6 @@
                 setEditingItem(null);
             };
 
-
             const addSeason = () => {
                 if (!selectedItem) return;
                 const newSeasonNum = (selectedItem.temporadas || []).length + 1;
@@ -1851,7 +1802,6 @@
                 setAnimados(animados.map(s => s.id === selectedItem.id ? updatedItem : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
             };
-
 
             const deleteSeason = (sIdx) => {
                 requestConfirm(`¿Eliminar la Temporada ${selectedItem.temporadas[sIdx].numeroTemporada}?`, () => {
@@ -1864,7 +1814,6 @@
                 });
             };
 
-
             const saveEpisode = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -1872,13 +1821,11 @@
                 const updatedTemporadas = [...(selectedItem.temporadas || [])];
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
 
-
                 const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
                 if (existingEpIndex !== -1) {
                     showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error');
                     return;
                 }
-
 
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 
@@ -1895,7 +1842,6 @@
                 setEditingEpisode(null);
             };
 
-
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
                     const updatedTemporadas = [...selectedItem.temporadas];
@@ -1905,12 +1851,10 @@
                 });
             };
 
-
             const filteredAnimados = animados.filter(a => 
                 (a.titulo || a.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (a.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -1933,7 +1877,6 @@
                             </div>
                         </div>
 
-
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -1944,7 +1887,6 @@
                             />
                         </div>
 
-
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredAnimados.length === 0 ? (
                                 <p className="text-xs text-slate-400 text-center py-6">No hay animados registrados</p>
@@ -1952,7 +1894,6 @@
                                 filteredAnimados.map(item => {
                                     const isSelected = selectedItemId === item.id;
                                     const isSeries = item.temporadas && item.temporadas.length > 0;
-
 
                                     return (
                                         <div 
@@ -1975,7 +1916,6 @@
                             )}
                         </div>
                     </div>
-
 
                     {/* Detalle */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -2020,7 +1960,6 @@
                                     </div>
                                 </div>
 
-
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                                         <span>Temporadas (Si es serie animada)</span>
@@ -2032,7 +1971,6 @@
                                         <Icon name="plus" size={12} /> Añadir Temporada
                                     </button>
                                 </div>
-
 
                                 <div className="space-y-4">
                                     {(selectedItem.temporadas || []).length === 0 ? (
@@ -2055,7 +1993,6 @@
                                                         </button>
                                                     </div>
                                                 </div>
-
 
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (
@@ -2094,7 +2031,6 @@
                             </div>
                         )}
                     </div>
-
 
                     {/* Modal Crear/Editar Animado Base */}
                     {editingItem && (
@@ -2137,7 +2073,6 @@
                         </div>
                     )}
 
-
                     {/* Modal Crear/Editar Episodio Animado */}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -2164,18 +2099,15 @@
             );
         };
 
-
         // --- COMPONENTE EDITOR: RADIOS (CYBER RADIO PRO) ---
         const RadiosEditor = ({ radios, setRadios, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
-
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const title = formData.get('title').trim();
-
 
                 const existingIndex = radios.findIndex(r => (r.title || r.titulo || '').toLowerCase() === title.toLowerCase() && (!editingItem || r.id !== editingItem.id));
                 if (existingIndex !== -1) {
@@ -2183,13 +2115,16 @@
                     return;
                 }
 
+                // ✅ Normalizar URL de imagen (logo)
+                const rawLogo = formData.get('logo') || '';
+                const normalizedLogo = normalizeImageUrl(rawLogo);
 
                 const newRadio = {
                     id: editingItem.id || `radio-${Date.now()}`,
                     title,
                     titulo: title,
-                    logo: formData.get('logo') || '',
-                    imagen: formData.get('logo') || '',
+                    logo: normalizedLogo,
+                    imagen: normalizedLogo,
                     group: formData.get('group') || 'Nacionales',
                     categoria: formData.get('group') || 'Nacionales',
                     genre: formData.get('genre') || 'Live Radio',
@@ -2197,7 +2132,6 @@
                     url: formData.get('url') || '',
                     stream: formData.get('url') || ''
                 };
-
 
                 if (editingItem && editingItem.id && !editingItem.isNew) {
                     setRadios(radios.map(r => r.id === editingItem.id ? newRadio : r));
@@ -2208,7 +2142,6 @@
                 }
                 setEditingItem(null);
             };
-
 
             const exportData = () => {
                 const exportRadios = radios.map(({ id, ...rest }) => ({
@@ -2222,7 +2155,6 @@
                 showToast('Archivo radios.json generado');
             };
 
-
             const moveItem = (index, direction) => {
                 const newRads = [...radios];
                 if (direction === 'up' && index > 0) {
@@ -2233,13 +2165,11 @@
                 setRadios(newRads);
             };
 
-
             const filteredRadios = radios.filter(r => 
                 (r.title || r.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (r.group || r.categoria || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (r.genre || r.genero || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -2264,7 +2194,6 @@
                         </div>
                     </div>
 
-
                     <div className="relative">
                         <input 
                             type="text" 
@@ -2275,7 +2204,6 @@
                         />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
-
 
                     {editingItem && (
                         <div className="bg-emerald-50/70 p-5 md:p-6 rounded-2xl border border-emerald-200/80 animate-fade-in space-y-4">
@@ -2318,7 +2246,6 @@
                         </div>
                     )}
 
-
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
                         {filteredRadios.map((radio, index) => {
                             const logo = radio.logo || radio.imagen;
@@ -2326,7 +2253,6 @@
                             const stream = radio.url || radio.stream;
                             const group = radio.group || radio.categoria || 'Nacionales';
                             const genre = radio.genre || radio.genero;
-
 
                             return (
                                 <div key={radio.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
@@ -2369,6 +2295,7 @@
                 </div>
             );
         };
+
         // --- COMPONENTE EDITOR: COLECCIÓN MUSICAL (VIDEOTECA / ARCHIVE.ORG) ---
         const VideotecaEditor = ({ videoteca, setVideoteca, showToast, requestConfirm, onTestPlayer }) => {
             const [selectedItemId, setSelectedItemId] = useState(null);
@@ -2382,7 +2309,6 @@
                 duration: 'Álbum'
             });
 
-            // Sincronizar el formulario de edición de pista cuando se abre una canción
             useEffect(() => {
                 if (editingPista) {
                     const track = editingPista.data || {};
@@ -2396,7 +2322,6 @@
                 }
             }, [editingPista]);
 
-            // Garantizar que todos los álbumes tengan ID único para selección y guardado fiable
             useEffect(() => {
                 let needsUpdate = false;
                 const withIds = videoteca.map((item, idx) => {
@@ -2413,7 +2338,6 @@
             const [searchTerm, setSearchTerm] = useState('');
             const selectedItem = videoteca.find(v => v.id === selectedItemId);
 
-
             const GENRES = [
                 'Rock',
                 'Pop & Disco',
@@ -2421,7 +2345,6 @@
                 'Tropical & Salsa',
                 'Reggae & Soul'
             ];
-
 
             const mapLegacyGenre = (g) => {
                 if (!g) return 'Rock';
@@ -2435,7 +2358,6 @@
                 return g;
             };
 
-
             const [isFetchingMetadata, setIsFetchingMetadata] = useState(false);
             const [modalForm, setModalForm] = useState({
                 album: '',
@@ -2446,7 +2368,6 @@
                 musicUrl: '',
                 description: ''
             });
-
 
             useEffect(() => {
                 if (editingItem) {
@@ -2462,27 +2383,21 @@
                 }
             }, [editingItem]);
 
-
             const handleAutoFetchMetadata = async () => {
                 const albumQuery = (modalForm.album || '').trim();
                 const artistQuery = (modalForm.artist || '').trim();
                 const searchCombined = (artistQuery ? `${artistQuery} ${albumQuery}` : albumQuery).trim();
-
 
                 if (!searchCombined) {
                     showToast('Por favor escribe el nombre del álbum o artista para buscar metadatos');
                     return;
                 }
 
-
                 setIsFetchingMetadata(true);
                 showToast('Buscando metadatos en iTunes y Wikipedia...', 'info');
 
-
                 let updated = { ...modalForm };
 
-
-                // 1. Consulta a iTunes Search API (CORS abierto, metadatos y portadas de alta fidelidad)
                 try {
                     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchCombined)}&entity=album&limit=5`;
                     const res = await fetch(itunesUrl);
@@ -2492,7 +2407,6 @@
                             const match = data.results.find(r => 
                                 !artistQuery || (r.artistName || '').toLowerCase().includes(artistQuery.toLowerCase())
                             ) || data.results[0];
-
 
                             if (match) {
                                 if (match.collectionName && (!albumQuery || albumQuery.length < 5)) updated.album = match.collectionName;
@@ -2514,13 +2428,10 @@
                     console.warn('Error al consultar iTunes API:', err);
                 }
 
-
-                // 2. Consulta a Wikipedia para Reseña Histórica / Sinopsis en español
                 try {
                     const targetAlbum = updated.album || albumQuery;
                     const targetArtist = updated.artist || artistQuery;
                     let wikiText = '';
-
 
                     const queries = [
                         targetAlbum,
@@ -2528,7 +2439,6 @@
                         `${targetAlbum} (álbum de ${targetArtist})`,
                         `${targetArtist} ${targetAlbum}`
                     ];
-
 
                     for (const q of queries) {
                         if (wikiText) break;
@@ -2542,7 +2452,6 @@
                             }
                         } catch (e) {}
                     }
-
 
                     if (!wikiText) {
                         for (const q of [targetAlbum, `${targetAlbum} (album)`]) {
@@ -2559,7 +2468,6 @@
                         }
                     }
 
-
                     if (wikiText) {
                         updated.description = wikiText;
                     } else if (!updated.description) {
@@ -2569,12 +2477,10 @@
                     console.warn('Error al consultar Wikipedia:', err);
                 }
 
-
                 setModalForm(updated);
                 setIsFetchingMetadata(false);
                 showToast('¡Metadatos y portada HD autocompletados con éxito!');
             };
-
 
             const exportData = () => {
                 const exportArray = videoteca.map(({ id, pistas, tracks, ...v }) => {
@@ -2607,7 +2513,6 @@
                 showToast('Archivo videoteca.json de BoxPlayMusic generado correctamente');
             };
 
-
             const saveItemBase = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -2616,19 +2521,19 @@
                 const rawMusicUrl = (formData.get('musicUrl') || '').trim();
                 const archiveId = getArchiveIdFromUrl(rawMusicUrl);
 
-
                 const existingIndex = videoteca.findIndex(v => 
                     (v.album || v.titulo || v.title || '').toLowerCase() === album.toLowerCase() &&
                     (v.artist || v.artista || '').toLowerCase() === artist.toLowerCase() &&
                     (!editingItem || v.id !== editingItem.id)
                 );
 
-
                 if (existingIndex !== -1) {
                     showToast(`El álbum "${album}" de ${artist} ya existe.`, 'error');
                     return;
                 }
 
+                // ✅ Normalizar URL de portada
+                const normalizedCover = normalizeImageUrl(formData.get('cover') || '');
 
                 const newData = {
                     artist,
@@ -2638,7 +2543,9 @@
                     title: album,
                     year: formData.get('year') || '1980',
                     genre: formData.get('genre') || 'Rock',
-                    cover: formData.get('cover') || '',
+                    cover: normalizedCover,
+                    imagen: normalizedCover,
+                    image: normalizedCover,
                     musicUrl: rawMusicUrl,
                     urlDrive: rawMusicUrl,
                     archiveId: archiveId || undefined,
@@ -2657,7 +2564,6 @@
                 setEditingItem(null);
             };
 
-
             const savePista = (e) => {
                 e.preventDefault();
                 if (!selectedItem) return;
@@ -2668,7 +2574,6 @@
                 const extractedArchiveId = customArchiveId || getArchiveIdFromUrl(audio);
                 const currentTracks = [...(selectedItem.tracks || selectedItem.pistas || [])];
 
-                // Comprobar duplicados excluyendo el índice que se está editando
                 const existingPistaIndex = currentTracks.findIndex((p, i) => 
                     (p.title || p.titulo || '').toLowerCase() === title.toLowerCase() && 
                     (!editingPista || editingPista.index !== i)
@@ -2808,7 +2713,6 @@
                 setVideoteca(newItems);
             };
 
-
             const filteredVideoteca = videoteca.filter(v => {
                 const name = (v.album || v.titulo || v.title || '').toLowerCase();
                 const art = (v.artist || v.artista || '').toLowerCase();
@@ -2817,7 +2721,6 @@
                 const q = searchTerm.toLowerCase();
                 return name.includes(q) || art.includes(q) || gen.includes(q) || yr.includes(q);
             });
-
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
@@ -2840,7 +2743,6 @@
                             </div>
                         </div>
 
-
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input 
                                 type="text" 
@@ -2850,7 +2752,6 @@
                                 className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none text-xs"
                             />
                         </div>
-
 
                         <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
                             {filteredVideoteca.length === 0 ? (
@@ -2862,7 +2763,6 @@
                                     const coverImg = item.cover || item.imagen || item.image;
                                     const tracksCount = (item.tracks || item.pistas || []).length;
                                     const isSelected = selectedItemId === item.id;
-
 
                                     return (
                                         <div 
@@ -2906,7 +2806,6 @@
                             )}
                         </div>
                     </div>
-
 
                     {/* Detalle del Álbum y Canciones */}
                     <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
@@ -2964,7 +2863,6 @@
                                             </div>
                                             <h2 className="text-xs sm:text-sm font-bold text-amber-800 truncate">{selectedItem.artist || selectedItem.artista}</h2>
                                             
-                                            {/* Indicador de URL */}
                                             <div className="mt-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 max-w-full">
                                                 <div className="truncate">
                                                     <span className="font-bold text-amber-950 block text-[10px]">URL Principal del Álbum / Archive.org:</span>
@@ -2986,7 +2884,6 @@
                                         </div>
                                     </div>
 
-                                    {/* BOTONES PRINCIPALES DE ACCIÓN: EDITAR Y BORRAR ÁLBUM */}
                                     <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-end shrink-0 pt-2 lg:pt-0">
                                         <button 
                                             type="button"
@@ -3011,8 +2908,6 @@
                                     </div>
                                 </div>
 
-
-                                {/* Lista de Canciones */}
                                 <div>
                                     <div className="flex justify-between items-center mb-3">
                                         <div>
@@ -3043,7 +2938,6 @@
                                         </div>
                                     </div>
 
-
                                     <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
                                         {(!selectedItem.tracks && !selectedItem.pistas) || (selectedItem.tracks || selectedItem.pistas || []).length === 0 ? (
                                             <div className="p-8 text-center text-slate-400 text-xs">
@@ -3064,7 +2958,6 @@
                                                 const trackTitle = track.title || track.titulo || `Pista ${idx + 1}`;
                                                 const trackDur = track.duration || track.duracion || 'Álbum';
                                                 const isArchive = track.type === 'archive' || track.archiveId || trackAudio.includes('archive.org');
-
 
                                                 return (
                                                     <div key={track.id || idx} className="flex items-center justify-between p-3 border-b border-slate-100 last:border-b-0 hover:bg-amber-50/40 transition-colors text-xs">
@@ -3113,7 +3006,6 @@
                         )}
                     </div>
 
-
                     {/* Modal Crear/Editar Álbum con Generador Automático de Metadatos */}
                     {editingItem && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
@@ -3127,8 +3019,6 @@
                                     </button>
                                 </div>
 
-
-                                {/* Generador Inteligente de Metadatos */}
                                 <div className="bg-gradient-to-r from-amber-500/10 via-amber-400/10 to-yellow-500/10 border border-amber-500/30 p-3 sm:p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-inner">
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center flex-shrink-0">
@@ -3154,8 +3044,6 @@
                                     </button>
                                 </div>
 
-
-                                {/* Vista Previa Rápida del Álbum */}
                                 {modalForm.cover && (
                                     <div className="flex items-center gap-3 p-2.5 bg-slate-50 border border-slate-200 rounded-2xl animate-fade-in">
                                         <img src={modalForm.cover} alt="Cover preview" className="w-14 h-14 object-cover rounded-xl shadow-md flex-shrink-0 border border-slate-200" onError={e => e.target.style.display='none'} />
@@ -3169,7 +3057,6 @@
                                         </div>
                                     </div>
                                 )}
-
 
                                 <form onSubmit={saveItemBase} className="space-y-3.5">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3200,7 +3087,6 @@
                                         </div>
                                     </div>
 
-
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-xs font-bold mb-1 text-slate-700">Año de Lanzamiento</label>
@@ -3230,7 +3116,6 @@
                                         </div>
                                     </div>
 
-
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">URL Portada Original del Disco</label>
                                         <input 
@@ -3242,7 +3127,6 @@
                                             placeholder="https://..." 
                                         />
                                     </div>
-
 
                                     <div className="bg-amber-50 p-3 rounded-2xl border border-amber-200">
                                         <label className="block text-xs font-bold mb-1 text-amber-950 flex items-center gap-1.5">
@@ -3260,7 +3144,6 @@
                                         </span>
                                     </div>
 
-
                                     <div>
                                         <label className="block text-xs font-bold mb-1 text-slate-700">Descripción / Reseña Histórica</label>
                                         <textarea 
@@ -3273,7 +3156,6 @@
                                         ></textarea>
                                     </div>
 
-
                                     <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                         <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button>
                                         <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md">Guardar Álbum</button>
@@ -3283,8 +3165,7 @@
                         </div>
                     )}
 
-
-                    {/* Modal Crear/Editar Pista Individual con Estado Controlado */}
+                    {/* Modal Crear/Editar Pista Individual */}
                     {editingPista && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4 animate-scale-in">
@@ -3364,6 +3245,7 @@
                 </div>
             );
         };
+
         // --- COMPONENTE PRINCIPAL: APP ---
         const App = () => {
             const [activeTab, setActiveTab] = useState('movies');
@@ -3372,7 +3254,6 @@
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
             const [githubModalOpen, setGithubModalOpen] = useState(false);
             const [playerData, setPlayerData] = useState({ isOpen: false, title: '', url: '' });
-
 
             const [movies, setMovies] = useState([]);
             const [estrenos, setEstrenos] = useState([]);
@@ -3384,23 +3265,18 @@
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
 
-
             const [history, setHistory] = useState([]);
             const [historyIndex, setHistoryIndex] = useState(-1);
 
-
             const fileInputRef = useRef(null);
-
 
             const showToast = useCallback((msg, type = 'success') => {
                 setToast({ msg, type, id: Date.now() });
             }, []);
 
-
             const requestConfirm = useCallback((message, onConfirm) => {
                 setConfirmDialog({ isOpen: true, message, onConfirm });
             }, []);
-
 
             const openTestPlayer = useCallback((title, url) => {
                 if (!url) {
@@ -3409,7 +3285,6 @@
                 }
                 setPlayerData({ isOpen: true, title, url });
             }, [showToast]);
-
 
             const recordStateChange = useCallback((newMovies, newEstrenos, newTudum, newSeries, newChannels, newAnimados, newRadios, newVideoteca) => {
                 const currentState = { 
@@ -3431,7 +3306,6 @@
                 setHistoryIndex(prevIdx => Math.min(prevIdx + 1, 24));
             }, [historyIndex]);
 
-
             const handleUndo = () => {
                 if (historyIndex > 0) {
                     const prev = history[historyIndex - 1];
@@ -3449,7 +3323,6 @@
                     showToast('No hay más acciones previas para deshacer', 'error');
                 }
             };
-
 
             const downloadAllBackups = () => {
                 const fullBackup = {
@@ -3484,12 +3357,10 @@
                     tvM3U: generateM3U(channels)
                 };
 
-
                 const dateStr = new Date().toISOString().slice(0, 10);
                 downloadFile(JSON.stringify(fullBackup, null, 2), `boxplaytv_backup_completo_${dateStr}.json`, 'application/json');
                 showToast('Copia de seguridad completa descargada');
             };
-
 
             const fetchFromCloud = async () => {
                 setLoading(true);
@@ -3505,41 +3376,66 @@
                         fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
                     ]);
 
-
-                    const parsedChannels = parseM3U(resTV || '');
+                    const parsedChannels = parseM3U(resTV || '').map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
                     
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
                         ...s, 
                         id: `serie-${i}`,
+                        imagen: normalizeImageUrl(s.imagen || s.image || ''),
+                        image: normalizeImageUrl(s.imagen || s.image || ''),
                         temporadas: (s.temporadas || []).map(t => ({
                             ...t, 
                             episodios: (t.episodios || []).map((ep, ei) => ({ ...ep, id: `ep-${i}-${ei}` }))
                         }))
                     }));
 
-
-                    const parsedMovies = (Array.isArray(resMovies) ? resMovies : (resMovies?.peliculas || [])).map((m, i) => ({ ...m, id: `mov-${i}` }));
-                    const parsedEstrenos = (Array.isArray(resEstrenos) ? resEstrenos : (resEstrenos?.peliculas2 || resEstrenos?.peliculas || [])).map((m, i) => ({ ...m, id: `est-${i}` }));
-                    const parsedTudum = (Array.isArray(resTudum) ? resTudum : (resTudum?.tudum || [])).map((t, i) => ({ ...t, id: `tudum-${i}` }));
+                    const parsedMovies = (Array.isArray(resMovies) ? resMovies : (resMovies?.peliculas || [])).map((m, i) => ({ 
+                        ...m, 
+                        id: `mov-${i}`,
+                        imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                        image: normalizeImageUrl(m.imagen || m.image || '')
+                    }));
+                    
+                    const parsedEstrenos = (Array.isArray(resEstrenos) ? resEstrenos : (resEstrenos?.peliculas2 || resEstrenos?.peliculas || [])).map((m, i) => ({ 
+                        ...m, 
+                        id: `est-${i}`,
+                        imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                        image: normalizeImageUrl(m.imagen || m.image || '')
+                    }));
+                    
+                    const parsedTudum = (Array.isArray(resTudum) ? resTudum : (resTudum?.tudum || [])).map((t, i) => ({ 
+                        ...t, 
+                        id: `tudum-${i}`,
+                        image: normalizeImageUrl(t.image || t.imagen || ''),
+                        imagen: normalizeImageUrl(t.image || t.imagen || '')
+                    }));
                     
                     const parsedAnimados = (Array.isArray(resAnimados) ? resAnimados : (resAnimados?.animados || resAnimados?.animated || [])).map((a, i) => ({
                         ...a, 
                         id: `anim-${i}`,
+                        imagen: normalizeImageUrl(a.imagen || a.image || ''),
+                        image: normalizeImageUrl(a.imagen || a.image || ''),
                         temporadas: (a.temporadas || []).map(t => ({
                             ...t, 
                             episodios: (t.episodios || []).map((ep, ei) => ({ ...ep, id: `ep-anim-${i}-${ei}` }))
                         }))
                     }));
 
-
-                    const parsedRadios = (Array.isArray(resRadios) ? resRadios : (resRadios?.radios || [])).map((r, i) => ({ ...r, id: r.id || `cr-${i}` }));
+                    const parsedRadios = (Array.isArray(resRadios) ? resRadios : (resRadios?.radios || [])).map((r, i) => ({ 
+                        ...r, 
+                        id: r.id || `cr-${i}`,
+                        logo: normalizeImageUrl(r.logo || r.imagen || ''),
+                        imagen: normalizeImageUrl(r.logo || r.imagen || '')
+                    }));
                     
                     const parsedVideoteca = (Array.isArray(resVideoteca) ? resVideoteca : (resVideoteca?.videoteca || resVideoteca?.albumes || [])).map((v, i) => ({
                         ...v, 
                         id: `vid-${i}`,
+                        cover: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                        imagen: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                        image: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
-
 
                     setChannels(parsedChannels);
                     setSeries(parsedSeries);
@@ -3549,7 +3445,6 @@
                     setAnimados(parsedAnimados);
                     setRadios(parsedRadios);
                     setVideoteca(parsedVideoteca);
-
 
                     recordStateChange(parsedMovies, parsedEstrenos, parsedTudum, parsedSeries, parsedChannels, parsedAnimados, parsedRadios, parsedVideoteca);
                     showToast("Datos descargados y actualizados correctamente");
@@ -3561,7 +3456,6 @@
                     setDataInitialized(true);
                 }
             };
-
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
                 const datasets = {
@@ -3660,20 +3554,17 @@
                     'listaoficial.m3u': generateM3U(channels)
                 };
 
-
                 try {
                     let count = 0;
                     const total = Object.keys(datasets).length;
-
 
                     for (const [filename, content] of Object.entries(datasets)) {
                         count++;
                         if (setStep) setStep(`[${count}/${total}] Actualizando ${filename}...`);
 
-
                         const fileContentStr = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-                        const base64Content = btoa(unescape(encodeURIComponent(fileContentStr)));
-
+                        // ✅ USO DE LA NUEVA FUNCIÓN utf8ToBase64 (maneja correctamente tildes, ñ, emojis)
+                        const base64Content = utf8ToBase64(fileContentStr);
 
                         const getUrl = `https://api.github.com/repos/${repo}/contents/${filename}?ref=${encodeURIComponent(branch)}`;
                         const getRes = await fetch(getUrl, {
@@ -3683,13 +3574,11 @@
                             }
                         });
 
-
                         let sha = null;
                         if (getRes.ok) {
                             const fileData = await getRes.json();
                             sha = fileData.sha;
                         }
-
 
                         const putUrl = `https://api.github.com/repos/${repo}/contents/${filename}`;
                         const putBody = {
@@ -3698,7 +3587,6 @@
                             branch: branch
                         };
                         if (sha) putBody.sha = sha;
-
 
                         const putRes = await fetch(putUrl, {
                             method: 'PUT',
@@ -3710,13 +3598,11 @@
                             body: JSON.stringify(putBody)
                         });
 
-
                         if (!putRes.ok) {
                             const errData = await putRes.json().catch(() => ({}));
                             throw new Error(`Error actualizando ${filename}: ${errData.message || putRes.statusText}`);
                         }
                     }
-
 
                     showToast('¡Los 8 archivos de Box Play TV se actualizaron en GitHub exitosamente!');
                 } catch (err) {
@@ -3724,7 +3610,6 @@
                     showToast(`Error al sincronizar con GitHub: ${err.message}`, 'error');
                 }
             };
-
 
             const handleFileImport = (e) => {
                 const file = e.target.files[0];
@@ -3735,60 +3620,118 @@
                     try {
                         const filename = file.name.toLowerCase();
                         if (filename.endsWith('.m3u') || filename.endsWith('.m3u8')) {
-                            const parsed = parseM3U(content);
+                            const parsed = parseM3U(content).map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
                             setChannels(parsed);
                             recordStateChange(movies, estrenos, tudumList, series, parsed, animados, radios, videoteca);
                             showToast(`Importados ${parsed.length} canales de TV desde M3U`);
                         } else if (filename.includes('backup_completo')) {
                             const parsed = JSON.parse(content);
-                            if (parsed.movies) setMovies(parsed.movies.map((m, i) => ({ ...m, id: `mov-${i}` })));
-                            if (parsed.estrenos2026) setEstrenos(parsed.estrenos2026.map((m, i) => ({ ...m, id: `est-${i}` })));
-                            if (parsed.tudum) setTudumList(parsed.tudum.map((t, i) => ({ ...t, id: `tudum-${i}` })));
-                            if (parsed.series) setSeries(parsed.series.map((s, i) => ({ ...s, id: `serie-${i}` })));
-                            if (parsed.animados) setAnimados(parsed.animados.map((a, i) => ({ ...a, id: `anim-${i}` })));
-                            if (parsed.radios) setRadios(parsed.radios.map((r, i) => ({ ...r, id: `cr-${i}` })));
-                            if (parsed.videoteca) setVideoteca(parsed.videoteca.map((v, i) => ({ ...v, id: `vid-${i}` })));
-                            if (parsed.tvM3U) setChannels(parseM3U(parsed.tvM3U));
+                            if (parsed.movies) setMovies(parsed.movies.map((m, i) => ({ 
+                                ...m, id: `mov-${i}`,
+                                imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                                image: normalizeImageUrl(m.imagen || m.image || '')
+                            })));
+                            if (parsed.estrenos2026) setEstrenos(parsed.estrenos2026.map((m, i) => ({ 
+                                ...m, id: `est-${i}`,
+                                imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                                image: normalizeImageUrl(m.imagen || m.image || '')
+                            })));
+                            if (parsed.tudum) setTudumList(parsed.tudum.map((t, i) => ({ 
+                                ...t, id: `tudum-${i}`,
+                                image: normalizeImageUrl(t.image || t.imagen || ''),
+                                imagen: normalizeImageUrl(t.image || t.imagen || '')
+                            })));
+                            if (parsed.series) setSeries(parsed.series.map((s, i) => ({ 
+                                ...s, id: `serie-${i}`,
+                                imagen: normalizeImageUrl(s.imagen || s.image || ''),
+                                image: normalizeImageUrl(s.imagen || s.image || '')
+                            })));
+                            if (parsed.animados) setAnimados(parsed.animados.map((a, i) => ({ 
+                                ...a, id: `anim-${i}`,
+                                imagen: normalizeImageUrl(a.imagen || a.image || ''),
+                                image: normalizeImageUrl(a.imagen || a.image || '')
+                            })));
+                            if (parsed.radios) setRadios(parsed.radios.map((r, i) => ({ 
+                                ...r, id: `cr-${i}`,
+                                logo: normalizeImageUrl(r.logo || r.imagen || ''),
+                                imagen: normalizeImageUrl(r.logo || r.imagen || '')
+                            })));
+                            if (parsed.videoteca) setVideoteca(parsed.videoteca.map((v, i) => ({ 
+                                ...v, id: `vid-${i}`,
+                                cover: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                                imagen: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                                image: normalizeImageUrl(v.cover || v.imagen || v.image || '')
+                            })));
+                            if (parsed.tvM3U) setChannels(parseM3U(parsed.tvM3U).map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') })));
                             showToast('¡Copia de seguridad completa restaurada!');
                         } else if (filename.includes('peliculas2')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas2 || parsed.peliculas || [])).map((m, i) => ({ ...m, id: `est-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas2 || parsed.peliculas || [])).map((m, i) => ({ 
+                                ...m, id: `est-${Date.now()}-${i}`,
+                                imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                                image: normalizeImageUrl(m.imagen || m.image || '')
+                            }));
                             setEstrenos(list);
                             recordStateChange(movies, list, tudumList, series, channels, animados, radios, videoteca);
                             showToast(`Importados ${list.length} Estrenos 2026`);
                         } else if (filename.includes('tudum')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.tudum || [])).map((t, i) => ({ ...t, id: `tudum-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.tudum || [])).map((t, i) => ({ 
+                                ...t, id: `tudum-${Date.now()}-${i}`,
+                                image: normalizeImageUrl(t.image || t.imagen || ''),
+                                imagen: normalizeImageUrl(t.image || t.imagen || '')
+                            }));
                             setTudumList(list);
                             recordStateChange(movies, estrenos, list, series, channels, animados, radios, videoteca);
                             showToast(`Importados ${list.length} estrenos de Netflix Tudum`);
                         } else if (filename.includes('peliculas') || filename.includes('movies')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas || [])).map((m, i) => ({ ...m, id: `mov-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas || [])).map((m, i) => ({ 
+                                ...m, id: `mov-${Date.now()}-${i}`,
+                                imagen: normalizeImageUrl(m.imagen || m.image || ''),
+                                image: normalizeImageUrl(m.imagen || m.image || '')
+                            }));
                             setMovies(list);
                             recordStateChange(list, estrenos, tudumList, series, channels, animados, radios, videoteca);
                             showToast(`Importadas ${list.length} películas`);
                         } else if (filename.includes('radios') || filename.includes('radio')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.radios || [])).map((r, i) => ({ ...r, id: r.id || `cr-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.radios || [])).map((r, i) => ({ 
+                                ...r, id: r.id || `cr-${Date.now()}-${i}`,
+                                logo: normalizeImageUrl(r.logo || r.imagen || ''),
+                                imagen: normalizeImageUrl(r.logo || r.imagen || '')
+                            }));
                             setRadios(list);
                             recordStateChange(movies, estrenos, tudumList, series, channels, animados, list, videoteca);
                             showToast(`Importadas ${list.length} emisoras de radio`);
                         } else if (filename.includes('playlist') || filename.includes('series')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.series || [])).map((s, i) => ({ ...s, id: `serie-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.series || [])).map((s, i) => ({ 
+                                ...s, id: `serie-${Date.now()}-${i}`,
+                                imagen: normalizeImageUrl(s.imagen || s.image || ''),
+                                image: normalizeImageUrl(s.imagen || s.image || '')
+                            }));
                             setSeries(list);
                             recordStateChange(movies, estrenos, tudumList, list, channels, animados, radios, videoteca);
                             showToast(`Importadas ${list.length} series de TV`);
                         } else if (filename.includes('animados') || filename.includes('animated')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.animados || parsed.animated || [])).map((a, i) => ({ ...a, id: `anim-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.animados || parsed.animated || [])).map((a, i) => ({ 
+                                ...a, id: `anim-${Date.now()}-${i}`,
+                                imagen: normalizeImageUrl(a.imagen || a.image || ''),
+                                image: normalizeImageUrl(a.imagen || a.image || '')
+                            }));
                             setAnimados(list);
                             recordStateChange(movies, estrenos, tudumList, series, channels, list, radios, videoteca);
                             showToast(`Importados ${list.length} animados`);
                         } else if (filename.includes('videoteca') || filename.includes('albumes') || filename.includes('albums')) {
                             const parsed = JSON.parse(content);
-                            const list = (Array.isArray(parsed) ? parsed : (parsed.videoteca || parsed.albumes || [])).map((v, i) => ({ ...v, id: `vid-${Date.now()}-${i}` }));
+                            const list = (Array.isArray(parsed) ? parsed : (parsed.videoteca || parsed.albumes || [])).map((v, i) => ({ 
+                                ...v, id: `vid-${Date.now()}-${i}`,
+                                cover: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                                imagen: normalizeImageUrl(v.cover || v.imagen || v.image || ''),
+                                image: normalizeImageUrl(v.cover || v.imagen || v.image || '')
+                            }));
                             setVideoteca(list);
                             recordStateChange(movies, estrenos, tudumList, series, channels, animados, radios, list);
                             showToast(`Importados ${list.length} álbumes en BoxPlayMusic`);
@@ -3803,8 +3746,6 @@
                 e.target.value = '';
             };
 
-
-            // Restauración y guardado local seguro
             useEffect(() => {
                 const loadData = async () => {
                     const localMovies = localStorage.getItem('boxplay_admin_movies') || localStorage.getItem('magis_admin_movies');
@@ -3815,7 +3756,6 @@
                     const localAnimados = localStorage.getItem('boxplay_admin_animados') || localStorage.getItem('magis_admin_animados');
                     const localRadios = localStorage.getItem('boxplay_admin_radios') || localStorage.getItem('magis_admin_radios');
                     const localVideoteca = localStorage.getItem('boxplay_admin_videoteca') || localStorage.getItem('magis_admin_videoteca');
-
 
                     if (localMovies && localEstrenos && localTudum && localSeries && localTV && localAnimados && localVideoteca && localRadios) {
                         try {
@@ -3828,7 +3768,6 @@
                             const r = JSON.parse(localRadios);
                             const v = JSON.parse(localVideoteca);
 
-
                             setMovies(m);
                             setEstrenos(est);
                             setTudumList(tud);
@@ -3838,7 +3777,6 @@
                             setRadios(r);
                             setVideoteca(v);
                             recordStateChange(m, est, tud, s, t, a, r, v);
-
 
                             setLoading(false);
                             setDataInitialized(true);
@@ -3850,7 +3788,6 @@
                 };
                 loadData();
             }, []);
-
 
             useEffect(() => { 
                 if (dataInitialized) {
@@ -3865,7 +3802,6 @@
                 } 
             }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, dataInitialized]);
 
-
             if (loading) {
                 return (
                     <div className="flex flex-col items-center justify-center h-screen bg-[#0b0f19] text-white">
@@ -3875,7 +3811,6 @@
                     </div>
                 );
             }
-
 
             const tabs = [
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
@@ -3887,7 +3822,6 @@
                 { id: 'tv', label: 'TV en Vivo', icon: 'tv', count: channels.length, color: 'text-cyan-500' },
                 { id: 'radios', label: 'Radios HD', icon: 'radio', count: radios.length, color: 'text-emerald-500' }
             ];
-
 
             return (
                 <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
@@ -3913,10 +3847,8 @@
                         onClose={() => setPlayerData({ isOpen: false, title: '', url: '' })} 
                     />
 
-
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json,.m3u,.m3u8" />
                     
-                    {/* Header Principal */}
                     <header className="bg-slate-950 text-white shadow-2xl sticky top-0 z-40 border-b border-slate-800">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-3 text-center md:text-left">
@@ -3953,15 +3885,12 @@
                                     <Icon name="download" size={13} /> <span>Backup</span>
                                 </button>
 
-
                                 <button onClick={() => requestConfirm('¿Descartar cambios no guardados y re-descargar desde GitHub?', fetchFromCloud)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm" title="Actualizar desde servidores remotos">
                                     <Icon name="refresh" size={13} /> <span>Recargar</span>
                                 </button>
                             </div>
                         </div>
 
-
-                        {/* Barra de Pestañas con Contadores */}
                         <div className="bg-slate-900 border-t border-slate-800/80 px-4 py-2">
                             <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar">
                                 <div className="flex gap-1.5 py-1">
@@ -3986,8 +3915,6 @@
                         </div>
                     </header>
 
-
-                    {/* Contenido Dinámico */}
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
                             {activeTab === 'movies' && (
@@ -4065,8 +3992,6 @@
                         </ErrorBoundary>
                     </main>
 
-
-                    {/* Footer Informativo */}
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
@@ -4076,7 +4001,6 @@
                 </div>
             );
         };
-
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
