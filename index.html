@@ -749,9 +749,160 @@
         // ============================================================
         // EDITOR: PELÍCULAS — con moveItem registrado en historial vía wrapper
         // ============================================================
+        // ============================================================
+        // BUSCADOR AUTOMÁTICO DE PELÍCULAS — TMDB
+        // ============================================================
+        const MovieAutoSearch = ({ onUse, showToast }) => {
+            const [query, setQuery] = useState('');
+            const [results, setResults] = useState([]);
+            const [selected, setSelected] = useState(null);
+            const [loading, setLoading] = useState(false);
+            const [apiKey, setApiKey] = useState(() => localStorage.getItem('boxplay_tmdb_key') || '');
+            const [showKeyBox, setShowKeyBox] = useState(false);
+
+            const saveKey = () => {
+                const key = apiKey.trim();
+                if (!key) {
+                    showToast('Escribe tu clave API de TMDB.', 'error');
+                    return;
+                }
+                localStorage.setItem('boxplay_tmdb_key', key);
+                setShowKeyBox(false);
+                showToast('Clave TMDB guardada en este navegador.');
+            };
+
+            const searchMovies = async () => {
+                const q = query.trim();
+                if (!q) return;
+                if (!apiKey.trim()) {
+                    setShowKeyBox(true);
+                    showToast('Primero configura tu clave API de TMDB.', 'error');
+                    return;
+                }
+
+                setLoading(true);
+                setSelected(null);
+                try {
+                    const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(apiKey.trim())}&language=es-ES&include_adult=false&page=1&query=${encodeURIComponent(q)}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.status_message || 'No se pudo consultar TMDB');
+                    setResults((data.results || []).slice(0, 8));
+                    if (!data.results || data.results.length === 0) showToast('No se encontraron películas con ese título.', 'error');
+                } catch (error) {
+                    console.error(error);
+                    showToast('Error al buscar en TMDB. Revisa la clave API.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const getDetails = async (movie) => {
+                if (!apiKey.trim()) return;
+                setLoading(true);
+                try {
+                    const url = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${encodeURIComponent(apiKey.trim())}&language=es-ES&append_to_response=credits`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.status_message || 'No se pudieron obtener los detalles');
+                    setSelected(data);
+                } catch (error) {
+                    console.error(error);
+                    showToast('No se pudieron obtener los detalles de la película.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const useSelected = () => {
+                if (!selected) return;
+                const directors = (selected.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name).join(', ');
+                const cast = (selected.credits?.cast || []).slice(0, 8).map(p => p.name).join(', ');
+                onUse({
+                    titulo: selected.title || selected.original_title || '',
+                    imagen: selected.poster_path ? `https://image.tmdb.org/t/p/w780${selected.poster_path}` : '',
+                    descripcion: selected.overview || '',
+                    year: selected.release_date ? selected.release_date.slice(0, 4) : '',
+                    rating: typeof selected.vote_average === 'number' ? selected.vote_average.toFixed(1) : '',
+                    genres: (selected.genres || []).map(g => g.name).join(', '),
+                    runtime: selected.runtime ? `${selected.runtime} min` : '',
+                    director: directors,
+                    cast,
+                    country: (selected.production_countries || []).map(c => c.name).join(', ')
+                });
+                showToast('Información seleccionada. Se cargó en el formulario.');
+            };
+
+            return (
+                <div className="md:col-span-2 bg-slate-950 rounded-2xl p-4 border border-slate-800 text-white space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h4 className="font-black text-sm flex items-center gap-2"><span>🎬</span> Buscar información automática</h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5">Busca portada, título, sinopsis, año, género, duración, director y reparto.</p>
+                        </div>
+                        <button type="button" onClick={() => setShowKeyBox(v => !v)} className="text-[10px] font-bold text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700">⚙️ API TMDB</button>
+                    </div>
+
+                    {showKeyBox && (
+                        <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 space-y-2">
+                            <label className="block text-[10px] font-bold text-slate-300">Clave API de TMDB</label>
+                            <div className="flex gap-2">
+                                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Pega aquí tu API Key de TMDB" className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
+                                <button type="button" onClick={saveKey} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-[10px] font-black">Guardar</button>
+                            </div>
+                            <p className="text-[9px] text-slate-500">La clave queda guardada solamente en este navegador mediante localStorage.</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') searchMovies(); }} placeholder="Ej: Gladiador II, Avatar, Titanic..." className="flex-1 p-2.5 rounded-xl bg-white text-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
+                        <button type="button" onClick={searchMovies} disabled={loading} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-xl text-xs font-black">{loading ? 'Buscando...' : '🔎 Buscar'}</button>
+                    </div>
+
+                    {results.length > 0 && !selected && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto custom-scrollbar">
+                            {results.map(movie => (
+                                <button type="button" key={movie.id} onClick={() => getDetails(movie)} className="text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500 rounded-xl overflow-hidden transition-all">
+                                    <div className="aspect-[2/3] bg-slate-800">
+                                        {movie.poster_path ? <img src={`https://image.tmdb.org/t/p/w342${movie.poster_path}`} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin portada</div>}
+                                    </div>
+                                    <div className="p-2">
+                                        <div className="font-bold text-[10px] line-clamp-2">{movie.title || movie.original_title}</div>
+                                        <div className="text-[9px] text-slate-500 mt-1">{movie.release_date?.slice(0,4) || 'Sin año'}</div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {selected && (
+                        <div className="bg-slate-900 rounded-xl border border-cyan-800 p-3 flex flex-col sm:flex-row gap-3">
+                            <div className="w-24 h-36 rounded-lg overflow-hidden bg-black shrink-0">
+                                {selected.poster_path ? <img src={`https://image.tmdb.org/t/p/w342${selected.poster_path}`} alt="" className="w-full h-full object-cover" /> : null}
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                                <h5 className="font-black text-sm">{selected.title}</h5>
+                                <p className="text-[10px] text-cyan-300">{selected.release_date?.slice(0,4) || 'Año desconocido'} · ⭐ {selected.vote_average ? selected.vote_average.toFixed(1) : 'N/D'} · {selected.runtime || 'N/D'} min</p>
+                                <p className="text-[10px] text-slate-300"><b>Géneros:</b> {(selected.genres || []).map(g => g.name).join(', ') || 'N/D'}</p>
+                                <p className="text-[10px] text-slate-400 line-clamp-4">{selected.overview || 'Sin sinopsis disponible.'}</p>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                    <button type="button" onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">✓ USAR ESTA INFORMACIÓN</button>
+                                    <button type="button" onClick={() => { setSelected(null); }} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Volver a resultados</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ============================================================
+        // EDITOR: PELÍCULAS — con moveItem registrado en historial vía wrapper
+        // ============================================================
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+            const [autoData, setAutoData] = useState(null);
 
             const handleSave = (e) => {
                 e.preventDefault();
@@ -780,6 +931,7 @@
                     showToast('Película añadida');
                 }
                 setEditingItem(null);
+                setAutoData(null);
             };
 
             const exportData = () => {
@@ -808,6 +960,16 @@
                 (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
 
+            const startNewMovie = () => {
+                setAutoData(null);
+                setEditingItem({ isNew: true });
+            };
+
+            const applyAutoData = (data) => {
+                setAutoData(data);
+                setEditingItem(item => ({ ...(item || { isNew: true }), ...data }));
+            };
+
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
@@ -820,7 +982,7 @@
                             <p className="text-xs text-slate-500 mt-1">Catálogo general de películas de Box Play TV (<code>peliculas.json</code>)</p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setEditingItem({ isNew: true })} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nueva Película</button>
+                            <button onClick={startNewMovie} className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nueva Película</button>
                             <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
                         </div>
                     </div>
@@ -832,15 +994,25 @@
                         <div className="bg-blue-50/70 p-5 md:p-6 rounded-2xl border border-blue-200/80 animate-fade-in space-y-4">
                             <h3 className="font-extrabold text-blue-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nueva Película' : 'Editar Película'}</h3>
                             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.title || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiador II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" defaultValue={editingItem.imagen || editingItem.image || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" defaultValue={editingItem.urlDrive || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" defaultValue={editingItem.urlOkRu || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" defaultValue={editingItem.qualityTag || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" defaultValue={editingItem.codigo || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="1234" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" defaultValue={editingItem.descripcion || editingItem.sinopsis || ''} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Sinopsis del filme..."></textarea></div>
+                                <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiador II" /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="HD / 4K / CAM" /></div>
+                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="1234" /></div>
+                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Sinopsis del filme..."></textarea></div>
+                                {autoData && (
+                                    <div className="md:col-span-2 bg-white rounded-xl border border-emerald-200 p-3 text-[10px] text-slate-600 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        <span><b>Año:</b> {autoData.year || 'N/D'}</span>
+                                        <span><b>Rating:</b> ⭐ {autoData.rating || 'N/D'}</span>
+                                        <span><b>Duración:</b> {autoData.runtime || 'N/D'}</span>
+                                        <span><b>Género:</b> {autoData.genres || 'N/D'}</span>
+                                        <span className="col-span-2 sm:col-span-4"><b>Director:</b> {autoData.director || 'N/D'} · <b>Reparto:</b> {autoData.cast || 'N/D'}</span>
+                                    </div>
+                                )}
                                 <div className="md:col-span-2 flex justify-end gap-2.5 pt-2">
-                                    <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
+                                    <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
                                     <button type="submit" className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Película</button>
                                 </div>
                             </form>
