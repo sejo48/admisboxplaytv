@@ -83,6 +83,9 @@
             TUDUM: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/tudum.json'
         };
 
+        // ✅ API Key TMDB precargada (rota esta clave en themoviedb.org cuanto antes)
+        const TMDB_DEFAULT_KEY = '8c5c81cb73f9f699696582a6f25647f4';
+
         // ============================================================
         // UTILIDADES
         // ============================================================
@@ -149,7 +152,6 @@
             return match ? match[1] : null;
         };
 
-        // UTF-8 safe Base64
         const utf8ToBase64 = (str) => {
             const utf8Bytes = new TextEncoder().encode(str);
             let binary = '';
@@ -352,7 +354,6 @@
                 };
             }, [isOpen, url, isEmbed, isAudioStream]);
 
-            // ✅ Cleanup al desmontar
             useEffect(() => {
                 return () => {
                     if (videoRef.current) {
@@ -609,13 +610,13 @@
         };
 
         // ============================================================
-        // EDITOR: TV EN VIVO (M3U) — con drag corregido
+        // EDITOR: TV EN VIVO (M3U) — drag por ID estable con búsqueda
         // ============================================================
         const TvEditor = ({ channels, setChannels, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
-            const [draggedIndex, setDraggedIndex] = useState(null);
             const [localOrder, setLocalOrder] = useState(channels);
+            const dragSourceIdRef = useRef(null);
 
             useEffect(() => { setLocalOrder(channels); }, [channels]);
 
@@ -655,25 +656,37 @@
                 setChannels(newChs);
             };
 
-            // ✅ Drag sin spam de renders
-            const handleDragStart = (e, index) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; };
-            const handleDragOver = (e, index) => {
+            // ✅ Drag & drop reordenando por ID (estable con búsqueda activa)
+            const handleDragStart = (e, channelId) => {
+                dragSourceIdRef.current = channelId;
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', String(channelId)); } catch (_) {}
+            };
+
+            const handleDragOver = (e, targetId) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
-                if (draggedIndex === null || draggedIndex === index) return;
-                const newOrder = [...localOrder];
-                const [dragged] = newOrder.splice(draggedIndex, 1);
-                newOrder.splice(index, 0, dragged);
-                setDraggedIndex(index);
-                setLocalOrder(newOrder);
+                const sourceId = dragSourceIdRef.current;
+                if (sourceId == null || sourceId === targetId) return;
+                setLocalOrder(prev => {
+                    const fromIdx = prev.findIndex(c => c.id === sourceId);
+                    const toIdx = prev.findIndex(c => c.id === targetId);
+                    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev;
+                    const next = [...prev];
+                    const [moved] = next.splice(fromIdx, 1);
+                    next.splice(toIdx, 0, moved);
+                    return next;
+                });
             };
+
             const handleDragEnd = () => {
-                setDraggedIndex(null);
+                dragSourceIdRef.current = null;
                 setChannels(localOrder);
                 showToast('Orden de canales actualizado');
             };
 
-            const filteredChannels = channels.filter(c =>
+            const dragDisabled = searchTerm.trim().length > 0;
+            const visible = localOrder.filter(c =>
                 (c.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (c.group || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
@@ -714,51 +727,74 @@
                         </div>
                     )}
                     <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-                        {filteredChannels.map((channel, index) => (
-                            <div key={channel.id || index} draggable
-                                onDragStart={(e) => handleDragStart(e, index)}
-                                onDragOver={(e) => handleDragOver(e, index)}
-                                onDragEnd={handleDragEnd}
-                                className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all cursor-grab active:cursor-grabbing">
-                                <div className="flex items-center gap-3.5 min-w-0">
-                                    <div className="text-slate-400 p-1"><Icon name="grip" size={15} /></div>
-                                    <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shadow-sm shrink-0">
-                                        {channel.logo ? (<img src={channel.logo} alt="" className="w-full h-full object-contain" onError={(e) => e.target.style.display='none'} />) : (<Icon name="tv" size={16} className="text-slate-400" />)}
+                        {visible.map((channel) => {
+                            const globalIndex = channels.findIndex(c => c.id === channel.id);
+                            return (
+                                <div key={channel.id}
+                                    draggable={!dragDisabled}
+                                    onDragStart={(e) => !dragDisabled && handleDragStart(e, channel.id)}
+                                    onDragOver={(e) => !dragDisabled && handleDragOver(e, channel.id)}
+                                    onDragEnd={handleDragEnd}
+                                    className={`flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all ${dragDisabled ? 'opacity-90' : 'cursor-grab active:cursor-grabbing'}`}>
+                                    <div className="flex items-center gap-3.5 min-w-0">
+                                        <div className="text-slate-400 p-1"><Icon name="grip" size={15} /></div>
+                                        <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shadow-sm shrink-0">
+                                            {channel.logo ? (<img src={channel.logo} alt="" className="w-full h-full object-contain" onError={(e) => e.target.style.display='none'} />) : (<Icon name="tv" size={16} className="text-slate-400" />)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{channel.title}</h4>
+                                            <p className="text-[11px] text-cyan-600 font-bold truncate mt-0.5">{channel.group || 'General'}</p>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{channel.title}</h4>
-                                        <p className="text-[11px] text-cyan-600 font-bold truncate mt-0.5">{channel.group || 'General'}</p>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button onClick={() => onTestPlayer(channel.title, channel.url)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => moveItem(globalIndex, 'up')} disabled={globalIndex <= 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
+                                            <button onClick={() => moveItem(globalIndex, 'down')} disabled={globalIndex === channels.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
+                                        </div>
+                                        <button onClick={() => setEditingItem(channel)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                        <button onClick={() => requestConfirm(`¿Eliminar "${channel.title}"?`, () => setChannels(channels.filter(c => c.id !== channel.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button onClick={() => onTestPlayer(channel.title, channel.url)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
-                                        <button onClick={() => moveItem(index, 'down')} disabled={index === channels.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
-                                    </div>
-                                    <button onClick={() => setEditingItem(channel)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
-                                    <button onClick={() => requestConfirm(`¿Eliminar "${channel.title}"?`, () => setChannels(channels.filter(c => c.id !== channel.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             );
         };
 
         // ============================================================
-        // EDITOR: PELÍCULAS — con moveItem registrado en historial vía wrapper
-        // ============================================================
-        // ============================================================
-        // BUSCADOR AUTOMÁTICO DE PELÍCULAS — TMDB
+        // BUSCADOR AUTOMÁTICO DE PELÍCULAS — TMDB (con key precargada)
         // ============================================================
         const MovieAutoSearch = ({ onUse, showToast }) => {
             const [query, setQuery] = useState('');
             const [results, setResults] = useState([]);
             const [selected, setSelected] = useState(null);
             const [loading, setLoading] = useState(false);
-            const [apiKey, setApiKey] = useState(() => localStorage.getItem('boxplay_tmdb_key') || '');
+            const [apiKey, setApiKey] = useState(() =>
+                localStorage.getItem('boxplay_tmdb_key') || TMDB_DEFAULT_KEY
+            );
             const [showKeyBox, setShowKeyBox] = useState(false);
+            const [keyStatus, setKeyStatus] = useState('unknown');
+
+            useEffect(() => {
+                let cancelled = false;
+                const validate = async () => {
+                    const key = (apiKey || '').trim();
+                    if (!key) { setKeyStatus('bad'); return; }
+                    try {
+                        const r = await fetch(
+                            `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`
+                        );
+                        if (cancelled) return;
+                        setKeyStatus(r.ok ? 'ok' : 'bad');
+                    } catch {
+                        if (!cancelled) setKeyStatus('bad');
+                    }
+                };
+                validate();
+                return () => { cancelled = true; };
+            }, [apiKey]);
 
             const saveKey = () => {
                 const key = apiKey.trim();
@@ -774,34 +810,41 @@
             const searchMovies = async () => {
                 const q = query.trim();
                 if (!q) return;
-                if (!apiKey.trim()) {
+                const key = (apiKey || '').trim();
+                if (!key) {
                     setShowKeyBox(true);
                     showToast('Primero configura tu clave API de TMDB.', 'error');
                     return;
                 }
-
                 setLoading(true);
                 setSelected(null);
                 try {
-                    const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(apiKey.trim())}&language=es-ES&include_adult=false&page=1&query=${encodeURIComponent(q)}`;
+                    const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(key)}&language=es-ES&include_adult=false&page=1&query=${encodeURIComponent(q)}`;
                     const response = await fetch(url);
                     const data = await response.json();
+                    if (response.status === 401) {
+                        setKeyStatus('bad');
+                        setShowKeyBox(true);
+                        throw new Error('Clave TMDB inválida o revocada. Renuévala en themoviedb.org.');
+                    }
                     if (!response.ok) throw new Error(data.status_message || 'No se pudo consultar TMDB');
+                    setKeyStatus('ok');
                     setResults((data.results || []).slice(0, 8));
                     if (!data.results || data.results.length === 0) showToast('No se encontraron películas con ese título.', 'error');
                 } catch (error) {
                     console.error(error);
-                    showToast('Error al buscar en TMDB. Revisa la clave API.', 'error');
+                    showToast(`Error TMDB: ${error.message}`, 'error');
                 } finally {
                     setLoading(false);
                 }
             };
 
             const getDetails = async (movie) => {
-                if (!apiKey.trim()) return;
+                const key = (apiKey || '').trim();
+                if (!key) return;
                 setLoading(true);
                 try {
-                    const url = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${encodeURIComponent(apiKey.trim())}&language=es-ES&append_to_response=credits`;
+                    const url = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${encodeURIComponent(key)}&language=es-ES&append_to_response=credits`;
                     const response = await fetch(url);
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.status_message || 'No se pudieron obtener los detalles');
@@ -816,8 +859,14 @@
 
             const useSelected = () => {
                 if (!selected) return;
-                const directors = (selected.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name).join(', ');
-                const cast = (selected.credits?.cast || []).slice(0, 8).map(p => p.name).join(', ');
+                const directors = (selected.credits?.crew || [])
+                    .filter(p => p.job === 'Director')
+                    .map(p => p.name)
+                    .join(', ');
+                const cast = (selected.credits?.cast || [])
+                    .slice(0, 8)
+                    .map(p => p.name)
+                    .join(', ');
                 onUse({
                     titulo: selected.title || selected.original_title || '',
                     imagen: selected.poster_path ? `https://image.tmdb.org/t/p/w780${selected.poster_path}` : '',
@@ -833,11 +882,22 @@
                 showToast('Información seleccionada. Se cargó en el formulario.');
             };
 
+            const keyBadge = keyStatus === 'ok'
+                ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' }
+                : keyStatus === 'bad'
+                    ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' }
+                    : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
+
             return (
                 <div className="md:col-span-2 bg-slate-950 rounded-2xl p-4 border border-slate-800 text-white space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
-                            <h4 className="font-black text-sm flex items-center gap-2"><span>🎬</span> Buscar información automática</h4>
+                            <h4 className="font-black text-sm flex items-center gap-2">
+                                <span>🎬</span> Buscar información automática
+                                <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${keyBadge.cls}`}>
+                                    {keyBadge.text}
+                                </span>
+                            </h4>
                             <p className="text-[10px] text-slate-400 mt-0.5">Busca portada, título, sinopsis, año, género, duración, director y reparto.</p>
                         </div>
                         <button type="button" onClick={() => setShowKeyBox(v => !v)} className="text-[10px] font-bold text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700">⚙️ API TMDB</button>
@@ -847,10 +907,10 @@
                         <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 space-y-2">
                             <label className="block text-[10px] font-bold text-slate-300">Clave API de TMDB</label>
                             <div className="flex gap-2">
-                                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Pega aquí tu API Key de TMDB" className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
+                                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Pega aquí tu API Key de TMDB" className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500 font-mono" />
                                 <button type="button" onClick={saveKey} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-[10px] font-black">Guardar</button>
                             </div>
-                            <p className="text-[9px] text-slate-500">La clave queda guardada solamente en este navegador mediante localStorage.</p>
+                            <p className="text-[9px] text-slate-500">La clave queda guardada en este navegador (localStorage). Si ves "⚠ API inválida", renuévala en themoviedb.org.</p>
                         </div>
                     )}
 
@@ -897,7 +957,7 @@
         };
 
         // ============================================================
-        // EDITOR: PELÍCULAS — con moveItem registrado en historial vía wrapper
+        // EDITOR: PELÍCULAS
         // ============================================================
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
@@ -1847,7 +1907,6 @@
 
             const selectedItem = videoteca.find(v => v.id === selectedItemId);
 
-            // ✅ Sólo se ejecuta UNA vez
             const videotecaInitRef = useRef(false);
             useEffect(() => {
                 if (videotecaInitRef.current) return;
@@ -2403,6 +2462,47 @@
         };
 
         // ============================================================
+        // HOOK: historial centralizado con debounce
+        // ============================================================
+        const useHistoryTracker = ({
+            movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled
+        }) => {
+            const historyRef = useRef({ history: [], index: -1 });
+            const skipRef = useRef(true);
+            const timerRef = useRef(null);
+            const [historyState, setHistoryState] = useState({ history: [], index: -1 });
+
+            useEffect(() => {
+                if (!enabled) return;
+                if (skipRef.current) { skipRef.current = false; return; }
+                if (timerRef.current) clearTimeout(timerRef.current);
+                timerRef.current = setTimeout(() => {
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
+                    const ref = historyRef.current;
+                    const baseIdx = ref.index < 0 ? 0 : ref.index;
+                    const sliced = ref.history.slice(0, baseIdx + 1);
+                    sliced.push(snapshot);
+                    if (sliced.length > 30) sliced.shift();
+                    ref.history = sliced;
+                    ref.index = sliced.length - 1;
+                    setHistoryState({ history: sliced, index: ref.index });
+                }, 400);
+                return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+            }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled]);
+
+            const undo = useCallback(() => {
+                const ref = historyRef.current;
+                if (ref.index <= 0) return null;
+                ref.index -= 1;
+                const prev = ref.history[ref.index];
+                setHistoryState({ history: ref.history, index: ref.index });
+                return prev;
+            }, []);
+
+            return { historyState, undo };
+        };
+
+        // ============================================================
         // APP PRINCIPAL
         // ============================================================
         const App = () => {
@@ -2423,10 +2523,6 @@
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
 
-            const [history, setHistory] = useState([]);
-            const [historyIndex, setHistoryIndex] = useState(-1);
-            const historyRef = useRef({ history: [], index: -1 });
-
             const fileInputRef = useRef(null);
 
             const showToast = useCallback((msg, type = 'success') => {
@@ -2442,44 +2538,24 @@
                 setPlayerData({ isOpen: true, title, url });
             }, [showToast]);
 
-            // ✅ recordStateChange corregido sin stale closure
-            const recordStateChange = useCallback((
-                newMovies, newEstrenos, newTudum, newSeries, newChannels,
-                newAnimados, newRadios, newVideoteca
-            ) => {
-                const currentState = {
-                    movies: newMovies, estrenos: newEstrenos, tudum: newTudum,
-                    series: newSeries, channels: newChannels, animados: newAnimados,
-                    radios: newRadios, videoteca: newVideoteca
-                };
-                const ref = historyRef.current;
-                const baseIdx = ref.index < 0 ? 0 : ref.index;
-                const sliced = ref.history.slice(0, baseIdx + 1);
-                sliced.push(currentState);
-                if (sliced.length > 25) sliced.shift();
-                ref.history = sliced;
-                ref.index = sliced.length - 1;
-                setHistory(sliced);
-                setHistoryIndex(ref.index);
-            }, []);
+            // ✅ Historial centralizado con debounce
+            const { historyState, undo } = useHistoryTracker({
+                movies, estrenos, tudumList, series, channels, animados, radios, videoteca,
+                enabled: dataInitialized
+            });
 
             const handleUndo = () => {
-                if (historyIndex > 0) {
-                    const prev = history[historyIndex - 1];
-                    setHistoryIndex(historyIndex - 1);
-                    historyRef.current.index = historyIndex - 1;
-                    setMovies(prev.movies);
-                    setEstrenos(prev.estrenos);
-                    setTudumList(prev.tudum);
-                    setSeries(prev.series);
-                    setChannels(prev.channels);
-                    setAnimados(prev.animados);
-                    setRadios(prev.radios);
-                    setVideoteca(prev.videoteca);
-                    showToast('Cambio deshecho');
-                } else {
-                    showToast('No hay más acciones previas para deshacer', 'error');
-                }
+                const prev = undo();
+                if (!prev) { showToast('No hay más acciones previas para deshacer', 'error'); return; }
+                setMovies(prev.movies);
+                setEstrenos(prev.estrenos);
+                setTudumList(prev.tudum);
+                setSeries(prev.series);
+                setChannels(prev.channels);
+                setAnimados(prev.animados);
+                setRadios(prev.radios);
+                setVideoteca(prev.videoteca);
+                showToast('Cambio deshecho');
             };
 
             const downloadAllBackups = () => {
@@ -2514,7 +2590,6 @@
                 showToast('Backup descargado');
             };
 
-            // ✅ fetchFromCloud con validación de datos
             const fetchFromCloud = async () => {
                 setLoading(true);
                 try {
@@ -2581,7 +2656,6 @@
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
 
-                    // ✅ Solo sobrescribe si hay datos válidos (no vacía el catálogo si falla la red)
                     if (parsedChannels.length > 0) setChannels(parsedChannels);
                     if (parsedSeries.length > 0) setSeries(parsedSeries);
                     if (parsedMovies.length > 0) setMovies(parsedMovies);
@@ -2591,7 +2665,6 @@
                     if (parsedRadios.length > 0) setRadios(parsedRadios);
                     if (parsedVideoteca.length > 0) setVideoteca(parsedVideoteca);
 
-                    recordStateChange(parsedMovies, parsedEstrenos, parsedTudum, parsedSeries, parsedChannels, parsedAnimados, parsedRadios, parsedVideoteca);
                     showToast("Datos descargados y actualizados correctamente");
                 } catch (error) {
                     console.error("Error sincronizando:", error);
@@ -2602,7 +2675,6 @@
                 }
             };
 
-            // ✅ syncToGithub con validación de PAT y tamaño
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
                 if (setStep) setStep('Validando token de GitHub...');
                 const testRes = await fetch('https://api.github.com/user', {
@@ -2718,7 +2790,6 @@
                         const fileContentStr = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
                         const base64Content = utf8ToBase64(fileContentStr);
 
-                        // ✅ Validar tamaño antes de subir (límite API GitHub ~1MB)
                         if (base64Content.length > 1_200_000) {
                             throw new Error(`${filename} supera el límite de 1MB de la API de GitHub. Considera dividir el archivo.`);
                         }
@@ -2759,7 +2830,6 @@
                 }
             };
 
-            // ✅ handleFileImport con validación de tamaño
             const handleFileImport = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -2778,7 +2848,6 @@
                         if (filename.endsWith('.m3u') || filename.endsWith('.m3u8')) {
                             const parsed = parseM3U(content).map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
                             setChannels(parsed);
-                            recordStateChange(movies, estrenos, tudumList, series, parsed, animados, radios, videoteca);
                             showToast(`Importados ${parsed.length} canales de TV`);
                         } else if (filename.includes('backup_completo')) {
                             const parsed = JSON.parse(content);
@@ -2795,43 +2864,36 @@
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas2 || parsed.peliculas || [])).map((m, i) => ({ ...m, id: `est-${Date.now()}-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') }));
                             setEstrenos(list);
-                            recordStateChange(movies, list, tudumList, series, channels, animados, radios, videoteca);
                             showToast(`Importados ${list.length} Estrenos 2026`);
                         } else if (filename.includes('tudum')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.tudum || [])).map((t, i) => ({ ...t, id: `tudum-${Date.now()}-${i}`, image: normalizeImageUrl(t.image || t.imagen || ''), imagen: normalizeImageUrl(t.image || t.imagen || '') }));
                             setTudumList(list);
-                            recordStateChange(movies, estrenos, list, series, channels, animados, radios, videoteca);
                             showToast(`Importados ${list.length} estrenos Tudum`);
                         } else if (filename.includes('peliculas') || filename.includes('movies')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas || [])).map((m, i) => ({ ...m, id: `mov-${Date.now()}-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') }));
                             setMovies(list);
-                            recordStateChange(list, estrenos, tudumList, series, channels, animados, radios, videoteca);
                             showToast(`Importadas ${list.length} películas`);
                         } else if (filename.includes('radios') || filename.includes('radio')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.radios || [])).map((r, i) => ({ ...r, id: r.id || `cr-${Date.now()}-${i}`, logo: normalizeImageUrl(r.logo || r.imagen || ''), imagen: normalizeImageUrl(r.logo || r.imagen || '') }));
                             setRadios(list);
-                            recordStateChange(movies, estrenos, tudumList, series, channels, animados, list, videoteca);
                             showToast(`Importadas ${list.length} emisoras`);
                         } else if (filename.includes('playlist') || filename.includes('series')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.series || [])).map((s, i) => ({ ...s, id: `serie-${Date.now()}-${i}`, imagen: normalizeImageUrl(s.imagen || s.image || ''), image: normalizeImageUrl(s.imagen || s.image || '') }));
                             setSeries(list);
-                            recordStateChange(movies, estrenos, tudumList, list, channels, animados, radios, videoteca);
                             showToast(`Importadas ${list.length} series`);
                         } else if (filename.includes('animados') || filename.includes('animated')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.animados || parsed.animated || [])).map((a, i) => ({ ...a, id: `anim-${Date.now()}-${i}`, imagen: normalizeImageUrl(a.imagen || a.image || ''), image: normalizeImageUrl(a.imagen || a.image || '') }));
                             setAnimados(list);
-                            recordStateChange(movies, estrenos, tudumList, series, channels, list, radios, videoteca);
                             showToast(`Importados ${list.length} animados`);
                         } else if (filename.includes('videoteca') || filename.includes('albumes') || filename.includes('albums')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.videoteca || parsed.albumes || [])).map((v, i) => ({ ...v, id: `vid-${Date.now()}-${i}`, cover: normalizeImageUrl(v.cover || v.imagen || v.image || ''), imagen: normalizeImageUrl(v.cover || v.imagen || v.image || ''), image: normalizeImageUrl(v.cover || v.imagen || v.image || '') }));
                             setVideoteca(list);
-                            recordStateChange(movies, estrenos, tudumList, series, channels, animados, radios, list);
                             showToast(`Importados ${list.length} álbumes`);
                         } else {
                             showToast('Formato de archivo no reconocido', 'error');
@@ -2868,7 +2930,6 @@
 
                             setMovies(m); setEstrenos(est); setTudumList(tud); setSeries(s);
                             setChannels(t); setAnimados(a); setRadios(r); setVideoteca(v);
-                            recordStateChange(m, est, tud, s, t, a, r, v);
                             setLoading(false); setDataInitialized(true);
                             showToast("Sesión local restaurada");
                             return;
@@ -2948,7 +3009,7 @@
                                 <button onClick={downloadAllBackups} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm">
                                     <Icon name="download" size={13} /> <span>Backup</span>
                                 </button>
-                                <button onClick={() => requestConfirm('¿Descartar cambios y re-descargar desde GitHub?', fetchFromCloud)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm">
+                                <button onClick={() => requestConfirm('⚠ Se descargarán los datos desde GitHub y se SOBRESCRIBIRÁN los cambios locales no sincronizados. ¿Continuar?', fetchFromCloud)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm">
                                     <Icon name="refresh" size={13} /> <span>Recargar</span>
                                 </button>
                             </div>
@@ -2974,21 +3035,21 @@
 
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
-                            {activeTab === 'movies' && (<MoviesEditor movies={movies} setMovies={(m) => { setMovies(m); recordStateChange(m, estrenos, tudumList, series, channels, animados, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'estrenos2026' && (<Estrenos2026Editor estrenos={estrenos} setEstrenos={(est) => { setEstrenos(est); recordStateChange(movies, est, tudumList, series, channels, animados, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'tudum' && (<TudumEditor tudumList={tudumList} setTudumList={(tud) => { setTudumList(tud); recordStateChange(movies, estrenos, tud, series, channels, animados, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'series' && (<SeriesEditor series={series} setSeries={(s) => { setSeries(s); recordStateChange(movies, estrenos, tudumList, s, channels, animados, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'animados' && (<AnimadosEditor animados={animados} setAnimados={(a) => { setAnimados(a); recordStateChange(movies, estrenos, tudumList, series, channels, a, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'videoteca' && (<VideotecaEditor videoteca={videoteca} setVideoteca={(v) => { setVideoteca(v); recordStateChange(movies, estrenos, tudumList, series, channels, animados, radios, v); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'tv' && (<TvEditor channels={channels} setChannels={(c) => { setChannels(c); recordStateChange(movies, estrenos, tudumList, series, c, animados, radios, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'radios' && (<RadiosEditor radios={radios} setRadios={(r) => { setRadios(r); recordStateChange(movies, estrenos, tudumList, series, channels, animados, r, videoteca); }} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'movies' && (<MoviesEditor movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'estrenos2026' && (<Estrenos2026Editor estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'tudum' && (<TudumEditor tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'series' && (<SeriesEditor series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'animados' && (<AnimadosEditor animados={animados} setAnimados={setAnimados} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'videoteca' && (<VideotecaEditor videoteca={videoteca} setVideoteca={setVideoteca} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'tv' && (<TvEditor channels={channels} setChannels={setChannels} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'radios' && (<RadiosEditor radios={radios} setRadios={setRadios} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                         </ErrorBoundary>
                     </main>
 
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
-                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v6.5</span>
+                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v6.6</span>
                         </div>
                     </footer>
                 </div>
