@@ -1116,137 +1116,331 @@
         // ============================================================
         // EDITOR: ESTRENOS 2026
         // ============================================================
-        const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer }) => {
-            const [editingItem, setEditingItem] = useState(null);
-            const [searchTerm, setSearchTerm] = useState('');
+        // ============================================================
+// EDITOR: ESTRENOS 2026 — CON BUSCADOR TMDB ENRIQUECIDO
+// ============================================================
+const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer }) => {
+    const [editingItem, setEditingItem] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [autoData, setAutoData] = useState(null);
 
-            const handleSave = (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const titulo = formData.get('titulo').trim();
-                const existingIndex = estrenos.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
-                if (existingIndex !== -1) { showToast(`El estreno "${titulo}" ya existe.`, 'error'); return; }
-                const rawImage = formData.get('imagen') || '';
-                const normalizedImage = normalizeImageUrl(rawImage);
-                const newItem = {
-                    id: editingItem.id || `est-${Date.now()}`,
-                    titulo, title: titulo,
-                    descripcion: formData.get('descripcion') || '',
-                    sinopsis: formData.get('descripcion') || '',
-                    imagen: normalizedImage, image: normalizedImage,
-                    urlDrive: formData.get('urlDrive') || '',
-                    urlOkRu: formData.get('urlOkRu') || '',
-                    codigo: formData.get('codigo') || null,
-                    qualityTag: formData.get('qualityTag') || ''
-                };
-                if (editingItem && editingItem.id && !editingItem.isNew) {
-                    setEstrenos(estrenos.map(m => m.id === editingItem.id ? newItem : m));
-                    showToast('Estreno 2026 actualizado');
-                } else {
-                    setEstrenos([newItem, ...estrenos]);
-                    showToast('Estreno 2026 añadido');
-                }
-                setEditingItem(null);
-            };
+    const handleSave = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const titulo = formData.get('titulo').trim();
+        const existingIndex = estrenos.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
+        if (existingIndex !== -1) { showToast(`El estreno "${titulo}" ya existe.`, 'error'); return; }
+        const rawImage = formData.get('imagen') || '';
+        const normalizedImage = normalizeImageUrl(rawImage);
+        const rawBackdrop = formData.get('backdrop') || '';
+        const normalizedBackdrop = normalizeImageUrl(rawBackdrop);
 
-            const exportData = () => {
-                const exportEstrenos = estrenos.map(({ id, ...rest }) => ({
-                    titulo: rest.titulo || rest.title,
-                    descripcion: rest.descripcion || rest.sinopsis,
-                    imagen: rest.imagen || rest.image,
-                    urlDrive: rest.urlDrive || '',
-                    urlOkRu: rest.urlOkRu || '',
-                    codigo: rest.codigo || null,
-                    qualityTag: rest.qualityTag || ''
-                }));
-                downloadFile(JSON.stringify(exportEstrenos, null, 2), 'peliculas2.json', 'application/json');
-                showToast('Archivo peliculas2.json generado');
-            };
-
-            const moveItem = (index, direction) => {
-                const newItems = [...estrenos];
-                if (direction === 'up' && index > 0) [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
-                else if (direction === 'down' && index < newItems.length - 1) [newItems[index + 1], newItems[index]] = [newItems[index], newItems[index + 1]];
-                setEstrenos(newItems);
-            };
-
-            const filteredEstrenos = estrenos.filter(m =>
-                (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
-
-            return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
-                        <div>
-                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
-                                <span className="p-2 bg-amber-50 text-amber-600 rounded-xl"><Icon name="sparkles" size={20} /></span>
-                                <span>Estrenos 2026</span>
-                                <span className="text-xs font-bold text-slate-400 font-mono bg-slate-100 px-2.5 py-0.5 rounded-full">{estrenos.length} estrenos</span>
-                            </h2>
-                            <p className="text-xs text-slate-500 mt-1">Lanzamientos cinematográficos (<code>peliculas2.json</code>)</p>
-                        </div>
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setEditingItem({ isNew: true })} className="flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Estreno</button>
-                            <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
-                        </div>
-                    </div>
-                    <div className="relative">
-                        <input type="text" placeholder="Buscar estreno por título o descripción..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3.5 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none text-xs sm:text-sm pl-10" />
-                        <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
-                    </div>
-                    {editingItem && (
-                        <div className="bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
-                            <h3 className="font-extrabold text-amber-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}</h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.title || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Título del estreno" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingItem.imagen || editingItem.image || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive</label><input name="urlDrive" defaultValue={editingItem.urlDrive || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo</label><input name="urlOkRu" defaultValue={editingItem.urlOkRu || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" defaultValue={editingItem.qualityTag || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" defaultValue={editingItem.codigo || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="PIN" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" defaultValue={editingItem.descripcion || editingItem.sinopsis || ''} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Reseña del estreno..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2">
-                                    <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-                        {filteredEstrenos.map((movie, index) => {
-                            const poster = movie.imagen || movie.image;
-                            const title = movie.titulo || movie.title;
-                            const stream = movie.urlDrive || movie.urlOkRu;
-                            return (
-                                <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm relative">
-                                            <img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=IMG'; }} />
-                                            {movie.qualityTag && <span className="absolute top-1 right-1 bg-amber-600 text-white text-[8px] font-black px-1 rounded">{movie.qualityTag}</span>}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{title}</h4>
-                                            <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{movie.descripcion || 'Sin descripción'}</p>
-                                            {movie.codigo && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded font-mono inline-block mt-0.5">PIN: {movie.codigo}</span>}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
-                                        <div className="flex gap-1">
-                                            <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
-                                            <button onClick={() => moveItem(index, 'down')} disabled={index === estrenos.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
-                                        </div>
-                                        <button onClick={() => setEditingItem(movie)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
-                                        <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setEstrenos(estrenos.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
+        const newItem = {
+            id: editingItem.id || `est-${Date.now()}`,
+            // Básicos
+            titulo, title: titulo,
+            tituloOriginal: editingItem.tituloOriginal || '',
+            descripcion: formData.get('descripcion') || '',
+            sinopsis: formData.get('descripcion') || '',
+            imagen: normalizedImage, image: normalizedImage,
+            backdrop: normalizedBackdrop,
+            // Streaming
+            urlDrive: formData.get('urlDrive') || '',
+            urlOkRu: formData.get('urlOkRu') || '',
+            codigo: formData.get('codigo') || null,
+            qualityTag: formData.get('qualityTag') || '',
+            // ✅ Metadata enriquecida (viene del buscador TMDB)
+            year: editingItem.year || '',
+            fechaEstreno: editingItem.fechaEstreno || '',
+            fechaLegible: editingItem.fechaLegible || '',
+            rating: editingItem.rating || '',
+            votos: editingItem.votos || 0,
+            runtime: editingItem.runtime || '',
+            runtimeMin: editingItem.runtimeMin || 0,
+            genres: editingItem.genres || [],
+            generosTexto: editingItem.generosTexto || '',
+            clasificacion: editingItem.clasificacion || '',
+            tagline: editingItem.tagline || '',
+            director: editingItem.director || '',
+            guionistas: editingItem.guionistas || '',
+            reparto: editingItem.reparto || [],
+            pais: editingItem.pais || '',
+            idioma: editingItem.idioma || '',
+            productoras: editingItem.productoras || '',
+            presupuesto: editingItem.presupuesto || 0,
+            recaudacion: editingItem.recaudacion || 0,
+            trailerUrl: editingItem.trailerUrl || '',
+            coleccion: editingItem.coleccion || '',
+            keywords: editingItem.keywords || '',
+            similares: editingItem.similares || [],
+            tmdbId: editingItem.tmdbId || null,
+            homepage: editingItem.homepage || ''
         };
+
+        if (editingItem && editingItem.id && !editingItem.isNew) {
+            setEstrenos(estrenos.map(m => m.id === editingItem.id ? newItem : m));
+            showToast('Estreno 2026 actualizado con ficha completa');
+        } else {
+            setEstrenos([newItem, ...estrenos]);
+            showToast('Estreno 2026 añadido con ficha completa');
+        }
+        setEditingItem(null);
+        setAutoData(null);
+    };
+
+    const exportData = () => {
+        const exportEstrenos = estrenos.map(({ id, ...rest }) => ({
+            // Básicos
+            titulo: rest.titulo || rest.title,
+            tituloOriginal: rest.tituloOriginal || '',
+            descripcion: rest.descripcion || rest.sinopsis,
+            imagen: rest.imagen || rest.image,
+            backdrop: rest.backdrop || '',
+            // Streaming
+            urlDrive: rest.urlDrive || '',
+            urlOkRu: rest.urlOkRu || '',
+            codigo: rest.codigo || null,
+            qualityTag: rest.qualityTag || '',
+            // ✅ Metadata enriquecida
+            year: rest.year || '',
+            fechaEstreno: rest.fechaEstreno || '',
+            rating: rest.rating || '',
+            votos: rest.votos || 0,
+            runtime: rest.runtime || '',
+            genres: rest.genres || [],
+            generosTexto: rest.generosTexto || '',
+            clasificacion: rest.clasificacion || '',
+            tagline: rest.tagline || '',
+            director: rest.director || '',
+            guionistas: rest.guionistas || '',
+            reparto: rest.reparto || [],
+            pais: rest.pais || '',
+            idioma: rest.idioma || '',
+            productoras: rest.productoras || '',
+            presupuesto: rest.presupuesto || 0,
+            recaudacion: rest.recaudacion || 0,
+            trailerUrl: rest.trailerUrl || '',
+            coleccion: rest.coleccion || '',
+            keywords: rest.keywords || '',
+            similares: rest.similares || [],
+            tmdbId: rest.tmdbId || null
+        }));
+        downloadFile(JSON.stringify(exportEstrenos, null, 2), 'peliculas2.json', 'application/json');
+        showToast('Archivo peliculas2.json enriquecido generado');
+    };
+
+    const moveItem = (index, direction) => {
+        const newItems = [...estrenos];
+        if (direction === 'up' && index > 0) [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+        else if (direction === 'down' && index < newItems.length - 1) [newItems[index + 1], newItems[index]] = [newItems[index], newItems[index + 1]];
+        setEstrenos(newItems);
+    };
+
+    const filteredEstrenos = estrenos.filter(m =>
+        (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.director || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const startNewEstreno = () => {
+        setAutoData(null);
+        setEditingItem({ isNew: true });
+    };
+
+    // ✅ Fusiona la data de TMDB con el formulario actual
+    const applyAutoData = (data) => {
+        setAutoData(data);
+        setEditingItem(item => ({ ...(item || { isNew: true }), ...data }));
+    };
+
+    const hasEnrichedData = (movie) =>
+        movie.director || movie.rating || movie.runtime || (movie.reparto && movie.reparto.length > 0) || movie.generosTexto;
+
+    return (
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
+                <div>
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+                        <span className="p-2 bg-amber-50 text-amber-600 rounded-xl"><Icon name="sparkles" size={20} /></span>
+                        <span>Estrenos 2026</span>
+                        <span className="text-xs font-bold text-slate-400 font-mono bg-slate-100 px-2.5 py-0.5 rounded-full">{estrenos.length} estrenos</span>
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                        Estrenos con ficha completa: sinopsis, géneros, reparto, duración, tráiler y más (<code>peliculas2.json</code>)
+                    </p>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button onClick={startNewEstreno} className="flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Estreno</button>
+                    <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
+                </div>
+            </div>
+
+            <div className="relative">
+                <input type="text" placeholder="Buscar estreno por título, descripción o director..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3.5 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none text-xs sm:text-sm pl-10" />
+                <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
+            </div>
+
+            {editingItem && (
+                <div className="bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
+                    <h3 className="font-extrabold text-amber-950 text-sm sm:text-base flex items-center gap-2">
+                        <Icon name="edit" size={16} />
+                        {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}
+                        {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
+                    </h3>
+                    <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* ✅ Buscador TMDB enriquecido */}
+                        <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
+
+                        {/* Vista previa de la ficha */}
+                        {(editingItem.imagen || editingItem.titulo) && (
+                            <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
+                                {editingItem.backdrop && (
+                                    <div className="absolute inset-0 opacity-20">
+                                        <img src={editingItem.backdrop} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                                <div className="relative flex flex-col sm:flex-row gap-4">
+                                    <div className="w-28 h-40 rounded-xl overflow-hidden bg-black shrink-0 border border-slate-800 shadow-lg">
+                                        {editingItem.imagen ? (
+                                            <img src={editingItem.imagen} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/120x180/111/fff?text=SIN+POSTER'; }} />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin póster</div>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                        <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">👁️ Vista previa de la ficha</p>
+                                        <h3 className="text-lg font-black leading-tight">{editingItem.titulo || 'Sin título'}</h3>
+                                        {editingItem.tagline && <p className="text-[11px] italic text-slate-400">"{editingItem.tagline}"</p>}
+                                        <div className="flex flex-wrap gap-1.5 text-[10px]">
+                                            {editingItem.year && <span className="bg-white/10 px-2 py-0.5 rounded">{editingItem.year}</span>}
+                                            {editingItem.runtime && <span className="bg-white/10 px-2 py-0.5 rounded">⏱ {editingItem.runtime}</span>}
+                                            {editingItem.rating && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">⭐ {editingItem.rating}</span>}
+                                            {editingItem.clasificacion && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">{editingItem.clasificacion}</span>}
+                                        </div>
+                                        {editingItem.generosTexto && (
+                                            <p className="text-[10px] text-amber-300">{editingItem.generosTexto}</p>
+                                        )}
+                                        {editingItem.descripcion && (
+                                            <p className="text-[11px] text-slate-300 line-clamp-3">{editingItem.descripcion}</p>
+                                        )}
+                                        {editingItem.director && (
+                                            <p className="text-[10px] text-slate-400"><b>Director:</b> {editingItem.director}</p>
+                                        )}
+                                        {editingItem.reparto && editingItem.reparto.length > 0 && (
+                                            <div className="flex gap-2 pt-1 overflow-x-auto">
+                                                {editingItem.reparto.slice(0, 6).map((a, i) => (
+                                                    <div key={i} className="text-center shrink-0 w-12">
+                                                        <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 border border-slate-700 mx-auto">
+                                                            {a.foto ? <img src={a.foto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600">👤</div>}
+                                                        </div>
+                                                        <p className="text-[8px] mt-0.5 text-slate-400 line-clamp-2">{a.nombre}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {editingItem.trailerUrl && (
+                                            <p className="text-[10px] text-emerald-400 pt-1">🎬 Tráiler disponible</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Campos del formulario */}
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">Título</label>
+                            <input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiador II" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">Título Original</label>
+                            <input name="tituloOriginal" value={editingItem.tituloOriginal || ''} onChange={e => setEditingItem({...editingItem, tituloOriginal:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiator II" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label>
+                            <input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">URL de Backdrop (fondo panorámico)</label>
+                            <input name="backdrop" value={editingItem.backdrop || ''} onChange={e => setEditingItem({...editingItem, backdrop:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label>
+                            <input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label>
+                            <input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://ok.ru/video/..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label>
+                            <input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="HD / 4K / CAM" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label>
+                            <input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="1234" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label>
+                            <textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Sinopsis del estreno..."></textarea>
+                        </div>
+
+                        <div className="md:col-span-2 flex justify-end gap-2.5 pt-2 border-t border-amber-200">
+                            <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
+                            <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                {filteredEstrenos.map((movie, index) => {
+                    const poster = movie.imagen || movie.image;
+                    const title = movie.titulo || movie.title;
+                    const stream = movie.urlDrive || movie.urlOkRu;
+                    const enriched = hasEnrichedData(movie);
+                    return (
+                        <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
+                            <div className="flex items-center gap-3.5 min-w-0">
+                                <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm relative">
+                                    <img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=IMG'; }} />
+                                    {movie.qualityTag && <span className="absolute top-1 right-1 bg-amber-600 text-white text-[8px] font-black px-1 rounded">{movie.qualityTag}</span>}
+                                </div>
+                                <div className="min-w-0">
+                                    <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate flex items-center gap-2">
+                                        <span>{title}</span>
+                                        {enriched && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold" title="Ficha completa">✓ FICHA</span>}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-500 mt-0.5">
+                                        {movie.year && <span>{movie.year}</span>}
+                                        {movie.runtime && <span>· ⏱ {movie.runtime}</span>}
+                                        {movie.rating && <span>· ⭐ {movie.rating}</span>}
+                                        {movie.generosTexto && <span>· {movie.generosTexto}</span>}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{movie.descripcion || 'Sin descripción'}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        {movie.codigo && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded font-mono">PIN: {movie.codigo}</span>}
+                                        {movie.director && <span className="text-[9px] text-slate-500">Dir: {movie.director.split(',')[0]}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
+                                {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
+                                <div className="flex gap-1">
+                                    <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
+                                    <button onClick={() => moveItem(index, 'down')} disabled={index === estrenos.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
+                                </div>
+                                <button onClick={() => setEditingItem(movie)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setEstrenos(estrenos.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
         // ============================================================
         // EDITOR: SERIES
