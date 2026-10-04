@@ -261,6 +261,39 @@
         };
 
         // ============================================================
+        // HOOK: API KEY TMDB COMPARTIDA
+        // ============================================================
+        const useTmdbKey = (apiKeyProp) => {
+            const [apiKey, setApiKey] = useState(() =>
+                apiKeyProp || localStorage.getItem('boxplay_tmdb_key') || TMDB_DEFAULT_KEY
+            );
+            const [keyStatus, setKeyStatus] = useState('unknown');
+
+            useEffect(() => {
+                let cancelled = false;
+                const validate = async () => {
+                    const key = (apiKey || '').trim();
+                    if (!key) { setKeyStatus('bad'); return; }
+                    try {
+                        const r = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`);
+                        if (!cancelled) setKeyStatus(r.ok ? 'ok' : 'bad');
+                    } catch {
+                        if (!cancelled) setKeyStatus('bad');
+                    }
+                };
+                validate();
+                return () => { cancelled = true; };
+            }, [apiKey]);
+
+            const saveKey = (k) => {
+                localStorage.setItem('boxplay_tmdb_key', k.trim());
+                setApiKey(k.trim());
+            };
+
+            return { apiKey, setApiKey, keyStatus, saveKey };
+        };
+
+        // ============================================================
         // COMPONENTES UI GLOBALES
         // ============================================================
 
@@ -761,36 +794,9 @@
             const [results, setResults] = useState([]);
             const [selected, setSelected] = useState(null);
             const [loading, setLoading] = useState(false);
-            const [apiKey, setApiKey] = useState(() =>
-                apiKeyProp || localStorage.getItem('boxplay_tmdb_key') || TMDB_DEFAULT_KEY
-            );
+            const { apiKey, keyStatus, setApiKey, saveKey } = useTmdbKey(apiKeyProp);
             const [showKeyBox, setShowKeyBox] = useState(false);
-            const [keyStatus, setKeyStatus] = useState('unknown');
-
-            useEffect(() => {
-                let cancelled = false;
-                const validate = async () => {
-                    const key = (apiKey || '').trim();
-                    if (!key) { setKeyStatus('bad'); return; }
-                    try {
-                        const r = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`);
-                        if (cancelled) return;
-                        setKeyStatus(r.ok ? 'ok' : 'bad');
-                    } catch {
-                        if (!cancelled) setKeyStatus('bad');
-                    }
-                };
-                validate();
-                return () => { cancelled = true; };
-            }, [apiKey]);
-
-            const saveKey = () => {
-                const key = apiKey.trim();
-                if (!key) { showToast('Escribe tu clave API de TMDB.', 'error'); return; }
-                localStorage.setItem('boxplay_tmdb_key', key);
-                setShowKeyBox(false);
-                showToast('Clave TMDB guardada en este navegador.');
-            };
+            const [tempKey, setTempKey] = useState(apiKey);
 
             const searchMovies = async () => {
                 const q = query.trim();
@@ -803,9 +809,8 @@
                     const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(key)}&language=es-ES&include_adult=false&page=1&query=${encodeURIComponent(q)}`;
                     const response = await fetch(url);
                     const data = await response.json();
-                    if (response.status === 401) { setKeyStatus('bad'); setShowKeyBox(true); throw new Error('Clave TMDB inválida o revocada.'); }
+                    if (response.status === 401) { setShowKeyBox(true); throw new Error('Clave TMDB inválida o revocada.'); }
                     if (!response.ok) throw new Error(data.status_message || 'No se pudo consultar TMDB');
-                    setKeyStatus('ok');
                     setResults((data.results || []).slice(0, 8));
                     if (!data.results || data.results.length === 0) showToast('No se encontraron películas con ese título.', 'error');
                 } catch (error) {
@@ -834,8 +839,7 @@
                 }
             };
 
-            const useSelected = () => {
-                if (!selected) return;
+            const buildFullData = (selected) => {
                 const directors = (selected.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name);
                 const writers = (selected.credits?.crew || []).filter(p => ['Screenplay', 'Writer', 'Story'].includes(p.job)).slice(0, 3).map(p => p.name);
                 const cast = (selected.credits?.cast || []).slice(0, 12).map(p => ({ nombre: p.name, personaje: p.character || '', foto: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : '' }));
@@ -850,7 +854,7 @@
                 if (selected.runtime) { const h = Math.floor(selected.runtime / 60); const m = selected.runtime % 60; runtimeText = h > 0 ? `${h}h ${m}min` : `${m}min`; }
                 let fechaLegible = '';
                 if (selected.release_date) { const d = new Date(selected.release_date); fechaLegible = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }); }
-                onUse({
+                return {
                     titulo: selected.title || selected.original_title || '',
                     tituloOriginal: selected.original_title || '',
                     descripcion: selected.overview || '',
@@ -882,7 +886,12 @@
                     similares,
                     tmdbId: selected.id,
                     homepage: selected.homepage || ''
-                });
+                };
+            };
+
+            const useSelected = () => {
+                if (!selected) return;
+                onUse(buildFullData(selected));
                 showToast('✓ Ficha completa cargada en el formulario');
             };
 
@@ -898,15 +907,15 @@
                             </h4>
                             <p className="text-[10px] text-slate-400 mt-0.5">Trae: portada HD, fondo, sinopsis, año, duración, rating, géneros, director, reparto con foto, país, tráiler, clasificación y similares.</p>
                         </div>
-                        <button type="button" onClick={() => setShowKeyBox(v => !v)} className="text-[10px] font-bold text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700">⚙️ API TMDB</button>
+                        <button type="button" onClick={() => { setTempKey(apiKey); setShowKeyBox(v => !v); }} className="text-[10px] font-bold text-cyan-300 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700">⚙️ API TMDB</button>
                     </div>
 
                     {showKeyBox && (
                         <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 space-y-2">
                             <label className="block text-[10px] font-bold text-slate-300">Clave API de TMDB</label>
                             <div className="flex gap-2">
-                                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Pega aquí tu API Key" className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500 font-mono" />
-                                <button type="button" onClick={saveKey} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-[10px] font-black">Guardar</button>
+                                <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)} placeholder="Pega aquí tu API Key" className="flex-1 p-2 rounded-lg bg-slate-950 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500 font-mono" />
+                                <button type="button" onClick={() => { saveKey(tempKey); setShowKeyBox(false); showToast('API Key guardada'); }} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-[10px] font-black">Guardar</button>
                             </div>
                         </div>
                     )}
@@ -966,6 +975,324 @@
                             <div className="flex flex-wrap gap-2 pt-1">
                                 <button type="button" onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">✓ USAR ESTA INFORMACIÓN COMPLETA</button>
                                 <button type="button" onClick={() => setSelected(null)} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Volver a resultados</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ============================================================
+        // IMPORTADOR MASIVO: TENDENCIAS TMDB
+        // ============================================================
+        const TrendingImporter = ({
+            movies, setMovies,
+            estrenos, setEstrenos,
+            showToast, requestConfirm
+        }) => {
+            const { apiKey, keyStatus, saveKey } = useTmdbKey();
+            const [timeWindow, setTimeWindow] = useState('week');
+            const [items, setItems] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [showKeyBox, setShowKeyBox] = useState(false);
+            const [selected, setSelected] = useState(null);
+            const [tempKey, setTempKey] = useState(apiKey);
+            const [importingIds, setImportingIds] = useState(new Set());
+
+            const existingKeys = useMemo(() => {
+                const s = new Set();
+                [...movies, ...estrenos].forEach(m => {
+                    const t = (m.titulo || m.title || '').trim().toLowerCase();
+                    if (t) s.add(t);
+                    if (m.tmdbId) s.add(`tmdb:${m.tmdbId}`);
+                });
+                return s;
+            }, [movies, estrenos]);
+
+            const isAlreadyImported = useCallback((m) => {
+                const titleKey = (m.title || '').trim().toLowerCase();
+                return existingKeys.has(titleKey) || existingKeys.has(`tmdb:${m.id}`);
+            }, [existingKeys]);
+
+            const fetchTrending = async () => {
+                const key = (apiKey || '').trim();
+                if (!key) { setShowKeyBox(true); showToast('Configura tu API Key de TMDB primero.', 'error'); return; }
+                setLoading(true);
+                setSelected(null);
+                try {
+                    const url = `https://api.themoviedb.org/3/trending/movie/${timeWindow}?api_key=${encodeURIComponent(key)}&language=es-ES`;
+                    const res = await fetch(url);
+                    if (res.status === 401) { setShowKeyBox(true); throw new Error('API Key de TMDB inválida.'); }
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.status_message || 'Error consultando tendencias');
+                    setItems((data.results || []).slice(0, 20));
+                    showToast(`✓ ${data.results?.length || 0} tendencias cargadas`);
+                } catch (e) {
+                    console.error(e);
+                    showToast(`Error: ${e.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // Carga inicial automática
+            useEffect(() => {
+                if (apiKey && keyStatus === 'ok') fetchTrending();
+                // eslint-disable-next-line
+            }, [keyStatus]);
+
+            const buildMovieFromTrending = (m) => ({
+                titulo: m.title || m.original_title || '',
+                title: m.title || m.original_title || '',
+                tituloOriginal: m.original_title || '',
+                descripcion: m.overview || '',
+                sinopsis: m.overview || '',
+                imagen: m.poster_path ? `https://image.tmdb.org/t/p/w780${m.poster_path}` : '',
+                image: m.poster_path ? `https://image.tmdb.org/t/p/w780${m.poster_path}` : '',
+                backdrop: m.backdrop_path ? `https://image.tmdb.org/t/p/w1280${m.backdrop_path}` : '',
+                year: m.release_date ? m.release_date.slice(0, 4) : '',
+                fechaEstreno: m.release_date || '',
+                rating: m.vote_average ? m.vote_average.toFixed(1) : '',
+                votos: m.vote_count || 0,
+                generosTexto: '',
+                genres: [],
+                reparto: [],
+                similares: [],
+                tmdbId: m.id,
+                urlDrive: '',
+                urlOkRu: '',
+                qualityTag: '',
+                codigo: null,
+                trailerUrl: '',
+                director: '',
+                runtime: '',
+                runtimeMin: 0,
+                clasificacion: '',
+                tagline: '',
+                guionistas: '',
+                pais: '',
+                idioma: '',
+                productoras: '',
+                presupuesto: 0,
+                recaudacion: 0,
+                coleccion: '',
+                keywords: '',
+                homepage: ''
+            });
+
+            const importOne = async (m, target = 'movies') => {
+                const built = buildMovieFromTrending(m);
+                if (isAlreadyImported(m)) { showToast(`"${built.titulo}" ya está en el catálogo.`, 'error'); return false; }
+                setImportingIds(prev => new Set([...prev, m.id]));
+                try {
+                    const key = apiKey.trim();
+                    const detRes = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${encodeURIComponent(key)}&language=es-ES&append_to_response=credits,videos,release_dates`);
+                    if (detRes.ok) {
+                        const d = await detRes.json();
+                        const trailer = (d.videos?.results || []).find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                        const directors = (d.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name).join(', ');
+                        const cast = (d.credits?.cast || []).slice(0, 12).map(p => ({
+                            nombre: p.name, personaje: p.character || '',
+                            foto: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : ''
+                        }));
+                        built.director = directors;
+                        built.reparto = cast;
+                        built.runtime = d.runtime ? `${Math.floor(d.runtime / 60)}h ${d.runtime % 60}min` : '';
+                        built.runtimeMin = d.runtime || 0;
+                        built.genres = (d.genres || []).map(g => g.name);
+                        built.generosTexto = (d.genres || []).map(g => g.name).join(', ');
+                        built.trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : '';
+                        built.clasificacion = (d.release_dates?.results || []).find(r => r.iso_3166_1 === 'ES')?.release_dates?.[0]?.certification || '';
+                    }
+                } catch (e) { /* Importación básica si falla el detalle */ }
+
+                if (target === 'estrenos') {
+                    setEstrenos(prev => [{ ...built, id: `est-${Date.now()}-${m.id}` }, ...prev]);
+                } else {
+                    setMovies(prev => [{ ...built, id: `mov-${Date.now()}-${m.id}` }, ...prev]);
+                }
+                setImportingIds(prev => { const n = new Set(prev); n.delete(m.id); return n; });
+                showToast(`✓ "${built.titulo}" importado a ${target === 'estrenos' ? 'Estrenos 2026' : 'Películas'}`);
+                return true;
+            };
+
+            const importAll = (target = 'movies') => {
+                const pending = items.filter(m => !isAlreadyImported(m));
+                if (pending.length === 0) { showToast('Todas las tendencias ya están importadas.', 'error'); return; }
+                requestConfirm(
+                    `¿Importar ${pending.length} películas nuevas a ${target === 'estrenos' ? 'Estrenos 2026' : 'Películas'}? Se traerán fichas completas (director, reparto, tráiler).`,
+                    async () => {
+                        showToast(`Importando ${pending.length} títulos...`, 'info');
+                        let ok = 0;
+                        for (const m of pending) {
+                            // eslint-disable-next-line no-await-in-loop
+                            const res = await importOne(m, target);
+                            if (res) ok++;
+                            // pequeña pausa para no saturar la API
+                            // eslint-disable-next-line no-await-in-loop
+                            await new Promise(r => setTimeout(r, 120));
+                        }
+                        showToast(`✓ ${ok} títulos importados`);
+                    }
+                );
+            };
+
+            const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' }
+                : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' }
+                : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
+
+            return (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-3xl p-5 md:p-7 border border-slate-800 text-white space-y-5 animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
+                        <div>
+                            <h2 className="text-xl sm:text-2xl font-black flex items-center gap-2.5">
+                                <span className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">🔥</span>
+                                <span>Tendencias de la Semana (TMDB)</span>
+                                <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${keyBadge.cls}`}>{keyBadge.text}</span>
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-1">Importación masiva con ficha completa: portada, sinopsis, reparto, tráiler y más.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                            <div className="flex rounded-xl overflow-hidden border border-slate-700">
+                                {['day', 'week'].map(w => (
+                                    <button key={w} onClick={() => setTimeWindow(w)}
+                                        className={`px-3 py-2 text-xs font-bold transition-colors ${timeWindow === w ? 'bg-rose-600 text-white' : 'bg-slate-900 text-slate-300 hover:bg-slate-800'}`}>
+                                        {w === 'day' ? 'Hoy' : 'Semana'}
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={fetchTrending} disabled={loading}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700">
+                                <Icon name="refresh" size={13} /> {loading ? 'Cargando...' : 'Refrescar'}
+                            </button>
+                            <button onClick={() => importAll('movies')} disabled={loading || items.length === 0}
+                                className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 hover:brightness-110 disabled:opacity-50 rounded-xl text-xs font-black shadow-lg">
+                                ⚡ Importar todo a Películas
+                            </button>
+                            <button onClick={() => importAll('estrenos')} disabled={loading || items.length === 0}
+                                className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-500 hover:brightness-110 disabled:opacity-50 rounded-xl text-xs font-black shadow-lg">
+                                ✨ Importar todo a Estrenos 2026
+                            </button>
+                            <button onClick={() => { setTempKey(apiKey); setShowKeyBox(v => !v); }}
+                                className="px-3 py-2 bg-slate-900 hover:bg-slate-800 rounded-xl text-xs font-bold border border-slate-700">⚙️ API</button>
+                        </div>
+                    </div>
+
+                    {showKeyBox && (
+                        <div className="bg-slate-950 rounded-2xl p-4 border border-slate-700 space-y-2">
+                            <label className="block text-[11px] font-bold text-slate-300">API Key de TMDB</label>
+                            <div className="flex gap-2">
+                                <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)}
+                                    placeholder="Pega aquí tu API Key"
+                                    className="flex-1 p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-cyan-500 font-mono" />
+                                <button onClick={() => { saveKey(tempKey); setShowKeyBox(false); showToast('API Key guardada'); }}
+                                    className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-[11px] font-black">Guardar</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {loading && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {Array.from({ length: 10 }).map((_, i) => (
+                                <div key={i} className="aspect-[2/3] bg-slate-800/60 rounded-xl animate-pulse"></div>
+                            ))}
+                        </div>
+                    )}
+
+                    {!loading && items.length === 0 && (
+                        <div className="text-center py-12 text-slate-500">
+                            <div className="text-5xl mb-3">🍿</div>
+                            <p className="text-sm font-bold">Pulsa "Refrescar" para cargar las tendencias de TMDB.</p>
+                            <p className="text-xs mt-1">Necesitas una API Key válida configurada en ⚙️ API.</p>
+                        </div>
+                    )}
+
+                    {!loading && items.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                            {items.map((m, idx) => {
+                                const already = isAlreadyImported(m);
+                                const importing = importingIds.has(m.id);
+                                return (
+                                    <div key={m.id} className={`group relative bg-slate-900 rounded-2xl overflow-hidden border ${already ? 'border-emerald-700/60' : 'border-slate-800'} hover:border-cyan-500 transition-all`}>
+                                        <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
+                                            {m.poster_path ? (
+                                                <img src={`https://image.tmdb.org/t/p/w342${m.poster_path}`} alt={m.title}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-slate-600 text-[10px]">Sin póster</div>
+                                            )}
+                                            <span className="absolute top-2 left-2 bg-black/70 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">#{idx + 1}</span>
+                                            {already && (
+                                                <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">✓ YA</span>
+                                            )}
+                                            {importing && (
+                                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                                    <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                                                </div>
+                                            )}
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-2">
+                                                <p className="text-[11px] font-bold text-white line-clamp-2 leading-tight">{m.title}</p>
+                                                <p className="text-[9px] text-slate-300 mt-0.5">
+                                                    {m.release_date?.slice(0, 4) || '—'} · ⭐ {m.vote_average?.toFixed(1) || 'N/D'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="p-2 flex gap-1">
+                                            <button onClick={() => setSelected(m)}
+                                                className="flex-1 text-[10px] font-bold py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700">Ver</button>
+                                            <button onClick={() => importOne(m, 'movies')} disabled={already || importing}
+                                                className="flex-1 text-[10px] font-black py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                title="Importar a Películas">+ Pelis</button>
+                                            <button onClick={() => importOne(m, 'estrenos')} disabled={already || importing}
+                                                className="flex-1 text-[10px] font-black py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                title="Importar a Estrenos 2026">+ 2026</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {selected && (
+                        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[550] flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl">
+                                <div className="px-5 py-3.5 bg-slate-950 flex justify-between items-center border-b border-slate-800">
+                                    <h3 className="text-white font-extrabold text-sm truncate">👁️ Vista previa: {selected.title}</h3>
+                                    <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                                        <Icon name="x" size={18} />
+                                    </button>
+                                </div>
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5 text-white">
+                                    <div className="md:col-span-1">
+                                        {selected.poster_path
+                                            ? <img src={`https://image.tmdb.org/t/p/w500${selected.poster_path}`} alt="" className="w-full rounded-2xl shadow-lg" />
+                                            : <div className="aspect-[2/3] bg-slate-800 rounded-2xl flex items-center justify-center text-slate-500">Sin póster</div>}
+                                    </div>
+                                    <div className="md:col-span-2 space-y-3">
+                                        <h2 className="text-2xl font-black">{selected.title}</h2>
+                                        {selected.original_title && selected.original_title !== selected.title && (
+                                            <p className="text-xs text-slate-400 italic">Título original: {selected.original_title}</p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2 text-xs">
+                                            <span className="bg-slate-800 px-2.5 py-1 rounded-lg">{selected.release_date?.slice(0, 4) || 'Año N/D'}</span>
+                                            <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg font-bold">⭐ {selected.vote_average?.toFixed(1) || 'N/D'} ({selected.vote_count || 0})</span>
+                                            <span className="bg-slate-800 px-2.5 py-1 rounded-lg">Popularidad: {selected.popularity?.toFixed(0) || '—'}</span>
+                                        </div>
+                                        <p className="text-sm text-slate-300 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">{selected.overview || 'Sin sinopsis disponible.'}</p>
+                                        <div className="flex gap-2 pt-2 border-t border-slate-800">
+                                            <button onClick={async () => { await importOne(selected, 'movies'); setSelected(null); }}
+                                                disabled={isAlreadyImported(selected)}
+                                                className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 rounded-xl text-xs font-black">
+                                                ⬇ Importar a Películas
+                                            </button>
+                                            <button onClick={async () => { await importOne(selected, 'estrenos'); setSelected(null); }}
+                                                disabled={isAlreadyImported(selected)}
+                                                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 rounded-xl text-xs font-black">
+                                                ⬇ Importar a Estrenos 2026
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -3242,6 +3569,7 @@
 
             const tabs = [
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
+                { id: 'trending', label: 'Tendencias', icon: 'flame', count: 0, color: 'text-rose-400' },
                 { id: 'estrenos2026', label: 'Estrenos 2026', icon: 'sparkles', count: estrenos.length, color: 'text-amber-500' },
                 { id: 'tudum', label: 'Netflix Tudum', icon: 'flame', count: tudumList.length, color: 'text-rose-500' },
                 { id: 'series', label: 'Series', icon: 'film', count: series.length, color: 'text-purple-500' },
@@ -3313,6 +3641,7 @@
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
                             {activeTab === 'movies' && (<MoviesEditor movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
                             {activeTab === 'estrenos2026' && (<Estrenos2026Editor estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'tudum' && (<TudumEditor tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'series' && (<SeriesEditor series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
@@ -3326,7 +3655,7 @@
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
-                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v6.8</span>
+                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v6.9 (Trending)</span>
                         </div>
                     </footer>
                 </div>
