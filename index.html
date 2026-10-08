@@ -124,12 +124,28 @@
             if (!url) return '';
             if (url.includes('ok.ru/video/search') || url.includes('ok.ru/search')) return url;
             if (url.includes('ok.ru/video/')) return url.replace('ok.ru/video/', 'ok.ru/videoembed/');
-            if (url.includes('youtube.com') && !url.includes('/embed/')) {
+
+            // ---- YouTube (mejorado) ----
+            if (url.includes('youtube.com') || url.includes('youtu.be')) {
                 let videoId = '';
-                if (url.includes('watch?v=')) videoId = url.split('watch?v=')[1]?.split('&')[0];
+                if (url.includes('watch?v='))      videoId = url.split('watch?v=')[1]?.split('&')[0];
                 else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
-                if (videoId) return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+                else if (url.includes('/embed/'))   videoId = url.split('/embed/')[1]?.split('?')[0];
+                else if (url.includes('/shorts/'))  videoId = url.split('/shorts/')[1]?.split('?')[0];
+                if (videoId) {
+                    const params = new URLSearchParams({
+                        autoplay: '1',
+                        mute: '1',
+                        playsinline: '1',
+                        rel: '0',
+                        modestbranding: '1',
+                        enablejsapi: '1',
+                        origin: window.location.origin === 'null' ? 'https://www.youtube.com' : window.location.origin
+                    });
+                    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+                }
             }
+
             if (url.includes('drive.google.com')) {
                 let fileId = '';
                 if (url.includes('/file/d/')) { const parts = url.split('/file/d/'); if (parts[1]) fileId = parts[1].split('/')[0]; }
@@ -404,7 +420,14 @@
                         </div>
                         <div className="p-2 sm:p-4 bg-black aspect-video flex items-center justify-center relative overflow-hidden">
                             {isEmbed ? (
-                                <iframe src={converted} className="w-full h-full border-0 rounded-2xl" allow="autoplay; encrypted-media; fullscreen" allowFullScreen title={title}></iframe>
+                                <iframe
+                                    src={converted}
+                                    className="w-full h-full border-0 rounded-2xl"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                                    allowFullScreen
+                                    referrerPolicy="origin"
+                                    title={title}
+                                ></iframe>
                             ) : isAudioStream ? (
                                 <div className="flex flex-col items-center justify-center gap-4 text-center p-6">
                                     <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center text-2xl animate-pulse"><Icon name="music" size={28} /></div>
@@ -632,8 +655,10 @@
                     if (detRes.ok) {
                         const d = await detRes.json();
                         const videos = d.videos?.results || [];
+                        // Fallback de idioma: ES → EN → Teaser → cualquier YouTube
                         const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es')
-                                      || videos.find(v => v.type === 'Trailer' && v.site === 'YouTube')
+                                      || videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'en')
+                                      || videos.find(v => (v.type === 'Trailer' || v.type === 'Teaser') && v.site === 'YouTube')
                                       || videos.find(v => v.site === 'YouTube');
                         if (trailer) base.trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
                         const genres = (d.genres || []).map(g => g.name).join(', ');
@@ -873,7 +898,7 @@
         // EDITOR: NETFLIX TUDUM (con importador automático)
         // ============================================================
         const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
-            const [mode, setMode] = useState('auto'); // 'auto' | 'manual'
+            const [mode, setMode] = useState('auto');
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
@@ -1238,7 +1263,11 @@
                 const writers = (selected.credits?.crew || []).filter(p => ['Screenplay', 'Writer', 'Story'].includes(p.job)).slice(0, 3).map(p => p.name);
                 const cast = (selected.credits?.cast || []).slice(0, 12).map(p => ({ nombre: p.name, personaje: p.character || '', foto: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : '' }));
                 const allVideos = selected.videos?.results || [];
-                const trailer = allVideos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es') || allVideos.find(v => v.type === 'Trailer' && v.site === 'YouTube') || allVideos.find(v => v.site === 'YouTube');
+                // Fallback de idioma del tráiler
+                const trailer = allVideos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es')
+                              || allVideos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'en')
+                              || allVideos.find(v => (v.type === 'Trailer' || v.type === 'Teaser') && v.site === 'YouTube')
+                              || allVideos.find(v => v.site === 'YouTube');
                 const releaseData = selected.release_dates?.results || [];
                 const ageRating = (releaseData.find(r => r.iso_3166_1 === 'ES')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'MX')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification) || '';
                 const similares = (selected.recommendations?.results || []).filter(r => r.poster_path).slice(0, 6).map(r => ({ titulo: r.title, poster: `https://image.tmdb.org/t/p/w342${r.poster_path}`, year: r.release_date ? r.release_date.slice(0, 4) : '', rating: r.vote_average ? r.vote_average.toFixed(1) : '' }));
@@ -1482,7 +1511,11 @@
                     const detRes = await fetch(`https://api.themoviedb.org/3/movie/${m.id}?api_key=${encodeURIComponent(key)}&language=es-ES&append_to_response=credits,videos,release_dates`);
                     if (detRes.ok) {
                         const d = await detRes.json();
-                        const trailer = (d.videos?.results || []).find(v => v.type === 'Trailer' && v.site === 'YouTube');
+                        const videos = d.videos?.results || [];
+                        const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es')
+                                      || videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'en')
+                                      || videos.find(v => (v.type === 'Trailer' || v.type === 'Teaser') && v.site === 'YouTube')
+                                      || videos.find(v => v.site === 'YouTube');
                         const directors = (d.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name).join(', ');
                         const cast = (d.credits?.cast || []).slice(0, 12).map(p => ({
                             nombre: p.name, personaje: p.character || '',
@@ -4047,7 +4080,7 @@
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
-                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v7.0 (Tudum Auto)</span>
+                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v7.1 (Tráilers OK)</span>
                         </div>
                     </footer>
                 </div>
