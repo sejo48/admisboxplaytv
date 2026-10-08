@@ -502,9 +502,378 @@
         };
 
         // ============================================================
-        // EDITOR: NETFLIX TUDUM
+        // IMPORTADOR AUTOMÁTICO: NETFLIX TUDUM (TMDB)
+        // ============================================================
+        const TudumImporter = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
+            const { apiKey, keyStatus, saveKey } = useTmdbKey();
+            const [kind, setKind] = useState('movie');
+            const [region, setRegion] = useState('US');
+            const [items, setItems] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [showKeyBox, setShowKeyBox] = useState(false);
+            const [tempKey, setTempKey] = useState(apiKey);
+            const [importingIds, setImportingIds] = useState(new Set());
+            const [selected, setSelected] = useState(null);
+
+            const existingKeys = useMemo(() => {
+                const s = new Set();
+                tudumList.forEach(t => {
+                    const title = (t.title || t.titulo || '').trim().toLowerCase();
+                    if (title) s.add(title);
+                    if (t.tmdbId) s.add(`tmdb:${t.tmdbId}`);
+                });
+                return s;
+            }, [tudumList]);
+
+            const isAlreadyImported = useCallback((m) => {
+                const title = (m.title || m.name || '').trim().toLowerCase();
+                return existingKeys.has(title) || existingKeys.has(`tmdb:${m.id}`);
+            }, [existingKeys]);
+
+            const today = new Date().toISOString().slice(0, 10);
+
+            const buildUrl = () => {
+                const k = encodeURIComponent((apiKey || '').trim());
+                const lang = 'language=es-ES';
+                if (kind === 'movie') {
+                    return `https://api.themoviedb.org/3/discover/movie?api_key=${k}&${lang}` +
+                           `&with_watch_providers=8&watch_region=${region}` +
+                           `&sort_by=primary_release_date.asc&primary_release_date.gte=${today}` +
+                           `&with_release_type=2|3&vote_count.gte=0&page=1`;
+                }
+                if (kind === 'tv') {
+                    return `https://api.themoviedb.org/3/discover/tv?api_key=${k}&${lang}` +
+                           `&with_watch_providers=8&watch_region=${region}` +
+                           `&sort_by=first_air_date.asc&first_air_date.gte=${today}` +
+                           `&with_networks=213&page=1`;
+                }
+                if (kind === 'upcoming') {
+                    return `https://api.themoviedb.org/3/movie/upcoming?api_key=${k}&${lang}&region=${region}&page=1`;
+                }
+                return `https://api.themoviedb.org/3/trending/all/week?api_key=${k}&${lang}`;
+            };
+
+            const fetchItems = async () => {
+                const key = (apiKey || '').trim();
+                if (!key) { setShowKeyBox(true); showToast('Configura tu API Key de TMDB.', 'error'); return; }
+                setLoading(true);
+                setSelected(null);
+                try {
+                    const res = await fetch(buildUrl());
+                    if (res.status === 401) { setShowKeyBox(true); throw new Error('API Key TMDB inválida.'); }
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.status_message || 'Error consultando TMDB');
+                    let list = data.results || [];
+                    list = list.map(r => ({
+                        ...r,
+                        media_type: r.media_type || (kind === 'tv' ? 'tv' : 'movie'),
+                    }));
+                    if (kind === 'movie' || kind === 'tv' || kind === 'upcoming') {
+                        list.sort((a, b) => {
+                            const da = a.release_date || a.first_air_date || '9999';
+                            const db = b.release_date || b.first_air_date || '9999';
+                            return da.localeCompare(db);
+                        });
+                    }
+                    setItems(list.slice(0, 24));
+                    showToast(`✓ ${list.length} resultados cargados`);
+                } catch (e) {
+                    console.error(e);
+                    showToast(`Error: ${e.message}`, 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            useEffect(() => {
+                if (apiKey && keyStatus === 'ok') fetchItems();
+                // eslint-disable-next-line
+            }, [keyStatus, kind, region]);
+
+            const buildTudumFromItem = (m) => {
+                const isTv = m.media_type === 'tv' || m.name;
+                const title = m.title || m.name || m.original_title || m.original_name || '';
+                const releaseDate = m.release_date || m.first_air_date || '';
+                const poster = m.poster_path ? `https://image.tmdb.org/t/p/w780${m.poster_path}` : '';
+                return {
+                    title,
+                    titulo: title,
+                    releaseDate: releaseDate ? new Date(releaseDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }) : 'Próximamente',
+                    fechaEstreno: releaseDate || 'Próximamente',
+                    genre: 'Estreno Netflix',
+                    genero: 'Estreno Netflix',
+                    synopsis: m.overview || '',
+                    sinopsis: m.overview || '',
+                    image: poster,
+                    imagen: poster,
+                    trailerUrl: '',
+                    urlTrailer: '',
+                    availability: `Netflix (${isTv ? 'Serie' : 'Película'})`,
+                    disponibilidad: `Netflix (${isTv ? 'Serie' : 'Película'})`,
+                    score: m.vote_average ? `${m.vote_average.toFixed(1)} / 10` : 'Próximamente',
+                    puntuacion: m.vote_average ? `${m.vote_average.toFixed(1)} / 10` : 'Próximamente',
+                    tmdbId: m.id,
+                    mediaType: isTv ? 'tv' : 'movie',
+                };
+            };
+
+            const enrichAndImport = async (m) => {
+                const base = buildTudumFromItem(m);
+                if (isAlreadyImported(m)) { showToast(`"${base.title}" ya está en Tudum.`, 'error'); return false; }
+                setImportingIds(prev => new Set([...prev, m.id]));
+                try {
+                    const key = apiKey.trim();
+                    const isTv = base.mediaType === 'tv';
+                    const endpoint = isTv ? 'tv' : 'movie';
+                    const detRes = await fetch(
+                        `https://api.themoviedb.org/3/${endpoint}/${m.id}?api_key=${encodeURIComponent(key)}&language=es-ES` +
+                        `&append_to_response=videos,release_dates,content_ratings,credits`
+                    );
+                    if (detRes.ok) {
+                        const d = await detRes.json();
+                        const videos = d.videos?.results || [];
+                        const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es')
+                                      || videos.find(v => v.type === 'Trailer' && v.site === 'YouTube')
+                                      || videos.find(v => v.site === 'YouTube');
+                        if (trailer) base.trailerUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+                        const genres = (d.genres || []).map(g => g.name).join(', ');
+                        if (genres) { base.genre = genres; base.genero = genres; }
+                        const release = d.release_date || d.first_air_date;
+                        if (release) {
+                            base.releaseDate = new Date(release).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+                            base.fechaEstreno = release;
+                        }
+                        base.synopsis = d.overview || base.synopsis;
+                        base.sinopsis = base.synopsis;
+                        if (d.vote_average) {
+                            base.score = `${d.vote_average.toFixed(1)} / 10`;
+                            base.puntuacion = base.score;
+                        }
+                        if (isTv) {
+                            const cr = d.content_ratings?.results || [];
+                            const rating = cr.find(r => r.iso_3166_1 === 'ES' || r.iso_3166_1 === 'US')?.rating;
+                            if (rating) base.clasificacion = rating;
+                        } else {
+                            const rd = d.release_dates?.results || [];
+                            const cert = rd.find(r => r.iso_3166_1 === 'ES')?.release_dates?.[0]?.certification
+                                      || rd.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification;
+                            if (cert) base.clasificacion = cert;
+                        }
+                    }
+                } catch (e) { /* importa con datos básicos si falla */ }
+
+                const newItem = { ...base, id: `tudum-${Date.now()}-${m.id}` };
+                setTudumList(prev => [newItem, ...prev]);
+                setImportingIds(prev => { const n = new Set(prev); n.delete(m.id); return n; });
+                showToast(`✓ "${base.title}" añadido a Tudum`);
+                return true;
+            };
+
+            const importAll = () => {
+                const pending = items.filter(m => !isAlreadyImported(m));
+                if (pending.length === 0) { showToast('Todos ya están importados.', 'error'); return; }
+                requestConfirm(
+                    `¿Importar ${pending.length} títulos nuevos a Netflix Tudum? Se traerán tráiler y sinopsis completos.`,
+                    async () => {
+                        showToast(`Importando ${pending.length} títulos...`, 'info');
+                        let ok = 0;
+                        for (const m of pending) {
+                            // eslint-disable-next-line no-await-in-loop
+                            const r = await enrichAndImport(m);
+                            if (r) ok++;
+                            // eslint-disable-next-line no-await-in-loop
+                            await new Promise(r => setTimeout(r, 130));
+                        }
+                        showToast(`✓ ${ok} títulos importados a Tudum`);
+                    }
+                );
+            };
+
+            const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' }
+                : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' }
+                : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
+
+            const tabs = [
+                { id: 'movie',    label: '🎬 Pelis Netflix' },
+                { id: 'tv',       label: '📺 Series Netflix' },
+                { id: 'upcoming', label: '🗓️ Próximos estrenos' },
+                { id: 'trending', label: '🔥 Trending' },
+            ];
+
+            return (
+                <div className="bg-gradient-to-br from-rose-950 via-slate-950 to-black rounded-3xl p-5 md:p-7 border border-rose-900/50 text-white space-y-5 animate-fade-in">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-rose-900/40 pb-4">
+                        <div>
+                            <h2 className="text-xl sm:text-2xl font-black flex items-center gap-2.5">
+                                <span className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">🎬</span>
+                                <span>Importador Netflix Tudum (TMDB)</span>
+                                <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full border ${keyBadge.cls}`}>{keyBadge.text}</span>
+                            </h2>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Trae automáticamente próximos estrenos de Netflix, series, cine y tendencias con póster, sinopsis, tráiler y clasificación.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                            <select value={region} onChange={e => setRegion(e.target.value)}
+                                className="px-3 py-2 bg-slate-900 border border-rose-900/50 rounded-xl text-xs font-bold text-rose-200">
+                                <option value="US">🌎 US</option>
+                                <option value="ES">🇪🇸 ES</option>
+                                <option value="MX">🇲🇽 MX</option>
+                                <option value="CR">🇨🇷 CR</option>
+                                <option value="AR">🇦🇷 AR</option>
+                                <option value="CO">🇨🇴 CO</option>
+                            </select>
+                            <button onClick={fetchItems} disabled={loading}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 rounded-xl text-xs font-bold flex items-center gap-2 border border-rose-900/50">
+                                <Icon name="refresh" size={13} /> {loading ? 'Cargando...' : 'Refrescar'}
+                            </button>
+                            <button onClick={importAll} disabled={loading || items.length === 0}
+                                className="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-500 hover:brightness-110 disabled:opacity-50 rounded-xl text-xs font-black shadow-lg">
+                                ⚡ Importar todo a Tudum
+                            </button>
+                            <button onClick={() => { setTempKey(apiKey); setShowKeyBox(v => !v); }}
+                                className="px-3 py-2 bg-slate-900 hover:bg-slate-800 rounded-xl text-xs font-bold border border-rose-900/50">⚙️ API</button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {tabs.map(t => (
+                            <button key={t.id} onClick={() => setKind(t.id)}
+                                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    kind === t.id
+                                        ? 'bg-rose-600 text-white shadow-lg'
+                                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-rose-900/40'
+                                }`}>
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {showKeyBox && (
+                        <div className="bg-slate-950 rounded-2xl p-4 border border-rose-800/60 space-y-2">
+                            <label className="block text-[11px] font-bold text-slate-300">API Key de TMDB</label>
+                            <div className="flex gap-2">
+                                <input type="password" value={tempKey} onChange={e => setTempKey(e.target.value)}
+                                    placeholder="Pega aquí tu API Key"
+                                    className="flex-1 p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs outline-none focus:ring-2 focus:ring-rose-500 font-mono" />
+                                <button onClick={() => { saveKey(tempKey); setShowKeyBox(false); showToast('API Key guardada'); }}
+                                    className="px-4 py-2 bg-rose-600 hover:bg-rose-500 rounded-lg text-[11px] font-black">Guardar</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {loading && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {Array.from({ length: 12 }).map((_, i) => (
+                                <div key={i} className="aspect-[2/3] bg-slate-800/60 rounded-xl animate-pulse"></div>
+                            ))}
+                        </div>
+                    )}
+
+                    {!loading && items.length === 0 && (
+                        <div className="text-center py-12 text-slate-500">
+                            <div className="text-5xl mb-3">🎬</div>
+                            <p className="text-sm font-bold">Pulsa "Refrescar" para cargar contenido de Netflix.</p>
+                        </div>
+                    )}
+
+                    {!loading && items.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            {items.map((m) => {
+                                const already = isAlreadyImported(m);
+                                const importing = importingIds.has(m.id);
+                                const title = m.title || m.name;
+                                const date = m.release_date || m.first_air_date;
+                                const poster = m.poster_path ? `https://image.tmdb.org/t/p/w342${m.poster_path}` : '';
+                                return (
+                                    <div key={m.id} className={`group relative bg-slate-900 rounded-2xl overflow-hidden border ${already ? 'border-emerald-700/60' : 'border-slate-800'} hover:border-rose-500 transition-all`}>
+                                        <div className="aspect-[2/3] bg-slate-800 relative overflow-hidden">
+                                            {poster
+                                                ? <img src={poster} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                                                : <div className="w-full h-full flex items-center justify-center text-slate-600 text-[10px]">Sin póster</div>}
+                                            {already && (
+                                                <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">✓ YA</span>
+                                            )}
+                                            {importing && (
+                                                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                                    <div className="w-6 h-6 border-2 border-rose-400 border-t-transparent rounded-full animate-spin"></div>
+                                                </div>
+                                            )}
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-2">
+                                                <p className="text-[11px] font-bold text-white line-clamp-2 leading-tight">{title}</p>
+                                                <p className="text-[9px] text-slate-300 mt-0.5">
+                                                    {date ? new Date(date).toLocaleDateString('es-ES', { year: 'numeric', month: 'short' }) : 'Fecha TBD'}
+                                                    {' · '}
+                                                    {m.vote_average ? `⭐ ${m.vote_average.toFixed(1)}` : '—'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="p-2 flex gap-1">
+                                            <button onClick={() => setSelected(m)}
+                                                className="flex-1 text-[10px] font-bold py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700">Ver</button>
+                                            <button onClick={() => enrichAndImport(m)} disabled={already || importing}
+                                                className="flex-1 text-[10px] font-black py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                title="Importar a Tudum">+ Tudum</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {selected && (
+                        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[550] flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl">
+                                <div className="px-5 py-3.5 bg-slate-950 flex justify-between items-center border-b border-slate-800">
+                                    <h3 className="text-white font-extrabold text-sm truncate">👁️ Vista previa: {selected.title || selected.name}</h3>
+                                    <button onClick={() => setSelected(null)} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
+                                        <Icon name="x" size={18} />
+                                    </button>
+                                </div>
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5 text-white">
+                                    <div className="md:col-span-1">
+                                        {selected.poster_path
+                                            ? <img src={`https://image.tmdb.org/t/p/w500${selected.poster_path}`} alt="" className="w-full rounded-2xl shadow-lg" />
+                                            : <div className="aspect-[2/3] bg-slate-800 rounded-2xl flex items-center justify-center text-slate-500">Sin póster</div>}
+                                    </div>
+                                    <div className="md:col-span-2 space-y-3">
+                                        <h2 className="text-2xl font-black">{selected.title || selected.name}</h2>
+                                        {(selected.original_title || selected.original_name) && (selected.original_title || selected.original_name) !== (selected.title || selected.name) && (
+                                            <p className="text-xs text-slate-400 italic">Título original: {selected.original_title || selected.original_name}</p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2 text-xs">
+                                            <span className="bg-slate-800 px-2.5 py-1 rounded-lg">
+                                                {(selected.release_date || selected.first_air_date)?.slice(0, 4) || 'Año TBD'}
+                                            </span>
+                                            <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg font-bold">
+                                                ⭐ {selected.vote_average?.toFixed(1) || 'N/D'}
+                                            </span>
+                                            <span className="bg-rose-500/20 text-rose-300 px-2.5 py-1 rounded-lg font-bold">
+                                                {selected.media_type === 'tv' ? '📺 Serie' : '🎬 Película'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-300 leading-relaxed max-h-40 overflow-y-auto custom-scrollbar">
+                                            {selected.overview || 'Sin sinopsis disponible.'}
+                                        </p>
+                                        <button onClick={async () => { await enrichAndImport(selected); setSelected(null); }}
+                                            disabled={isAlreadyImported(selected)}
+                                            className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 rounded-xl text-xs font-black">
+                                            ⬇ Importar a Netflix Tudum
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ============================================================
+        // EDITOR: NETFLIX TUDUM (con importador automático)
         // ============================================================
         const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
+            const [mode, setMode] = useState('auto'); // 'auto' | 'manual'
             const [editingItem, setEditingItem] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
 
@@ -580,55 +949,80 @@
                             <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
                         </div>
                     </div>
-                    <div className="relative">
-                        <input type="text" placeholder="Buscar por título, género o sinopsis..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3.5 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs sm:text-sm pl-10" />
-                        <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => setMode('auto')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${mode === 'auto' ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                            ⚡ Importación automática (TMDB)
+                        </button>
+                        <button onClick={() => setMode('manual')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${mode === 'manual' ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                            ✏️ Edición manual ({tudumList.length})
+                        </button>
                     </div>
-                    {editingItem && (
-                        <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
-                            <h3 className="font-extrabold text-rose-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno Tudum' : 'Editar Estreno Tudum'}</h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Stranger Things 5" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Fecha de Estreno</label><input name="releaseDate" defaultValue={editingItem.releaseDate || editingItem.fechaEstreno || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Verano 2026" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Género</label><input name="genre" defaultValue={editingItem.genre || editingItem.genero || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Ciencia Ficción / Terror" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Puntuación / Calificación</label><input name="score" defaultValue={editingItem.score || editingItem.puntuacion || '9.2 / 10'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="9.5 / 10" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Póster</label><input name="image" defaultValue={editingItem.image || editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Tráiler (YouTube)</label><input name="trailerUrl" defaultValue={editingItem.trailerUrl || editingItem.urlTrailer || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white font-mono" placeholder="https://www.youtube.com/watch?v=..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Disponibilidad Regional</label><input name="availability" defaultValue={editingItem.availability || editingItem.disponibilidad || 'Costa Rica (Estreno)'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Costa Rica (Estreno en Netflix)" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis</label><textarea name="synopsis" defaultValue={editingItem.synopsis || editingItem.sinopsis || ''} rows="3" required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Descripción del lanzamiento..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2">
-                                    <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-                        {filteredList.map((item, index) => {
-                            const poster = item.image || item.imagen;
-                            const title = item.title || item.titulo;
-                            const genre = item.genre || item.genero;
-                            const release = item.releaseDate || item.fechaEstreno;
-                            const trailer = item.trailerUrl || item.urlTrailer;
-                            return (
-                                <div key={item.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm"><img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=TUDUM'; }} /></div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{title}</h4>
-                                            <p className="text-[11px] text-rose-600 font-bold truncate mt-0.5">{genre} · <span className="text-slate-500 font-normal">{release}</span></p>
-                                            <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{item.availability || 'Costa Rica'}</p>
+
+                    {mode === 'auto' ? (
+                        <TudumImporter
+                            tudumList={tudumList}
+                            setTudumList={setTudumList}
+                            showToast={showToast}
+                            requestConfirm={requestConfirm}
+                            onTestPlayer={onTestPlayer}
+                        />
+                    ) : (
+                        <>
+                            <div className="relative">
+                                <input type="text" placeholder="Buscar por título, género o sinopsis..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3.5 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 outline-none text-xs sm:text-sm pl-10" />
+                                <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
+                            </div>
+
+                            {editingItem && (
+                                <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
+                                    <h3 className="font-extrabold text-rose-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno Tudum' : 'Editar Estreno Tudum'}</h3>
+                                    <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Stranger Things 5" /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">Fecha de Estreno</label><input name="releaseDate" defaultValue={editingItem.releaseDate || editingItem.fechaEstreno || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Verano 2026" /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">Género</label><input name="genre" defaultValue={editingItem.genre || editingItem.genero || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Ciencia Ficción / Terror" /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">Puntuación / Calificación</label><input name="score" defaultValue={editingItem.score || editingItem.puntuacion || '9.2 / 10'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="9.5 / 10" /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Póster</label><input name="image" defaultValue={editingItem.image || editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white font-mono" placeholder="https://..." /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Tráiler (YouTube)</label><input name="trailerUrl" defaultValue={editingItem.trailerUrl || editingItem.urlTrailer || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white font-mono" placeholder="https://www.youtube.com/watch?v=..." /></div>
+                                        <div><label className="block text-xs font-bold mb-1 text-slate-700">Disponibilidad Regional</label><input name="availability" defaultValue={editingItem.availability || editingItem.disponibilidad || 'Costa Rica (Estreno)'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Costa Rica (Estreno en Netflix)" /></div>
+                                        <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis</label><textarea name="synopsis" defaultValue={editingItem.synopsis || editingItem.sinopsis || ''} rows="3" required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Descripción del lanzamiento..."></textarea></div>
+                                        <div className="md:col-span-2 flex justify-end gap-2.5 pt-2">
+                                            <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
+                                            <button type="submit" className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {trailer && (<button onClick={() => onTestPlayer(title, trailer)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
-                                        <button onClick={() => setEditingItem(item)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
-                                        <button onClick={() => requestConfirm(`¿Eliminar "${title}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
-                                    </div>
+                                    </form>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            )}
+                            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                                {filteredList.map((item, index) => {
+                                    const poster = item.image || item.imagen;
+                                    const title = item.title || item.titulo;
+                                    const genre = item.genre || item.genero;
+                                    const release = item.releaseDate || item.fechaEstreno;
+                                    const trailer = item.trailerUrl || item.urlTrailer;
+                                    return (
+                                        <div key={item.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
+                                            <div className="flex items-center gap-3.5 min-w-0">
+                                                <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm"><img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=TUDUM'; }} /></div>
+                                                <div className="min-w-0">
+                                                    <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{title}</h4>
+                                                    <p className="text-[11px] text-rose-600 font-bold truncate mt-0.5">{genre} · <span className="text-slate-500 font-normal">{release}</span></p>
+                                                    <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{item.availability || 'Costa Rica'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {trailer && (<button onClick={() => onTestPlayer(title, trailer)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
+                                                <button onClick={() => setEditingItem(item)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                                <button onClick={() => requestConfirm(`¿Eliminar "${title}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         };
@@ -1035,7 +1429,6 @@
                 }
             };
 
-            // Carga inicial automática
             useEffect(() => {
                 if (apiKey && keyStatus === 'ok') fetchTrending();
                 // eslint-disable-next-line
@@ -1128,7 +1521,6 @@
                             // eslint-disable-next-line no-await-in-loop
                             const res = await importOne(m, target);
                             if (res) ok++;
-                            // pequeña pausa para no saturar la API
                             // eslint-disable-next-line no-await-in-loop
                             await new Promise(r => setTimeout(r, 120));
                         }
@@ -3655,7 +4047,7 @@
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
-                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v6.9 (Trending)</span>
+                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v7.0 (Tudum Auto)</span>
                         </div>
                     </footer>
                 </div>
