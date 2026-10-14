@@ -279,11 +279,18 @@
         // ============================================================
         // HOOK: API KEY TMDB COMPARTIDA
         // ============================================================
+        const tmdbMetadata = item => Object.fromEntries(['tmdbId', 'tmdbType', 'tituloOriginal', 'backdrop', 'year', 'fechaEstreno', 'rating', 'votos', 'runtime', 'runtimeMin', 'genres', 'generosTexto', 'clasificacion', 'tagline', 'director', 'guionistas', 'reparto', 'pais', 'idioma', 'productoras', 'presupuesto', 'recaudacion', 'trailerUrl', 'coleccion', 'keywords', 'similares', 'homepage', 'creadores', 'numeroTemporadas', 'numeroEpisodios', 'temporadasTmdb'].filter(k => item[k] !== undefined).map(k => [k, item[k]]));
+
         const useTmdbKey = (apiKeyProp) => {
             const [apiKey, setApiKey] = useState(() =>
                 apiKeyProp || localStorage.getItem('boxplay_tmdb_key') || TMDB_DEFAULT_KEY
             );
             const [keyStatus, setKeyStatus] = useState('unknown');
+            useEffect(() => {
+                const sync = e => setApiKey(e.detail);
+                window.addEventListener('boxplay-tmdb-key', sync);
+                return () => window.removeEventListener('boxplay-tmdb-key', sync);
+            }, []);
 
             useEffect(() => {
                 let cancelled = false;
@@ -292,9 +299,9 @@
                     if (!key) { setKeyStatus('bad'); return; }
                     try {
                         const r = await fetch(`https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`);
-                        if (!cancelled) setKeyStatus(r.ok ? 'ok' : 'bad');
+                        if (!cancelled) setKeyStatus(r.ok ? 'ok' : r.status === 401 ? 'bad' : 'unavailable');
                     } catch {
-                        if (!cancelled) setKeyStatus('bad');
+                        if (!cancelled) setKeyStatus('unavailable');
                     }
                 };
                 validate();
@@ -303,6 +310,7 @@
 
             const saveKey = (k) => {
                 localStorage.setItem('boxplay_tmdb_key', k.trim());
+                window.dispatchEvent(new CustomEvent('boxplay-tmdb-key', { detail: k.trim() }));
                 setApiKey(k.trim());
             };
 
@@ -911,6 +919,7 @@
                 const rawImage = formData.get('image') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
                 const newItem = {
+                    ...tmdbMetadata(editingItem),
                     id: editingItem.id || `tudum-${Date.now()}`,
                     title, titulo: title,
                     releaseDate: formData.get('releaseDate') || 'Próximamente',
@@ -939,6 +948,7 @@
 
             const exportData = () => {
                 const exportList = tudumList.map(({ id, ...rest }) => ({
+                    ...tmdbMetadata(rest),
                     title: rest.title || rest.titulo,
                     releaseDate: rest.releaseDate || rest.fechaEstreno,
                     genre: rest.genre || rest.genero,
@@ -1208,53 +1218,67 @@
         // ============================================================
         // BUSCADOR TMDB ENRIQUECIDO
         // ============================================================
-        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp }) => {
+        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false }) => {
             const [query, setQuery] = useState('');
+            const [category, setCategory] = useState('search');
+            const [page, setPage] = useState(1);
+            const [totalPages, setTotalPages] = useState(1);
+            const requestId = useRef(0);
+            const normalize = m => ({ ...m, title: m.title || m.name, original_title: m.original_title || m.original_name, release_date: m.release_date || m.first_air_date, runtime: m.runtime || m.episode_run_time?.[0] });
             const [results, setResults] = useState([]);
             const [selected, setSelected] = useState(null);
             const [loading, setLoading] = useState(false);
             const { apiKey, keyStatus, setApiKey, saveKey } = useTmdbKey(apiKeyProp);
+            useEffect(() => () => { requestId.current++; }, []);
+            useEffect(() => { requestId.current++; setResults([]); setSelected(null); setPage(1); setTotalPages(1); setLoading(false); }, [mediaType, category, apiKey]);
             const [showKeyBox, setShowKeyBox] = useState(false);
             const [tempKey, setTempKey] = useState(apiKey);
 
-            const searchMovies = async () => {
+            const searchMovies = async (nextPage = 1) => {
                 const q = query.trim();
-                if (!q) return;
+                if (category === 'search' && !q) return;
                 const key = (apiKey || '').trim();
                 if (!key) { setShowKeyBox(true); showToast('Primero configura tu clave API de TMDB.', 'error'); return; }
+                const current = ++requestId.current;
                 setLoading(true);
                 setSelected(null);
+                setResults([]);
                 try {
-                    const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(key)}&language=es-ES&include_adult=false&page=1&query=${encodeURIComponent(q)}`;
+                    const endpoint = category === 'search' ? `search/${mediaType}` : category === 'trending' ? `trending/${mediaType}/week` : `${mediaType}/${category}`;
+                    const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(key)}&language=es-ES&include_adult=false&page=${nextPage}&query=${encodeURIComponent(q)}`;
                     const response = await fetch(url);
                     const data = await response.json();
                     if (response.status === 401) { setShowKeyBox(true); throw new Error('Clave TMDB inválida o revocada.'); }
                     if (!response.ok) throw new Error(data.status_message || 'No se pudo consultar TMDB');
-                    setResults((data.results || []).slice(0, 8));
-                    if (!data.results || data.results.length === 0) showToast('No se encontraron películas con ese título.', 'error');
+                    if (current !== requestId.current) return;
+                    setResults((data.results || []).map(normalize));
+                    setPage(nextPage); setTotalPages(Math.min(data.total_pages || 1, 500));
+                    if (!data.results || data.results.length === 0) showToast('No se encontraron títulos.', 'error');
                 } catch (error) {
                     console.error(error);
-                    showToast(`Error TMDB: ${error.message}`, 'error');
+                    if (current === requestId.current) showToast(`Error TMDB: ${error.message}`, 'error');
                 } finally {
-                    setLoading(false);
+                    if (current === requestId.current) setLoading(false);
                 }
             };
 
             const getDetails = async (movie) => {
                 const key = (apiKey || '').trim();
                 if (!key) return;
+                const current = ++requestId.current;
                 setLoading(true);
+                setSelected(null);
                 try {
-                    const url = `https://api.themoviedb.org/3/movie/${movie.id}?api_key=${encodeURIComponent(key)}&language=es-ES&append_to_response=credits,videos,release_dates,recommendations,keywords,images,external_ids`;
+                    const url = `https://api.themoviedb.org/3/${mediaType}/${movie.id}?api_key=${encodeURIComponent(key)}&language=es-ES&append_to_response=credits,videos,${mediaType === 'tv' ? 'content_ratings' : 'release_dates'},recommendations,keywords,images,external_ids&include_image_language=es,en,null`;
                     const response = await fetch(url);
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.status_message || 'No se pudieron obtener los detalles');
-                    setSelected(data);
+                    if (current === requestId.current) setSelected(normalize(data));
                 } catch (error) {
                     console.error(error);
-                    showToast('No se pudieron obtener los detalles de la película.', 'error');
+                    if (current === requestId.current) showToast(`No se pudieron obtener los detalles: ${error.message}`, 'error');
                 } finally {
-                    setLoading(false);
+                    if (current === requestId.current) setLoading(false);
                 }
             };
 
@@ -1269,9 +1293,9 @@
                               || allVideos.find(v => (v.type === 'Trailer' || v.type === 'Teaser') && v.site === 'YouTube')
                               || allVideos.find(v => v.site === 'YouTube');
                 const releaseData = selected.release_dates?.results || [];
-                const ageRating = (releaseData.find(r => r.iso_3166_1 === 'ES')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'MX')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification) || '';
-                const similares = (selected.recommendations?.results || []).filter(r => r.poster_path).slice(0, 6).map(r => ({ titulo: r.title, poster: `https://image.tmdb.org/t/p/w342${r.poster_path}`, year: r.release_date ? r.release_date.slice(0, 4) : '', rating: r.vote_average ? r.vote_average.toFixed(1) : '' }));
-                const keywords = (selected.keywords?.keywords || []).map(k => k.name);
+                const ageRating = (selected.content_ratings?.results || []).find(r => r.iso_3166_1 === 'ES')?.rating || (selected.content_ratings?.results || []).find(r => r.iso_3166_1 === 'US')?.rating || (releaseData.find(r => r.iso_3166_1 === 'ES')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'MX')?.release_dates?.[0]?.certification) || (releaseData.find(r => r.iso_3166_1 === 'US')?.release_dates?.[0]?.certification) || '';
+                const similares = (selected.recommendations?.results || []).filter(r => r.poster_path).slice(0, 6).map(r => ({ titulo: r.title || r.name, poster: `https://image.tmdb.org/t/p/w342${r.poster_path}`, year: (r.release_date || r.first_air_date || '').slice(0, 4), rating: r.vote_average ? r.vote_average.toFixed(1) : '' }));
+                const keywords = (selected.keywords?.keywords || selected.keywords?.results || []).map(k => k.name);
                 const coleccion = selected.belongs_to_collection?.name || '';
                 let runtimeText = '';
                 if (selected.runtime) { const h = Math.floor(selected.runtime / 60); const m = selected.runtime % 60; runtimeText = h > 0 ? `${h}h ${m}min` : `${m}min`; }
@@ -1308,6 +1332,11 @@
                     keywords: keywords.join(', '),
                     similares,
                     tmdbId: selected.id,
+                    tmdbType: mediaType,
+                    temporadasTmdb: selected.seasons || [],
+                    creadores: (selected.created_by || []).map(p => p.name),
+                    numeroTemporadas: selected.number_of_seasons || 0,
+                    numeroEpisodios: selected.number_of_episodes || 0,
                     homepage: selected.homepage || ''
                 };
             };
@@ -1318,7 +1347,7 @@
                 showToast('✓ Ficha completa cargada en el formulario');
             };
 
-            const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' } : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' } : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
+            const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' } : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' } : keyStatus === 'unavailable' ? { text: 'Sin conexión con TMDB', cls: 'bg-slate-800 text-slate-300 border-slate-700' } : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
 
             return (
                 <div className="md:col-span-2 bg-slate-950 rounded-2xl p-4 border border-slate-800 text-white space-y-3">
@@ -1343,9 +1372,10 @@
                         </div>
                     )}
 
+                    {explore && <label className="block text-xs">Explorar <select aria-label="Categoría TMDB" value={category} onChange={e => setCategory(e.target.value)} className="ml-2 p-2 bg-slate-800 rounded-lg"><option value="search">Búsqueda</option><option value="trending">Tendencias semanales</option><option value="popular">Populares</option><option value="top_rated">Mejor valoradas</option><option value={mediaType === 'movie' ? 'upcoming' : 'on_the_air'}>{mediaType === 'movie' ? 'Próximos estrenos' : 'En emisión'}</option></select></label>}
                     <div className="flex gap-2">
-                        <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') searchMovies(); }} placeholder="Ej: Gladiador II, Dune, Interestelar..." className="flex-1 p-2.5 rounded-xl bg-white text-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
-                        <button type="button" onClick={searchMovies} disabled={loading} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-xl text-xs font-black">{loading ? 'Buscando...' : '🔎 Buscar'}</button>
+                        <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchMovies(); } }} placeholder="Ej: Gladiador II, Dune, Interestelar..." className="flex-1 p-2.5 rounded-xl bg-white text-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
+                        <button type="button" onClick={() => searchMovies()} disabled={loading} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-xl text-xs font-black">{loading ? 'Buscando...' : '🔎 Buscar'}</button>
                     </div>
 
                     {results.length > 0 && !selected && (
@@ -1364,6 +1394,7 @@
                         </div>
                     )}
 
+                    {explore && results.length > 0 && !selected && <div className="flex gap-3 items-center text-xs"><button type="button" disabled={loading || page <= 1} onClick={() => searchMovies(page - 1)}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={loading || page >= totalPages} onClick={() => searchMovies(page + 1)}>Siguiente</button></div>}
                     {selected && (
                         <div className="bg-slate-900 rounded-xl border border-cyan-800 p-3 space-y-3">
                             <div className="flex flex-col sm:flex-row gap-3">
@@ -1395,8 +1426,12 @@
                                     ))}
                                 </div>
                             )}
+                            {mediaType === 'tv' && <p className="text-xs">{selected.number_of_seasons || 0} temporadas · {selected.number_of_episodes || 0} episodios · {(selected.created_by || []).map(p => p.name).join(', ')}</p>}
+                            <div className="flex flex-wrap gap-2">{(selected.videos?.results || []).filter(v => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type)).slice(0, 4).map(v => <a key={v.id} href={`https://www.youtube.com/watch?v=${encodeURIComponent(v.key)}`} target="_blank" rel="noopener noreferrer" className="text-cyan-300 text-xs underline">{v.name}</a>)}</div>
+                            {(selected.images?.backdrops || []).length > 0 && <div className="flex gap-2 overflow-x-auto">{selected.images.backdrops.slice(0, 6).map(i => <img key={i.file_path} src={`https://image.tmdb.org/t/p/w300${i.file_path}`} alt="Imagen del título" className="w-40 rounded-lg" />)}</div>}
+                            {(selected.recommendations?.results || []).length > 0 && <div><h6 className="text-xs font-bold mb-2">Recomendaciones</h6><div className="flex gap-2 overflow-x-auto">{selected.recommendations.results.slice(0, 8).map(m => <button type="button" disabled={loading} key={m.id} onClick={() => getDetails(m)} className="w-24 shrink-0 text-xs text-left">{m.poster_path && <img src={`https://image.tmdb.org/t/p/w185${m.poster_path}`} alt="" className="rounded-lg" />}{m.title || m.name}</button>)}</div></div>}
                             <div className="flex flex-wrap gap-2 pt-1">
-                                <button type="button" onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">✓ USAR ESTA INFORMACIÓN COMPLETA</button>
+                                <button type="button" disabled={loading} onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">✓ USAR ESTA INFORMACIÓN COMPLETA</button>
                                 <button type="button" onClick={() => setSelected(null)} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Volver a resultados</button>
                             </div>
                         </div>
@@ -1778,6 +1813,7 @@
                     coleccion: editingItem.coleccion || '',
                     keywords: editingItem.keywords || '',
                     similares: editingItem.similares || [],
+                    ...tmdbMetadata(editingItem),
                     tmdbId: editingItem.tmdbId || null,
                     homepage: editingItem.homepage || ''
                 };
@@ -1824,7 +1860,8 @@
                     coleccion: rest.coleccion || '',
                     keywords: rest.keywords || '',
                     similares: rest.similares || [],
-                    tmdbId: rest.tmdbId || null
+                    ...tmdbMetadata(rest),
+                        tmdbId: rest.tmdbId || null
                 }));
                 downloadFile(JSON.stringify(exportMovies, null, 2), 'peliculas.json', 'application/json');
                 showToast('Archivo peliculas.json enriquecido generado');
@@ -2045,6 +2082,7 @@
                     coleccion: editingItem.coleccion || '',
                     keywords: editingItem.keywords || '',
                     similares: editingItem.similares || [],
+                    ...tmdbMetadata(editingItem),
                     tmdbId: editingItem.tmdbId || null,
                     homepage: editingItem.homepage || ''
                 };
@@ -2091,7 +2129,8 @@
                     coleccion: rest.coleccion || '',
                     keywords: rest.keywords || '',
                     similares: rest.similares || [],
-                    tmdbId: rest.tmdbId || null
+                    ...tmdbMetadata(rest),
+                        tmdbId: rest.tmdbId || null
                 }));
                 downloadFile(JSON.stringify(exportEstrenos, null, 2), 'peliculas2.json', 'application/json');
                 showToast('Archivo peliculas2.json enriquecido generado');
@@ -2271,6 +2310,7 @@
 
             const exportData = () => {
                 const exportSeries = series.map(({ id, ...s }) => ({
+                    ...tmdbMetadata(s),
                     tituloSerie: s.tituloSerie,
                     descripcion: s.descripcion,
                     imagen: s.imagen,
@@ -2294,6 +2334,7 @@
                 const rawImage = formData.get('imagen') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
                 const newData = {
+                    ...tmdbMetadata(editingSerie),
                     tituloSerie,
                     descripcion: formData.get('descripcion') || '',
                     imagen: normalizedImage, image: normalizedImage,
@@ -2465,9 +2506,10 @@
 
                     {editingSerie && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md space-y-4">
+                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingSerie.isNew ? 'Nueva Serie' : 'Editar Información de la Serie'}</h3>
-                                <form onSubmit={saveSerieBase} className="space-y-3.5">
+                                <form key={editingSerie.tmdbId || "manual"} onSubmit={saveSerieBase} className="space-y-3.5">
+                                    <MovieAutoSearch mediaType="tv" showToast={showToast} onUse={data => setEditingSerie(current => ({ ...current, ...tmdbMetadata(data), tituloSerie: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título de la Serie</label><input name="tituloSerie" defaultValue={editingSerie.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ej: Breaking Bad" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingSerie.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500 font-mono" placeholder="https://..." /></div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -2511,11 +2553,13 @@
             const [editingItem, setEditingItem] = useState(null);
             const [editingEpisode, setEditingEpisode] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+            const [tmdbType, setTmdbType] = useState('tv');
             const selectedItem = animados.find(s => s.id === selectedItemId);
 
             const exportData = () => {
                 const exportArray = animados.map(({ id, ...s }) => {
                     const out = {
+                        ...tmdbMetadata(s),
                         titulo: s.titulo || s.tituloSerie,
                         descripcion: s.descripcion || '',
                         imagen: s.imagen || '',
@@ -2544,6 +2588,7 @@
                 const rawImage = formData.get('imagen') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
                 const newData = {
+                    ...tmdbMetadata(editingItem),
                     titulo, tituloSerie: titulo,
                     descripcion: formData.get('descripcion') || '',
                     imagen: normalizedImage, image: normalizedImage,
@@ -2724,9 +2769,10 @@
                     </div>
                     {editingItem && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md space-y-4">
+                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingItem.isNew ? 'Nuevo Animado' : 'Editar Información del Animado'}</h3>
-                                <form onSubmit={saveItemBase} className="space-y-3.5">
+                                <form key={editingItem.tmdbId || "manual"} onSubmit={saveItemBase} className="space-y-3.5">
+                                    <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ej: Los Simpson" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://..." /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Video (Opcional)</label><input name="urlDrive" defaultValue={editingItem.urlDrive || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
@@ -3506,6 +3552,23 @@
         // ============================================================
         // APP PRINCIPAL
         // ============================================================
+        const TmdbExplorer = ({ catalogs, showToast }) => {
+            const [mediaType, setMediaType] = useState('movie');
+            const [destination, setDestination] = useState('movies');
+            const importTitle = data => {
+                const [items, setItems] = catalogs[destination];
+                const titleOf = m => (m.titulo || m.tituloSerie || '').trim().toLocaleLowerCase();
+                if (items.some(m => (m.tmdbId === data.tmdbId && (m.tmdbType || (destination === 'series' ? 'tv' : 'movie')) === data.tmdbType) || titleOf(m) === data.titulo.trim().toLocaleLowerCase())) {
+                    showToast('Este título ya existe en el catálogo seleccionado.', 'error'); return;
+                }
+                const item = { ...data, title: data.titulo, synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating, id: `tmdb-${data.tmdbType}-${data.tmdbId}-${Date.now()}`, image: data.imagen, urlDrive: '', qualityTag: '', codigo: null };
+                if (mediaType === 'tv' || destination === 'animados') { item.tituloSerie = data.titulo; item.temporadas = []; }
+                setItems(previous => [item, ...previous]);
+                showToast('Ficha importada. Añade los enlaces de reproducción desde su editor.');
+            };
+            return <section className="space-y-4"><h2 className="text-2xl font-black">Explorar TMDB</h2><p className="text-sm text-slate-600">Busca y descubre títulos, consulta su ficha e importa sus metadatos al panel.</p><div className="flex gap-4 flex-wrap"><label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(e.target.value === 'tv' ? 'series' : 'movies'); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label><label>Importar a <select aria-label="Catálogo de destino" value={destination} onChange={e => setDestination(e.target.value)} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option><option value="tudum">Netflix Tudum</option></> : <option value="series">Series</option>}<option value="animados">Animados</option></select></label></div><MovieAutoSearch key={mediaType} mediaType={mediaType} explore onUse={importTitle} showToast={showToast} /><p className="text-xs text-slate-500">Este producto utiliza la API de TMDB, pero no está avalado ni certificado por TMDB. <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" className="underline">The Movie Database</a></p></section>;
+        };
+
         const App = () => {
             const [activeTab, setActiveTab] = useState('movies');
             const [loading, setLoading] = useState(true);
@@ -3566,6 +3629,7 @@
                     estrenos2026: estrenos.map(({ id, ...r }) => r),
                     tudum: tudumList.map(({ id, ...r }) => r),
                     series: series.map(({ id, ...s }) => ({
+                        ...tmdbMetadata(s),
                         tituloSerie: s.tituloSerie,
                         descripcion: s.descripcion,
                         imagen: s.imagen,
@@ -3714,6 +3778,7 @@
                         coleccion: rest.coleccion || '',
                         keywords: rest.keywords || '',
                         similares: rest.similares || [],
+                        ...tmdbMetadata(rest),
                         tmdbId: rest.tmdbId || null
                     })),
                     'peliculas2.json': estrenos.map(({ id, ...rest }) => ({
@@ -3747,9 +3812,11 @@
                         coleccion: rest.coleccion || '',
                         keywords: rest.keywords || '',
                         similares: rest.similares || [],
+                        ...tmdbMetadata(rest),
                         tmdbId: rest.tmdbId || null
                     })),
                     'tudum.json': tudumList.map(({ id, ...rest }) => ({
+                        ...tmdbMetadata(rest),
                         title: rest.title || rest.titulo,
                         releaseDate: rest.releaseDate || rest.fechaEstreno,
                         genre: rest.genre || rest.genero,
@@ -3760,6 +3827,7 @@
                         score: rest.score || rest.puntuacion
                     })),
                     'playlist.json': series.map(({ id, ...s }) => ({
+                        ...tmdbMetadata(s),
                         tituloSerie: s.tituloSerie,
                         descripcion: s.descripcion,
                         imagen: s.imagen,
@@ -3775,6 +3843,7 @@
                     })),
                     'animados.json': animados.map(({ id, ...s }) => {
                         const out = {
+                            ...tmdbMetadata(s),
                             titulo: s.titulo || s.tituloSerie,
                             descripcion: s.descripcion || '',
                             imagen: s.imagen || '',
@@ -3993,6 +4062,7 @@
             }
 
             const tabs = [
+                { id: 'tmdb', label: 'Explorar TMDB', icon: 'search', count: 0, color: 'text-teal-500' },
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
                 { id: 'trending', label: 'Tendencias', icon: 'flame', count: 0, color: 'text-rose-400' },
                 { id: 'estrenos2026', label: 'Estrenos 2026', icon: 'sparkles', count: estrenos.length, color: 'text-amber-500' },
@@ -4065,6 +4135,7 @@
 
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
+                            {activeTab === 'tmdb' && <TmdbExplorer catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
                             {activeTab === 'movies' && (<MoviesEditor movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
                             {activeTab === 'estrenos2026' && (<Estrenos2026Editor estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
