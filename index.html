@@ -281,6 +281,36 @@
         // ============================================================
         const tmdbMetadata = item => Object.fromEntries(['tmdbId', 'tmdbType', 'tituloOriginal', 'backdrop', 'year', 'fechaEstreno', 'rating', 'votos', 'runtime', 'runtimeMin', 'genres', 'generosTexto', 'clasificacion', 'tagline', 'director', 'guionistas', 'reparto', 'pais', 'idioma', 'productoras', 'presupuesto', 'recaudacion', 'trailerUrl', 'coleccion', 'keywords', 'similares', 'homepage', 'creadores', 'numeroTemporadas', 'numeroEpisodios', 'temporadasTmdb'].filter(k => item[k] !== undefined).map(k => [k, item[k]]));
 
+        const MediaImage = ({ src, alt, className }) => {
+            const [failed, setFailed] = useState(false);
+            useEffect(() => setFailed(false), [src]);
+            return src && !failed ? <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} /> : <div className={`${className} flex items-center justify-center bg-slate-800 text-slate-400 text-xs`} aria-label={alt}>Sin imagen</div>;
+        };
+
+        const MediaProfile = ({ item, kind = 'movie' }) => {
+            const title = item.titulo || item.tituloSerie || item.title || item.album || 'Sin título';
+            const poster = item.imagen || item.image || item.cover || item.logo;
+            const isSeries = item.tmdbType === 'tv' || item.mediaType === 'tv' || kind === 'series';
+            const live = kind === 'tv' || kind === 'radio';
+            const duration = item.runtime || (item.runtimeMin ? `${item.runtimeMin} min` : 'No disponible');
+            const cast = Array.isArray(item.reparto) ? item.reparto.filter(a => typeof a === 'string' ? a.trim() : a?.nombre?.trim() || a?.name?.trim()) : [];
+            const genres = item.generosTexto || (Array.isArray(item.genres) ? item.genres.join(', ') : '') || item.genre || item.genero || item.group;
+            return <section className="media-profile relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-slate-800" aria-label={`Ficha de ${title}`}>
+                <div className="absolute inset-0 pointer-events-none" aria-hidden="true">{(item.backdrop || poster) && <MediaImage src={item.backdrop || poster} alt="" className="w-full h-full object-cover opacity-30" />}<div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-950/40" /></div>
+                <div className="relative p-4 sm:p-6 space-y-4">
+                    <div className="flex items-start gap-4"><MediaImage src={poster} alt={`Portada de ${title}`} className="w-20 sm:w-28 aspect-[2/3] object-cover rounded-xl shrink-0 shadow-lg" /><div className="min-w-0 space-y-2"><h3 className="font-black text-lg sm:text-2xl break-words">{title}</h3>{item.tituloOriginal && item.tituloOriginal !== title && <p className="text-sm text-slate-300">{item.tituloOriginal}</p>}{item.tagline && <p className="text-xs italic text-cyan-200">{item.tagline}</p>}<div className="flex flex-wrap gap-2 text-xs text-slate-200">{(item.year || item.fechaEstreno || item.releaseDate) && <span>{item.year || item.fechaEstreno || item.releaseDate}</span>}<span>{live ? 'En vivo' : `${isSeries ? 'Duración por episodio' : kind === 'music' ? 'Duración' : 'Duración de película'}: ${duration}`}</span>{(item.rating || item.score) && <span>⭐ {item.rating || item.score}</span>}{item.clasificacion && <span>{item.clasificacion}</span>}{item.qualityTag && <span>{item.qualityTag}</span>}</div>{genres && <p className="text-xs text-cyan-200">{genres}</p>}{isSeries && <p className="text-xs text-slate-300">{item.numeroTemporadas || item.temporadas?.length || 0} temporadas{item.numeroEpisodios ? ` · ${item.numeroEpisodios} episodios` : ''}</p>}<p className="text-xs sm:text-sm text-slate-200 leading-relaxed">{item.descripcion || item.sinopsis || item.synopsis || item.description || 'Sin descripción disponible.'}</p></div></div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-300">{item.director && <p>Dirección: {item.director}</p>}{item.creadores?.length > 0 && <p>Creadores: {item.creadores.join(', ')}</p>}{item.artist && <p>Artista: {item.artist}</p>}{item.pais && <p>País: {item.pais}</p>}{item.idioma && <p>Idioma: {item.idioma}</p>}</div>
+                    {(!live && kind !== 'music' || cast.length > 0) && <div><h4 className="font-bold text-xs mb-2">Reparto</h4>{cast.length ? <div className="flex gap-3 overflow-x-auto pb-2">{cast.map((actor, i) => { const a = typeof actor === 'string' ? { nombre: actor } : actor; return <div key={`${a.nombre || a.name}-${i}`} className="w-20 shrink-0 text-xs"><MediaImage src={a.foto || a.profile || (a.profile_path ? `https://image.tmdb.org/t/p/w185${a.profile_path}` : '')} alt={a.nombre || a.name || 'Actor'} className="w-20 h-24 object-cover rounded-lg" /><p className="font-bold mt-1">{a.nombre || a.name}</p>{(a.personaje || a.character) && <p className="text-slate-400">{a.personaje || a.character}</p>}</div>; })}</div> : <p className="text-xs text-slate-400">Reparto aún no disponible. Completa la ficha desde TMDB o su editor.</p>}</div>}
+                    {(item.trailerUrl || item.urlTrailer) && <a href={/^https?:\/\//i.test(item.trailerUrl || item.urlTrailer) ? (item.trailerUrl || item.urlTrailer) : undefined} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-cyan-300 underline">Ver tráiler</a>}
+                </div>
+            </section>;
+        };
+
+        const MediaMetadataFields = ({ item, onChange, kind = 'movie' }) => {
+            const set = (key, value) => onChange(current => ({ ...current, [key]: value }));
+            return <fieldset className="md:col-span-2 p-4 border border-slate-200 rounded-xl space-y-3"><legend className="text-xs font-bold">Ficha y apariencia</legend><MediaProfile item={item} kind={item.tmdbType === 'tv' ? 'series' : kind} /><div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="text-xs font-bold">Título original<input value={item.tituloOriginal || ''} onChange={e => set('tituloOriginal', e.target.value)} className="block w-full p-2 border rounded-lg font-normal" /></label><label className="text-xs font-bold">Duración en minutos<input type="number" min="0" step="1" value={item.runtimeMin || ''} onChange={e => { const minutes = Number(e.target.value); onChange(current => ({ ...current, runtimeMin: minutes, runtime: minutes ? `${Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)}h ` : ''}${minutes % 60}min` : '' })); }} className="block w-full p-2 border rounded-lg font-normal" /></label><label className="text-xs font-bold">Fondo panorámico<input value={item.backdrop || ''} onChange={e => set('backdrop', e.target.value)} className="block w-full p-2 border rounded-lg font-normal" /></label><label className="text-xs font-bold">Director<input value={item.director || ''} onChange={e => set('director', e.target.value)} className="block w-full p-2 border rounded-lg font-normal" /></label></div><label className="block text-xs font-bold">Reparto: un actor por línea (nombre | personaje | URL de foto)<textarea aria-label="Reparto" rows="4" key={item.tmdbId || "manual"} defaultValue={(item.reparto || []).map(a => typeof a === 'string' ? a : [a.nombre || a.name || '', a.personaje || a.character || '', a.foto || ''].join(' | ')).join('\n')} onChange={e => set('reparto', e.target.value.split('\n').map(line => { const [nombre = '', personaje = '', foto = ''] = line.split('|'); return { nombre, personaje, foto }; }))} className="block w-full p-2 border rounded-lg font-normal" /></label></fieldset>;
+        };
+
         const useTmdbKey = (apiKeyProp) => {
             const [apiKey, setApiKey] = useState(() =>
                 apiKeyProp || localStorage.getItem('boxplay_tmdb_key') || TMDB_DEFAULT_KEY
@@ -662,6 +692,8 @@
                     );
                     if (detRes.ok) {
                         const d = await detRes.json();
+                        const minutes = d.runtime || d.episode_run_time?.[0] || 0;
+                        Object.assign(base, { tmdbType: endpoint, tituloOriginal: d.original_title || d.original_name || '', backdrop: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : '', runtimeMin: minutes, runtime: minutes ? `${minutes} min` : '', year: (d.release_date || d.first_air_date || '').slice(0, 4), director: (d.credits?.crew || []).filter(p => p.job === 'Director').map(p => p.name).join(', '), creadores: (d.created_by || []).map(p => p.name), numeroTemporadas: d.number_of_seasons || 0, numeroEpisodios: d.number_of_episodes || 0, reparto: (d.credits?.cast || []).slice(0, 12).map(p => ({ nombre: p.name, personaje: p.character || '', foto: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : '' })) });
                         const videos = d.videos?.results || [];
                         // Fallback de idioma: ES → EN → Teaser → cualquier YouTube
                         const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'es')
@@ -1014,7 +1046,9 @@
                             {editingItem && (
                                 <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
                                     <h3 className="font-extrabold text-rose-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno Tudum' : 'Editar Estreno Tudum'}</h3>
-                                    <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <form key={editingItem.tmdbId || "manual"} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <MovieAutoSearch mediaType={editingItem.tmdbType || editingItem.mediaType || 'movie'} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...data, title: data.titulo, image: data.imagen, synopsis: data.sinopsis, genre: data.generosTexto, releaseDate: data.fechaEstreno, score: data.rating }))} />
+                                        <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Stranger Things 5" /></div>
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Fecha de Estreno</label><input name="releaseDate" defaultValue={editingItem.releaseDate || editingItem.fechaEstreno || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Verano 2026" /></div>
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Género</label><input name="genre" defaultValue={editingItem.genre || editingItem.genero || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Ciencia Ficción / Terror" /></div>
@@ -1038,16 +1072,9 @@
                                     const release = item.releaseDate || item.fechaEstreno;
                                     const trailer = item.trailerUrl || item.urlTrailer;
                                     return (
-                                        <div key={item.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                            <div className="flex items-center gap-3.5 min-w-0">
-                                                <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm"><img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=TUDUM'; }} /></div>
-                                                <div className="min-w-0">
-                                                    <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{title}</h4>
-                                                    <p className="text-[11px] text-rose-600 font-bold truncate mt-0.5">{genre} · <span className="text-slate-500 font-normal">{release}</span></p>
-                                                    <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">{item.availability || 'Costa Rica'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0">
+                                        <div key={item.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={item} kind="movie" />
+
+                                            <div className="flex flex-wrap items-center justify-end gap-2">
                                                 {trailer && (<button onClick={() => onTestPlayer(title, trailer)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
                                                 <button onClick={() => setEditingItem(item)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
                                                 <button onClick={() => requestConfirm(`¿Eliminar "${title}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
@@ -1187,18 +1214,9 @@
                                     onDragStart={(e) => !dragDisabled && handleDragStart(e, channel.id)}
                                     onDragOver={(e) => !dragDisabled && handleDragOver(e, channel.id)}
                                     onDragEnd={handleDragEnd}
-                                    className={`flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all ${dragDisabled ? 'opacity-90' : 'cursor-grab active:cursor-grabbing'}`}>
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="text-slate-400 p-1"><Icon name="grip" size={15} /></div>
-                                        <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shadow-sm shrink-0">
-                                            {channel.logo ? (<img src={channel.logo} alt="" className="w-full h-full object-contain" onError={(e) => e.target.style.display='none'} />) : (<Icon name="tv" size={16} className="text-slate-400" />)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{channel.title}</h4>
-                                            <p className="text-[11px] text-cyan-600 font-bold truncate mt-0.5">{channel.group || 'General'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    className={`flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all ${dragDisabled ? 'opacity-90' : 'cursor-grab active:cursor-grabbing'}`}>
+                                    <div className="w-full min-w-0"><MediaProfile item={channel} kind="tv" /></div>
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
                                         <button onClick={() => onTestPlayer(channel.title, channel.url)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>
                                         <div className="flex gap-1">
                                             <button onClick={() => moveItem(globalIndex, 'up')} disabled={globalIndex <= 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
@@ -1924,6 +1942,7 @@
                             </h3>
                             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
+                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
                                 {(editingItem.imagen || editingItem.titulo) && (
                                     <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
@@ -1987,31 +2006,9 @@
                             const stream = movie.urlDrive || movie.urlOkRu;
                             const enriched = hasEnrichedData(movie);
                             return (
-                                <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm relative">
-                                            <img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=IMG'; }} />
-                                            {movie.qualityTag && <span className="absolute top-1 right-1 bg-red-600 text-white text-[8px] font-black px-1 rounded">{movie.qualityTag}</span>}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate flex items-center gap-2">
-                                                <span>{title}</span>
-                                                {enriched && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold" title="Ficha completa">✓ FICHA</span>}
-                                            </h4>
-                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-500 mt-0.5">
-                                                {movie.year && <span>{movie.year}</span>}
-                                                {movie.runtime && <span>· ⏱ {movie.runtime}</span>}
-                                                {movie.rating && <span>· ⭐ {movie.rating}</span>}
-                                                {movie.generosTexto && <span>· {movie.generosTexto}</span>}
-                                            </div>
-                                            <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{movie.descripcion || 'Sin descripción'}</p>
-                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                                {movie.codigo && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded font-mono">PIN: {movie.codigo}</span>}
-                                                {movie.director && <span className="text-[9px] text-slate-500">Dir: {movie.director.split(',')[0]}</span>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                <div key={movie.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={movie} kind="movie" />
+
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
                                         <div className="flex gap-1">
@@ -2193,6 +2190,7 @@
                             </h3>
                             <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
+                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
                                 {(editingItem.imagen || editingItem.titulo) && (
                                     <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
@@ -2256,31 +2254,9 @@
                             const stream = movie.urlDrive || movie.urlOkRu;
                             const enriched = hasEnrichedData(movie);
                             return (
-                                <div key={movie.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-12 h-16 rounded-xl bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm relative">
-                                            <img src={poster} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=IMG'; }} />
-                                            {movie.qualityTag && <span className="absolute top-1 right-1 bg-amber-600 text-white text-[8px] font-black px-1 rounded">{movie.qualityTag}</span>}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate flex items-center gap-2">
-                                                <span>{title}</span>
-                                                {enriched && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold" title="Ficha completa">✓ FICHA</span>}
-                                            </h4>
-                                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-500 mt-0.5">
-                                                {movie.year && <span>{movie.year}</span>}
-                                                {movie.runtime && <span>· ⏱ {movie.runtime}</span>}
-                                                {movie.rating && <span>· ⭐ {movie.rating}</span>}
-                                                {movie.generosTexto && <span>· {movie.generosTexto}</span>}
-                                            </div>
-                                            <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{movie.descripcion || 'Sin descripción'}</p>
-                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                                {movie.codigo && <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded font-mono">PIN: {movie.codigo}</span>}
-                                                {movie.director && <span className="text-[9px] text-slate-500">Dir: {movie.director.split(',')[0]}</span>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                <div key={movie.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={movie} kind="movie" />
+
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
                                         <div className="flex gap-1">
@@ -2400,7 +2376,7 @@
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[50vh] md:h-auto md:max-h-[82vh]">
+                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="film" className="text-purple-600" size={16} /> Series</h2>
@@ -2435,7 +2411,7 @@
                         </div>
                     </div>
 
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
                         {!selectedSerie ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="film" size={48} className="mb-3 opacity-20 text-purple-600"/>
@@ -2444,18 +2420,8 @@
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-100 pb-5">
-                                    <div className="flex gap-4 items-start">
-                                        <div className="w-20 h-28 rounded-xl overflow-hidden bg-black border border-slate-200 shadow-sm shrink-0">
-                                            <img src={selectedSerie.imagen} className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=S'; }} />
-                                        </div>
-                                        <div>
-                                            <h1 className="text-xl font-black text-slate-900">{selectedSerie.tituloSerie}</h1>
-                                            {selectedSerie.codigo && <span className="inline-block mt-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded mr-2 font-mono">PIN: {selectedSerie.codigo}</span>}
-                                            {selectedSerie.qualityTag && <span className="inline-block mt-1 bg-slate-100 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded mr-2 uppercase">{selectedSerie.qualityTag}</span>}
-                                            <p className="text-xs text-slate-600 mt-1.5 line-clamp-3 leading-relaxed">{selectedSerie.descripcion || 'Sin descripción disponible.'}</p>
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
+                                    <div className="w-full min-w-0"><MediaProfile item={selectedSerie} kind="series" /></div>
                                     <div className="flex gap-2 w-full sm:w-auto justify-end shrink-0">
                                         <button onClick={() => setEditingSerie(selectedSerie)} className="px-3.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">Editar Serie</button>
                                         <button onClick={() => requestConfirm(`¿Borrar la serie "${selectedSerie.tituloSerie}"?`, () => { setSeries(series.filter(s => s.id !== selectedSerie.id)); setSelectedSerieId(null); })} className="px-3.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors">Borrar</button>
@@ -2510,6 +2476,7 @@
                                 <h3 className="font-extrabold text-base text-slate-900">{editingSerie.isNew ? 'Nueva Serie' : 'Editar Información de la Serie'}</h3>
                                 <form key={editingSerie.tmdbId || "manual"} onSubmit={saveSerieBase} className="space-y-3.5">
                                     <MovieAutoSearch mediaType="tv" showToast={showToast} onUse={data => setEditingSerie(current => ({ ...current, ...tmdbMetadata(data), tituloSerie: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
+                                    <MediaMetadataFields item={editingSerie} onChange={setEditingSerie} kind="series" />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título de la Serie</label><input name="tituloSerie" defaultValue={editingSerie.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ej: Breaking Bad" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingSerie.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500 font-mono" placeholder="https://..." /></div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -2655,7 +2622,7 @@
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[50vh] md:h-auto md:max-h-[82vh]">
+                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="smile" className="text-orange-500" size={16} /> Animados</h2>
@@ -2689,7 +2656,7 @@
                             )}
                         </div>
                     </div>
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
                         {!selectedItem ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="smile" size={48} className="mb-3 opacity-20 text-orange-500"/>
@@ -2698,24 +2665,8 @@
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
-                                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-100 pb-5">
-                                    <div className="flex gap-4 items-start">
-                                        <div className="w-20 h-28 rounded-xl overflow-hidden bg-black border border-slate-200 shadow-sm shrink-0">
-                                            <img src={selectedItem.imagen} className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/100x150/111/fff?text=A'; }} />
-                                        </div>
-                                        <div>
-                                            <h1 className="text-xl font-black text-slate-900">{selectedItem.titulo || selectedItem.tituloSerie}</h1>
-                                            {selectedItem.codigo && <span className="inline-block mt-1 bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded mr-2 font-mono">PIN: {selectedItem.codigo}</span>}
-                                            {selectedItem.qualityTag && <span className="inline-block mt-1 bg-slate-100 text-slate-700 text-[9px] font-bold px-2 py-0.5 rounded mr-2 uppercase">{selectedItem.qualityTag}</span>}
-                                            <p className="text-xs text-slate-600 mt-1.5 line-clamp-3 leading-relaxed">{selectedItem.descripcion || 'Sin descripción disponible.'}</p>
-                                            {selectedItem.urlDrive && (
-                                                <div className="mt-2 flex items-center gap-2">
-                                                    <span className="text-[11px] font-mono text-cyan-700 font-bold">Enlace directo:</span>
-                                                    <button onClick={() => onTestPlayer(selectedItem.titulo, selectedItem.urlDrive)} className="p-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold px-2 flex items-center gap-1"><Icon name="play" size={11} /> Probar Video</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
+                                    <div className="w-full min-w-0"><MediaProfile item={selectedItem} kind="movie" /></div>
                                     <div className="flex gap-2 w-full sm:w-auto justify-end shrink-0">
                                         <button onClick={() => setEditingItem(selectedItem)} className="px-3.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">Editar Info</button>
                                         <button onClick={() => requestConfirm(`¿Borrar "${selectedItem.titulo || selectedItem.tituloSerie}"?`, () => { setAnimados(animados.filter(s => s.id !== selectedItem.id)); setSelectedItemId(null); })} className="px-3.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors">Borrar</button>
@@ -2773,6 +2724,7 @@
                                 <h3 className="font-extrabold text-base text-slate-900">{editingItem.isNew ? 'Nuevo Animado' : 'Editar Información del Animado'}</h3>
                                 <form key={editingItem.tmdbId || "manual"} onSubmit={saveItemBase} className="space-y-3.5">
                                     <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
+                                    <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ej: Los Simpson" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://..." /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Video (Opcional)</label><input name="urlDrive" defaultValue={editingItem.urlDrive || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
@@ -2919,17 +2871,9 @@
                             const group = radio.group || radio.categoria || 'Nacionales';
                             const genre = radio.genre || radio.genero;
                             return (
-                                <div key={radio.id || index} className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="flex items-center gap-3.5 min-w-0">
-                                        <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center p-1 shadow-sm shrink-0">
-                                            {logo ? (<img src={logo} alt="" className="w-full h-full object-contain" onError={(e) => e.target.style.display='none'} />) : (<Icon name="radio" size={16} className="text-slate-400" />)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm truncate">{title}</h4>
-                                            <p className="text-[11px] text-emerald-600 font-bold truncate mt-0.5">{group} {genre ? `· ${genre}` : ''}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                <div key={radio.id || index} className="flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
+                                    <div className="w-full min-w-0"><MediaProfile item={radio} kind="radio" /></div>
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         <div className="flex gap-1">
                                             <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
@@ -3245,7 +3189,7 @@
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[50vh] md:h-auto md:max-h-[82vh]">
+                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="disc" className="text-amber-600" size={16}/> BoxPlayMusic</h2>
@@ -3291,7 +3235,7 @@
                         </div>
                     </div>
 
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-[70vh] md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
                         {!selectedItem ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="disc" size={56} className="mb-3 opacity-20 text-amber-600"/>
@@ -3299,36 +3243,10 @@
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
-                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-100 pb-5">
-                                    <div className="flex gap-3 sm:gap-4 items-start min-w-0 flex-1">
-                                        <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-black border-2 border-amber-500/50 shadow-md shrink-0 relative group cursor-pointer" onClick={() => setEditingItem(selectedItem)} title="Clic para editar">
-                                            <img src={selectedItem.cover || selectedItem.imagen} className="w-full h-full object-cover group-hover:scale-105 transition-transform" onError={(e) => { e.target.src='https://placehold.co/150x150/111/d4af37?text=DISCO'; }} />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"><Icon name="edit" size={18} /></div>
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">{selectedItem.genre || 'Rock'}</span>
-                                                <span className="bg-slate-100 text-slate-700 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">Año: {selectedItem.year || '1980'}</span>
-                                                {selectedItem.archiveId && (<span className="bg-amber-500/10 text-amber-800 border border-amber-500/30 text-[9px] font-mono font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><Icon name="archive" size={10} /> ID: {selectedItem.archiveId}</span>)}
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <h1 className="text-lg sm:text-2xl font-black text-slate-900 truncate">{selectedItem.album || selectedItem.titulo}</h1>
-                                                <button type="button" onClick={() => setEditingItem(selectedItem)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors shrink-0" title="Editar info"><Icon name="edit" size={15}/></button>
-                                            </div>
-                                            <h2 className="text-xs sm:text-sm font-bold text-amber-800 truncate">{selectedItem.artist || selectedItem.artista}</h2>
-                                            <div className="mt-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 text-xs flex items-center justify-between gap-2 max-w-full">
-                                                <div className="truncate">
-                                                    <span className="font-bold text-amber-950 block text-[10px]">URL Principal / Archive.org:</span>
-                                                    <span className="text-[11px] font-mono text-slate-700 truncate block">{selectedItem.musicUrl || selectedItem.urlDrive || 'Sin enlace general'}</span>
-                                                </div>
-                                                {(selectedItem.musicUrl || selectedItem.urlDrive) && (
-                                                    <button onClick={() => onTestPlayer(selectedItem.album || selectedItem.titulo, selectedItem.musicUrl || selectedItem.urlDrive)} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shrink-0 flex items-center gap-1 shadow-sm transition-colors"><Icon name="play" size={11} /> Probar</button>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-slate-600 mt-2 leading-relaxed line-clamp-2">{selectedItem.description || selectedItem.descripcion || 'Sin descripción disponible.'}</p>
-                                        </div>
-                                    </div>
+                                <div className="flex flex-col items-stretch gap-4 border-b border-slate-100 pb-5">
+                                    <div className="w-full min-w-0"><MediaProfile item={selectedItem} kind="music" /></div>
                                     <div className="flex items-center gap-2 w-full lg:w-auto justify-start lg:justify-end shrink-0 pt-2 lg:pt-0">
+                                        {(selectedItem.musicUrl || selectedItem.urlDrive) && <button type="button" onClick={() => onTestPlayer(selectedItem.album || selectedItem.titulo, selectedItem.musicUrl || selectedItem.urlDrive)} className="px-3 py-2 rounded-xl bg-amber-100 text-amber-900 text-xs font-bold">Probar álbum</button>}
                                         <button type="button" onClick={() => setEditingItem(selectedItem)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-black shadow-md flex items-center gap-1.5 transition-all"><Icon name="edit" size={14}/> Editar Álbum</button>
                                         <button type="button" onClick={() => requestConfirm(`¿Eliminar "${selectedItem.album || selectedItem.titulo}"?`, () => { setVideoteca(videoteca.filter(v => v.id !== selectedItem.id && v !== selectedItem)); setSelectedItemId(null); showToast('Álbum eliminado'); })} className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 border border-rose-200"><Icon name="trash" size={14}/> Borrar</button>
                                     </div>
