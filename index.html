@@ -937,9 +937,9 @@
         // ============================================================
         // EDITOR: NETFLIX TUDUM (con importador automático)
         // ============================================================
-        const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer }) => {
-            const [mode, setMode] = useState('auto');
-            const [editingItem, setEditingItem] = useState(null);
+        const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+            const [mode, setMode] = useState(initialEdit ? 'manual' : 'auto');
+            const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
 
             const handleSave = (e) => {
@@ -950,7 +950,9 @@
                 if (existingIndex !== -1) { showToast(`El estreno "${title}" ya existe en la lista Tudum.`, 'error'); return; }
                 const rawImage = formData.get('image') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
+                const { isNew, ...existingFields } = editingItem;
                 const newItem = {
+                    ...existingFields,
                     ...tmdbMetadata(editingItem),
                     id: editingItem.id || `tudum-${Date.now()}`,
                     title, titulo: title,
@@ -1236,7 +1238,7 @@
         // ============================================================
         // BUSCADOR TMDB ENRIQUECIDO
         // ============================================================
-        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false }) => {
+        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA' }) => {
             const [query, setQuery] = useState('');
             const [category, setCategory] = useState('search');
             const [page, setPage] = useState(1);
@@ -1362,7 +1364,7 @@
             const useSelected = () => {
                 if (!selected) return;
                 onUse(buildFullData(selected));
-                showToast('✓ Ficha completa cargada en el formulario');
+                if (!explore) showToast('✓ Ficha completa cargada en el formulario');
             };
 
             const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' } : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' } : keyStatus === 'unavailable' ? { text: 'Sin conexión con TMDB', cls: 'bg-slate-800 text-slate-300 border-slate-700' } : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
@@ -1449,7 +1451,7 @@
                             {(selected.images?.backdrops || []).length > 0 && <div className="flex gap-2 overflow-x-auto">{selected.images.backdrops.slice(0, 6).map(i => <img key={i.file_path} src={`https://image.tmdb.org/t/p/w300${i.file_path}`} alt="Imagen del título" className="w-40 rounded-lg" />)}</div>}
                             {(selected.recommendations?.results || []).length > 0 && <div><h6 className="text-xs font-bold mb-2">Recomendaciones</h6><div className="flex gap-2 overflow-x-auto">{selected.recommendations.results.slice(0, 8).map(m => <button type="button" disabled={loading} key={m.id} onClick={() => getDetails(m)} className="w-24 shrink-0 text-xs text-left">{m.poster_path && <img src={`https://image.tmdb.org/t/p/w185${m.poster_path}`} alt="" className="rounded-lg" />}{m.title || m.name}</button>)}</div></div>}
                             <div className="flex flex-wrap gap-2 pt-1">
-                                <button type="button" disabled={loading} onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">✓ USAR ESTA INFORMACIÓN COMPLETA</button>
+                                <button type="button" disabled={loading} onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">{actionLabel}</button>
                                 <button type="button" onClick={() => setSelected(null)} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Volver a resultados</button>
                             </div>
                         </div>
@@ -1781,8 +1783,8 @@
         // ============================================================
         // EDITOR: PELÍCULAS — CON TMDB ENRIQUECIDO
         // ============================================================
-        const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer }) => {
-            const [editingItem, setEditingItem] = useState(null);
+        const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+            const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
 
@@ -2029,8 +2031,8 @@
         // ============================================================
         // EDITOR: ESTRENOS 2026 — CON TMDB ENRIQUECIDO
         // ============================================================
-        const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer }) => {
-            const [editingItem, setEditingItem] = useState(null);
+        const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+            const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
 
@@ -2277,9 +2279,9 @@
         // ============================================================
         // EDITOR: SERIES
         // ============================================================
-        const SeriesEditor = ({ series, setSeries, showToast, requestConfirm, onTestPlayer }) => {
-            const [selectedSerieId, setSelectedSerieId] = useState(null);
-            const [editingSerie, setEditingSerie] = useState(null);
+        const SeriesEditor = ({ series, setSeries, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+            const [selectedSerieId, setSelectedSerieId] = useState(initialEdit?.id || null);
+            const [editingSerie, setEditingSerie] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
@@ -2515,12 +2517,12 @@
         // ============================================================
         // EDITOR: ANIMADOS
         // ============================================================
-        const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer }) => {
-            const [selectedItemId, setSelectedItemId] = useState(null);
-            const [editingItem, setEditingItem] = useState(null);
+        const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+            const [selectedItemId, setSelectedItemId] = useState(initialEdit?.id || null);
+            const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
-            const [tmdbType, setTmdbType] = useState('tv');
+            const [tmdbType, setTmdbType] = useState(initialEdit?.tmdbType || 'tv');
             const selectedItem = animados.find(s => s.id === selectedItemId);
 
             const exportData = () => {
@@ -3470,25 +3472,58 @@
         // ============================================================
         // APP PRINCIPAL
         // ============================================================
-        const TmdbExplorer = ({ catalogs, showToast }) => {
+        const TmdbExplorer = ({ catalogs, showToast, onOpenEditor }) => {
             const [mediaType, setMediaType] = useState('movie');
             const [destination, setDestination] = useState('movies');
-            const importTitle = data => {
-                const [items, setItems] = catalogs[destination];
-                const titleOf = m => (m.titulo || m.tituloSerie || '').trim().toLocaleLowerCase();
-                if (items.some(m => (m.tmdbId === data.tmdbId && (m.tmdbType || (destination === 'series' ? 'tv' : 'movie')) === data.tmdbType) || titleOf(m) === data.titulo.trim().toLocaleLowerCase())) {
-                    showToast('Este título ya existe en el catálogo seleccionado.', 'error'); return;
+            const [targetId, setTargetId] = useState('');
+            const items = catalogs[destination][0];
+            const titleOf = item => item.titulo || item.tituloSerie || item.title || 'Sin título';
+            const applyTitle = data => {
+                const existing = targetId ? items.find(item => String(item.id) === targetId) : items.find(item =>
+                    (item.tmdbId === data.tmdbId && (item.tmdbType || item.mediaType || (destination === 'series' ? 'tv' : 'movie')) === data.tmdbType) ||
+                    titleOf(item).trim().toLocaleLowerCase() === data.titulo.trim().toLocaleLowerCase());
+                if (targetId && !existing) { showToast('El título seleccionado ya no existe. Selecciona otro.', 'error'); return; }
+                const draft = {
+                    ...(existing || { urlDrive: '', qualityTag: '', codigo: null }),
+                    ...data,
+                    title: data.titulo, image: data.imagen,
+                    id: existing?.id,
+                    isNew: !existing
+                };
+                if (destination === 'series' || destination === 'animados') {
+                    draft.tituloSerie = data.titulo;
+                    draft.temporadas = existing?.temporadas || [];
                 }
-                const item = { ...data, title: data.titulo, synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating, id: `tmdb-${data.tmdbType}-${data.tmdbId}-${Date.now()}`, image: data.imagen, urlDrive: '', qualityTag: '', codigo: null };
-                if (mediaType === 'tv' || destination === 'animados') { item.tituloSerie = data.titulo; item.temporadas = []; }
-                setItems(previous => [item, ...previous]);
-                showToast('Ficha importada. Añade los enlaces de reproducción desde su editor.');
+                if (destination === 'tudum') Object.assign(draft, { synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating });
+                onOpenEditor(destination === 'estrenos' ? 'estrenos2026' : destination, draft);
+                showToast(existing ? 'Ficha aplicada al formulario. Revisa los cambios y pulsa Guardar.' : 'Ficha lista para crear un título. Completa los enlaces y pulsa Guardar.');
             };
-            return <section className="space-y-4"><h2 className="text-2xl font-black">Explorar TMDB</h2><p className="text-sm text-slate-600">Busca y descubre títulos, consulta su ficha e importa sus metadatos al panel.</p><div className="flex gap-4 flex-wrap"><label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(e.target.value === 'tv' ? 'series' : 'movies'); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label><label>Importar a <select aria-label="Catálogo de destino" value={destination} onChange={e => setDestination(e.target.value)} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option><option value="tudum">Netflix Tudum</option></> : <option value="series">Series</option>}<option value="animados">Animados</option></select></label></div><MovieAutoSearch key={mediaType} mediaType={mediaType} explore onUse={importTitle} showToast={showToast} /><p className="text-xs text-slate-500">Este producto utiliza la API de TMDB, pero no está avalado ni certificado por TMDB. <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" className="underline">The Movie Database</a></p></section>;
+            return (
+                <section className="space-y-4">
+                    <h2 className="text-2xl font-black">Explorar TMDB</h2>
+                    <p className="text-sm text-slate-600">Busca una ficha y aplícala a un título de tu catálogo o crea uno nuevo. Podrás revisarla y editarla antes de guardar.</p>
+                    <div className="flex gap-4 flex-wrap">
+                        <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(e.target.value === 'tv' ? 'series' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
+                        <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <option value="series">Series</option>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option></select></label>
+                        <label>Aplicar a <select aria-label="Título que quieres editar" value={targetId} onChange={e => setTargetId(e.target.value)} className="p-2 rounded-lg ml-2 max-w-full"><option value="">Crear nuevo (o abrir el existente si coincide)</option>{items.map(item => <option key={item.id} value={String(item.id)}>{titleOf(item)}</option>)}</select></label>
+                    </div>
+                    {targetId && <p className="text-sm text-slate-600">Se actualizará la ficha del título elegido. Sus enlaces, PIN y temporadas se conservarán.</p>}
+                    <MovieAutoSearch key={mediaType} mediaType={mediaType} explore onUse={applyTitle} actionLabel="Aplicar ficha y abrir editor" showToast={showToast} />
+                    <p className="text-xs text-slate-500">Este producto utiliza la API de TMDB, pero no está avalado ni certificado por TMDB. <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer" className="underline">The Movie Database</a></p>
+                </section>
+            );
         };
 
         const App = () => {
             const [activeTab, setActiveTab] = useState('movies');
+            const [editorRequest, setEditorRequest] = useState(null);
+            useEffect(() => {
+                if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);
+            }, [activeTab, editorRequest]);
+            const openCatalogEditor = (section, item) => {
+                setEditorRequest({ section, item });
+                setActiveTab(section);
+            };
             const [loading, setLoading] = useState(true);
             const [toast, setToast] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
@@ -4053,13 +4088,13 @@
 
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
-                            {activeTab === 'tmdb' && <TmdbExplorer catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
-                            {activeTab === 'movies' && (<MoviesEditor movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'tmdb' && <TmdbExplorer onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
+                            {activeTab === 'movies' && (<MoviesEditor initialEdit={editorRequest?.section === 'movies' ? editorRequest.item : null} movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
-                            {activeTab === 'estrenos2026' && (<Estrenos2026Editor estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'tudum' && (<TudumEditor tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'series' && (<SeriesEditor series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'animados' && (<AnimadosEditor animados={animados} setAnimados={setAnimados} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'estrenos2026' && (<Estrenos2026Editor initialEdit={editorRequest?.section === 'estrenos2026' ? editorRequest.item : null} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'tudum' && (<TudumEditor initialEdit={editorRequest?.section === 'tudum' ? editorRequest.item : null} tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'series' && (<SeriesEditor initialEdit={editorRequest?.section === 'series' ? editorRequest.item : null} series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'animados' && (<AnimadosEditor initialEdit={editorRequest?.section === 'animados' ? editorRequest.item : null} animados={animados} setAnimados={setAnimados} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'videoteca' && (<VideotecaEditor videoteca={videoteca} setVideoteca={setVideoteca} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'tv' && (<TvEditor channels={channels} setChannels={setChannels} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'radios' && (<RadiosEditor radios={radios} setRadios={setRadios} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
