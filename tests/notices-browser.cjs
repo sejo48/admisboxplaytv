@@ -16,12 +16,12 @@ const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const mount = url.pathname.startsWith('/principal/') ? '/principal/' : '/admin/';
     const filename = url.pathname.slice(mount.length) || 'index.html';
-    if (filename.includes('..') || (filename.includes('/') && !/^icons\/[\w.-]+$/.test(filename))) {res.writeHead(404);return res.end();}
+    if (filename.includes('..') || (filename.includes('/') && !/^(?:icons|assets)\/[\w.-]+$/.test(filename))) {res.writeHead(404);return res.end();}
     try {
         const base = mount === '/principal/' ? principalRoot : root;
         let body = mount === '/principal/' && files.has(filename) ? files.get(filename) : fs.readFileSync(path.join(base, filename));
         if (filename.endsWith('.html')) body=body.toString().replace(/<script type="module">[\s\S]*?<\/script>/g,'<!-- Firebase excluded from offline test -->');
-        res.setHeader('Content-Type',filename.endsWith('.html')?'text/html; charset=utf-8':filename.endsWith('.js')?'application/javascript':filename.endsWith('.png')?'image/png':filename.endsWith('.webmanifest')?'application/manifest+json':'application/json');
+        res.setHeader('Content-Type',filename.endsWith('.html')?'text/html; charset=utf-8':filename.endsWith('.js')?'application/javascript':filename.endsWith('.css')?'text/css':filename.endsWith('.png')?'image/png':filename.endsWith('.webmanifest')?'application/manifest+json':'application/json');
         res.end(body);
     } catch {res.writeHead(404);res.end();}
 });
@@ -46,12 +46,13 @@ const server = http.createServer((req, res) => {
     });
     try {
         const N=require('../notices.js');
-        let repositoryFeed={schemaVersion:1,notices:[]},sha='version-0',writes=0,dropResponse=false;
+        let repositoryFeed={schemaVersion:1,notices:[]},sha='version-0',writes=0,dropResponse=false,apiReads=0;
         await context.route('https://api.github.com/**',async route=>{
             const request=route.request(),url=new URL(request.url());
             assert.equal(url.pathname,'/repos/sejo48/StreamTube-V20/contents/avisos.json');
             if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET, PUT','Access-Control-Allow-Headers':'Authorization, Accept, Content-Type, X-GitHub-Api-Version'}});
-            if(request.headers()['authorization']!=='Bearer example-test-credential')return route.fulfill({status:403,json:{message:'Forbidden'}});
+            if(request.method()==='GET')apiReads++;
+            if(request.headers()['authorization']!=='Bearer example-test-credential')return route.fulfill({status:401,headers:{'Access-Control-Allow-Origin':'*'},json:{message:'Bad credentials'}});
             if(request.method()==='GET')return route.fulfill({headers:{'Access-Control-Allow-Origin':'*'},json:{sha,encoding:'base64',content:N.encode(repositoryFeed)}});
             assert.equal(request.method(),'PUT');
             const body=request.postDataJSON();
@@ -66,7 +67,7 @@ const server = http.createServer((req, res) => {
             const body=files.has(filename)?files.get(filename):fs.readFileSync(path.join(principalRoot,filename));
             return route.fulfill({contentType:filename.endsWith('.m3u')?'text/plain':'application/json',headers:{'Access-Control-Allow-Origin':'*'},body});
         });
-        const admin=await context.newPage();admin.on('pageerror',e=>errors.push(e.message));await admin.addInitScript(()=>localStorage.setItem('boxplay_github_pat','example-test-credential')); await admin.goto(origin+'/admin/index.html#avisos');
+        const adminWarnings=[];const admin=await context.newPage();admin.on('console',message=>adminWarnings.push(message.text()));admin.on('pageerror',e=>errors.push(e.message));await admin.addInitScript(()=>localStorage.setItem('boxplay_github_pat','example-expired-credential')); await admin.goto(origin+'/admin/index.html#avisos');
         await admin.getByRole('heading',{name:'Avisos para la aplicación principal',exact:true}).waitFor();
         assert(await admin.getByRole('button',{name:'GitHub Sync',exact:true}).isVisible());
         await admin.getByRole('button',{name:/^Explorar TMDB/}).click();
@@ -74,16 +75,28 @@ const server = http.createServer((req, res) => {
         await admin.getByRole('button',{name:'Enviar avisos',exact:true}).click();
         await admin.getByRole('heading',{name:'Avisos para la aplicación principal',exact:true}).waitFor();
         assert.equal(new URL(admin.url()).hash,'#avisos');
-        assert.equal(await admin.getByLabel('Credencial de GitHub para publicar avisos').inputValue(),'example-test-credential');
+        assert.equal(await admin.getByLabel('Token personal de GitHub (PAT)').inputValue(),'example-expired-credential');
+        assert.equal(apiReads,0);
         console.log('PASS: enlace directo, botón visible, credencial existente y Explorar TMDB conservado');
-        await admin.getByLabel('Credencial de GitHub para publicar avisos').fill('example-test-credential');
+
         await admin.getByRole('textbox',{name:'Título del aviso',exact:true}).fill('Estrenos de la semana');
         await admin.getByRole('textbox',{name:'Mensaje del aviso',exact:true}).fill('Películas nuevas <em>para todos</em> 🎬');
         await admin.getByRole('combobox',{name:'Sección del aviso',exact:true}).selectOption('movies2');
+        assert(await admin.getByRole('button',{name:'Publicar aviso',exact:true}).isDisabled());
+        await admin.getByRole('button',{name:'Comprobar conexión',exact:true}).click();
+        await admin.getByRole('alert').filter({hasText:'GitHub rechazó el token'}).waitFor();
+        assert.equal(writes,0);
+        assert.equal(await admin.getByRole('textbox',{name:'Título del aviso',exact:true}).inputValue(),'Estrenos de la semana');
+        assert(await admin.getByRole('button',{name:'Publicar aviso',exact:true}).isDisabled());
+        await admin.getByLabel('Token personal de GitHub (PAT)').fill('example-test-credential');
+        await admin.getByRole('button',{name:'Comprobar conexión',exact:true}).click();
+        await admin.getByRole('status').filter({hasText:'Conexión verificada'}).waitFor();
+        assert(!adminWarnings.some(text=>/cdn\.tailwindcss\.com should not|in-browser Babel transformer/.test(text)));
+        console.log('PASS: producción sin transformadores CDN, lectura pública sin credencial, 401 diagnosticado, borrador conservado y conexión comprobada');
         await admin.getByRole('button',{name:'Publicar aviso',exact:true}).click();
         await admin.getByText('Aviso publicado. Aparecerá en la principal cuando se actualice el sitio.',{exact:true}).waitFor();
         assert.equal(repositoryFeed.notices.length,1);assert.equal(writes,1);
-        assert.equal(await admin.evaluate(()=>localStorage.getItem('boxplay_github_pat')),'example-test-credential');
+        assert.equal(await admin.evaluate(()=>localStorage.getItem('boxplay_github_pat')),'example-expired-credential');
         const primary=await context.newPage();primary.on('pageerror',e=>errors.push(e.message));
         await primary.setViewportSize({width:390,height:800});
         await primary.addInitScript(()=>{window.badgeCalls=[];Object.defineProperty(navigator,'setAppBadge',{configurable:true,value:async count=>window.badgeCalls.push(count)});Object.defineProperty(navigator,'clearAppBadge',{configurable:true,value:async()=>window.badgeCalls.push('clear')});});

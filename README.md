@@ -23,3 +23,28 @@ En el entorno preparado:
 ```sh
 NODE_PATH=/workspace/streamtube-tools/node_modules BOXPLAY_TEST_CSS=/workspace/streamtube-tools/browser-test.css node tests/notices-browser.cjs
 ```
+
+## Conexión de GitHub y error 401
+
+Un 401 significa que GitHub rechazó el token enviado. El administrador descarga la lista pública al abrir Avisos, sin probar automáticamente un token guardado. Antes de publicar hay que pulsar **Comprobar conexión**. Un token inválido no borra el título ni el mensaje del borrador.
+
+Para sustituir un token rechazado:
+
+1. Entra a https://github.com/settings/personal-access-tokens/new con la cuenta que administra el repositorio.
+2. Selecciona el propietario correcto y acceso al repositorio **StreamTube-V20**.
+3. En permisos del repositorio, habilita **Contents: Read and write**.
+4. Genera el token y cópialo directamente en el campo protegido **Token personal de GitHub (PAT)** del panel. No lo incluyas en mensajes ni archivos del proyecto.
+5. Pulsa **Comprobar conexión**. La comprobación verifica lectura; la publicación además requiere el permiso de escritura.
+
+Avisos usa el token introducido en memoria. Si también necesitas reemplazar la credencial que la función antigua GitHub Sync había guardado, actualízala desde esa función. La sección Avisos no cambia ni elimina esa configuración guardada.
+
+## Compilación para producción
+
+Los archivos editables están en `src/app.jsx` y `src/index.template.html`. `index.html` y `assets/` son salidas generadas y se publican como archivos estáticos en GitHub Pages. No se usan el CDN de Tailwind ni la transformación Babel dentro del navegador. React, ReactDOM y HLS se sirven localmente con versiones fijadas. Los nombres de CSS/JS incluyen una huella de contenido para evitar versiones antiguas en la caché.
+
+```sh
+npm ci --ignore-scripts
+npm run build
+```
+
+Después de editar el código fuente, incluye las salidas generadas en el mismo commit. `node_modules/` se ignora. Las bibliotecas se descargan por npm con su comprobación de integridad; los archivos de fuentes e iconos web siguen usando sus proveedores originales.
