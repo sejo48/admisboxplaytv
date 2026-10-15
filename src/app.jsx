@@ -1940,23 +1940,26 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                     )}
 
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start">
                         {filteredMovies.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
-                            const enriched = hasEnrichedData(movie);
+                            const originalIndex = movies.indexOf(movie);
                             return (
-                                <div key={movie.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={movie} kind="movie" />
+                                <div key={movie.id || index} className="overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl" data-poster-card={movie.id || title}>
+                                    <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
+                                        <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
+                                    </button>
 
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
                                         <div className="flex gap-1">
-                                            <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
-                                            <button onClick={() => moveItem(index, 'down')} disabled={index === movies.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
+                                            <button title="Subir" onClick={() => moveItem(originalIndex, 'up')} disabled={originalIndex === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
+                                            <button title="Bajar" onClick={() => moveItem(originalIndex, 'down')} disabled={originalIndex === movies.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(movie)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                        <button onClick={() => setEditingItem(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setMovies(movies.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
@@ -2188,23 +2191,26 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                     )}
 
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start">
                         {filteredEstrenos.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
                             const stream = movie.urlDrive || movie.urlOkRu;
-                            const enriched = hasEnrichedData(movie);
+                            const originalIndex = estrenos.indexOf(movie);
                             return (
-                                <div key={movie.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={movie} kind="movie" />
+                                <div key={movie.id || index} className="overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl" data-poster-card={movie.id || title}>
+                                    <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
+                                        <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
+                                    </button>
 
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
                                         <div className="flex gap-1">
-                                            <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
-                                            <button onClick={() => moveItem(index, 'down')} disabled={index === estrenos.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
+                                            <button title="Subir" onClick={() => moveItem(originalIndex, 'up')} disabled={originalIndex === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
+                                            <button title="Bajar" onClick={() => moveItem(originalIndex, 'down')} disabled={originalIndex === estrenos.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(movie)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                        <button onClick={() => setEditingItem(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setEstrenos(estrenos.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>

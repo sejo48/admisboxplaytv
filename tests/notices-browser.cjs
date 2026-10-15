@@ -72,6 +72,28 @@ const server = http.createServer((req, res) => {
         assert(await admin.getByRole('button',{name:'GitHub Sync',exact:true}).isVisible());
         await admin.getByRole('button',{name:/^Explorar TMDB/}).click();
         await admin.getByRole('heading',{name:'Explorar TMDB',exact:true}).waitFor();
+        for (const [tab, filename, placeholder, saveLabel] of [
+            [/^Películas/, 'peliculas.json', /Buscar película/, 'Guardar Película'],
+            [/^Estrenos 2026/, 'peliculas2.json', /Buscar estreno/, 'Guardar Estreno']
+        ]) {
+            await admin.getByRole('button',{name:tab}).click();
+            const cards=admin.locator('[data-poster-card]');
+            await cards.first().waitFor();
+            for (const width of [1280,390]) {
+                await admin.setViewportSize({width,height:900});
+                const first=await cards.nth(0).boundingBox(),second=await cards.nth(1).boundingBox();
+                assert(Math.abs(first.y-second.y)<2);assert(second.x>first.x);
+                assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+            }
+            const title=JSON.parse(fs.readFileSync(path.join(principalRoot,filename),'utf8'))[0].titulo;
+            await admin.getByPlaceholder(placeholder).fill(title);
+            const card=cards.filter({has:admin.getByRole('button',{name:'Editar '+title,exact:true})}).first();
+            await card.getByRole('button',{name:'Editar',exact:true}).click();
+            await admin.getByRole('button',{name:saveLabel,exact:true}).waitFor();
+            await admin.getByRole('button',{name:'Cancelar',exact:true}).click();
+        }
+        await admin.setViewportSize({width:1280,height:900});
+        console.log('PASS: cuadrículas de portadas en PC y móvil, búsqueda y edición de películas y estrenos');
         await admin.getByRole('button',{name:'Enviar avisos',exact:true}).click();
         await admin.getByRole('heading',{name:'Avisos para la aplicación principal',exact:true}).waitFor();
         assert.equal(new URL(admin.url()).hash,'#avisos');
