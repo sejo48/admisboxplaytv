@@ -2,6 +2,31 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Portadas de inicio
+
+Enlace directo: https://sejo48.github.io/admisboxplaytv/#portadas
+
+El botón **Portadas de inicio** está en la barra superior y la pestaña **Portadas** al principio del menú. Elige exactamente cinco películas del catálogo publicado de **Estrenos 2026**. Cada selección tiene una vista previa y un campo para sustituir el fondo panorámico. Las imágenes se comprueban antes de habilitar la publicación; los fondos verticales, cuadrados o que no cargan bloquean el guardado.
+
+1. Busca y elige cinco estrenos. Puedes quitar uno para reemplazarlo.
+2. Revisa sus imágenes panorámicas. El borrador se conserva en este navegador al cambiar de sección o recargar.
+3. Comprueba la conexión de GitHub con una credencial que tenga permiso Contents: escritura en StreamTube-V20.
+4. Pulsa **Publicar cinco portadas**. La selección se guarda en `portadas-inicio.json` de StreamTube-V20, rama main. No modifica los catálogos ni los avisos.
+
+Box Play TV elige una portada entre esas cinco al abrir Inicio, evita repetir la que estaba visible y mantiene la imagen fija mientras se navega. Una película fuera de las cinco no se añade automáticamente si se elimina un estreno elegido o falla una imagen. Antes de la primera selección publicada se conserva la selección automática de los últimos estrenos.
+
+El selector usa únicamente estrenos que ya están publicados en la aplicación principal. Si acabas de crear uno en el editor, publícalo con GitHub Sync y pulsa **Actualizar Estrenos** para poder elegirlo. Las referencias son independientes de la posición del catálogo y los identificadores temporales del administrador.
+
+La nueva sección reutiliza la credencial existente de GitHub Sync y no guarda credenciales nuevas. Se comprueba la versión publicada antes de escribir para impedir que un borrador antiguo sustituya cambios de otra sesión. Un reintento después de una respuesta perdida confirma el mismo guardado sin duplicarlo. **Cargar selección publicada** permite reemplazar expresamente el borrador local.
+
+Los archivos `home-covers.js` de ambos repositorios implementan el mismo contrato. El componente está en `src/home-covers.jsx`; el proceso de compilación lo incluye junto con `src/app.jsx`. Las salidas estáticas generadas se incluyen en el commit.
+
+Prueba integrada, sin escrituras reales en GitHub:
+
+```sh
+NODE_PATH=/workspace/streamtube-tools/node_modules BOXPLAY_TEST_CSS=/workspace/streamtube-tools/browser-test.css node tests/home-covers-browser.cjs
+```
+
 ## Avisos
 
 Enlace directo: https://sejo48.github.io/admisboxplaytv/#avisos
@@ -40,7 +65,7 @@ Avisos usa el token introducido en memoria. Si también necesitas reemplazar la 
 
 ## Compilación para producción
 
-Los archivos editables están en `src/app.jsx` y `src/index.template.html`. `index.html` y `assets/` son salidas generadas y se publican como archivos estáticos en GitHub Pages. No se usan el CDN de Tailwind ni la transformación Babel dentro del navegador. React, ReactDOM y HLS se sirven localmente con versiones fijadas. Los nombres de CSS/JS incluyen una huella de contenido para evitar versiones antiguas en la caché.
+Los archivos editables están en `src/app.jsx`, `src/home-covers.jsx` y `src/index.template.html`. `index.html` y `assets/` son salidas generadas y se publican como archivos estáticos en GitHub Pages. No se usan el CDN de Tailwind ni la transformación Babel dentro del navegador. React, ReactDOM y HLS se sirven localmente con versiones fijadas. Los nombres de CSS/JS incluyen una huella de contenido para evitar versiones antiguas en la caché.
 
 ```sh
 npm ci --ignore-scripts

@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 const assets = path.join(root, 'assets');
 fs.mkdirSync(assets, { recursive: true });
 const fingerprint = body => createHash('sha256').update(body).digest('hex').slice(0, 12);
-const source = fs.readFileSync(path.join(root, 'src/app.jsx'), 'utf8');
+const source = ['src/home-covers.jsx', 'src/app.jsx'].map(file => fs.readFileSync(path.join(root, file), 'utf8')).join('\n');
 const js = Babel.transform(source, { presets: [['react', { runtime: 'classic' }]], comments: false, compact: true, minified: true }).code;
 const appFile = `app.${fingerprint(js)}.js`;
 fs.writeFileSync(path.join(assets, appFile), js + '\n');

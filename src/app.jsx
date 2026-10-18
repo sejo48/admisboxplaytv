@@ -3544,14 +3544,14 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         };
 
         const App = () => {
-            const [activeTab, setActiveTab] = useState(() => window.location.hash === '#avisos' ? 'notices' : 'movies');
+            const [activeTab, setActiveTab] = useState(() => window.location.hash === '#portadas' ? 'homecovers' : window.location.hash === '#avisos' ? 'notices' : 'movies');
             const selectSection = id => {
                 setActiveTab(id);
-                const hash = id === 'notices' ? '#avisos' : (window.location.hash === '#avisos' ? '' : window.location.hash);
+                const hash = id === 'homecovers' ? '#portadas' : id === 'notices' ? '#avisos' : (['#avisos','#portadas'].includes(window.location.hash) ? '' : window.location.hash);
                 window.history.replaceState(null, '', window.location.pathname + window.location.search + hash);
             };
             useEffect(() => {
-                const openFromHash = () => { if (window.location.hash === '#avisos') setActiveTab('notices'); };
+                const openFromHash = () => { if (window.location.hash === '#avisos') setActiveTab('notices'); if (window.location.hash === '#portadas') setActiveTab('homecovers'); };
                 window.addEventListener('hashchange', openFromHash);
                 return () => window.removeEventListener('hashchange', openFromHash);
             }, []);
@@ -4054,6 +4054,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }
 
             const tabs = [
+                { id: 'homecovers', label: 'Portadas', icon: 'film', count: 5, color: 'text-cyan-500' },
                 { id: 'notices', label: 'Avisos', icon: 'chat', count: 0, color: 'text-cyan-500' },
                 { id: 'tmdb', label: 'Explorar TMDB', icon: 'search', count: 0, color: 'text-teal-500' },
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
@@ -4090,6 +4091,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 </div>
                             </div>
                             <div className="flex flex-wrap items-center justify-center gap-2">
+                                <button onClick={() => selectSection('homecovers')} className="text-xs bg-cyan-950 hover:bg-cyan-900 text-cyan-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><Icon name="film" size={14}/><span>Portadas de inicio</span></button>
                                 <button onClick={() => selectSection('notices')} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2" title="Crear y publicar avisos en Box Play TV">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
                                     <span>Enviar avisos</span>
@@ -4132,6 +4134,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
                         <ErrorBoundary>
+                            {activeTab === 'homecovers' && <HomeCoversEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'notices' && <NoticesEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'tmdb' && <TmdbExplorer onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
                             {activeTab === 'movies' && (<MoviesEditor initialEdit={editorRequest?.section === 'movies' ? editorRequest.item : null} movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
