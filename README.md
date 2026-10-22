@@ -2,11 +2,35 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Administrador 8.0
+
+El panel abre en **modo oscuro**. El botón de tema permite elegir modo claro y recuerda la preferencia en ese navegador.
+
+- **Catálogo:** Resumen, Películas, Estrenos 2026, Series, Animados y Netflix Tudum.
+- **Descubrir:** Explorar TMDB y Tendencias.
+- **Publicar:** Portadas de inicio y Avisos.
+- **En vivo y música:** TV, Radios y BoxPlayMusic.
+
+Las colecciones de cine y series se muestran en una cuadrícula de portadas con título y datos básicos. Se puede buscar sin tildes, filtrar por género/año y ordenar por título, año o puntuación. La ordenación visual no reescribe el orden publicado del catálogo. Series y Animados abren sus temporadas y episodios debajo de la cuadrícula.
+
+Pulsa **Añadir desde TMDB** o **Buscar ficha en TMDB** dentro del catálogo deseado. El buscador conserva el destino, distingue películas y series y permite indicar el año para diferenciar versiones. Trae la ficha al editor, conserva los enlaces/PIN/temporadas de títulos existentes y evita confundir remakes por sus identificadores y año. Completa el enlace de reproducción y guarda antes de publicar con GitHub Sync. TMDB proporciona metadatos, no archivos de video.
+
+En móvil, **Sección** muestra todas las categorías agrupadas. Importación, respaldo, recarga y GitHub Sync están en **Herramientas**. Los enlaces directos anteriores `#portadas` y `#avisos` siguen funcionando; cada catálogo también tiene su propio enlace.
+
+Validación de esta actualización:
+
+```sh
+node --test tests/catalog-tools.test.cjs tests/catalog-render.test.cjs
+npm run build
+```
+
+Las pruebas cubren búsqueda, filtros sin mutar datos, duplicados/remakes, conservación de enlaces y temporadas, destinos TMDB y renderizado de cuadrículas. Las pruebas no publican cambios en el catálogo de clientes.
+
 ## Portadas de inicio
 
 Enlace directo: https://sejo48.github.io/admisboxplaytv/#portadas
 
-El botón **Portadas de inicio** está en la barra superior y la pestaña **Portadas** al principio del menú. Elige exactamente cinco películas del catálogo publicado de **Estrenos 2026**. Cada selección tiene una vista previa y un campo para sustituir el fondo panorámico. Las imágenes se comprueban antes de habilitar la publicación; los fondos verticales, cuadrados o que no cargan bloquean el guardado.
+Abre **Publicar → Portadas**, o **Herramientas → Portadas de inicio**. Elige exactamente cinco películas del catálogo publicado de **Estrenos 2026**. Cada selección tiene una vista previa y un campo para sustituir el fondo panorámico. Las imágenes se comprueban antes de habilitar la publicación; los fondos verticales, cuadrados o que no cargan bloquean el guardado.
 
 1. Busca y elige cinco estrenos. Puedes quitar uno para reemplazarlo.
 2. Revisa sus imágenes panorámicas. El borrador se conserva en este navegador al cambiar de sección o recargar.
@@ -31,7 +55,7 @@ NODE_PATH=/workspace/streamtube-tools/node_modules BOXPLAY_TEST_CSS=/workspace/s
 
 Enlace directo: https://sejo48.github.io/admisboxplaytv/#avisos
 
-El botón **Enviar avisos** está en la barra superior, antes de Deshacer / GitHub Sync. La pestaña **Avisos** está al principio de las secciones, antes de Explorar TMDB. Escribe el título y mensaje, elige sección/duración, revisa la vista previa y pulsa Publicar aviso.
+Abre **Publicar → Avisos**, o **Herramientas → Enviar avisos**. Escribe el título y mensaje, elige sección/duración, revisa la vista previa y pulsa Publicar aviso.
 
 Los avisos se guardan en `avisos.json` de **sejo48/StreamTube-V20**, rama **main**, donde la aplicación principal los consulta. Este repositorio contiene el administrador, por lo que no debe tener una segunda lista de avisos independiente.
 
@@ -73,3 +97,4 @@ npm run build
 ```
 
 Después de editar el código fuente, incluye las salidas generadas en el mismo commit. `node_modules/` se ignora. Las bibliotecas se descargan por npm con su comprobación de integridad; los archivos de fuentes e iconos web siguen usando sus proveedores originales.
+

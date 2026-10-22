@@ -877,7 +877,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // EDITOR: NETFLIX TUDUM (con importador automático)
         // ============================================================
         const TudumEditor = ({ tudumList, setTudumList, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
-            const [mode, setMode] = useState(initialEdit ? 'manual' : 'auto');
+            const [mode, setMode] = useState('manual');
+            useEffect(() => { if (initialEdit) { setMode('manual'); setEditingItem(initialEdit); } }, [initialEdit]);
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
 
@@ -889,7 +890,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 if (existingIndex !== -1) { showToast(`El estreno "${title}" ya existe en la lista Tudum.`, 'error'); return; }
                 const rawImage = formData.get('image') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
-                const { isNew, ...existingFields } = editingItem;
+                const { isNew, __formRevision, ...existingFields } = editingItem;
                 const newItem = {
                     ...existingFields,
                     ...tmdbMetadata(editingItem),
@@ -935,11 +936,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 showToast('Archivo tudum.json generado');
             };
 
-            const filteredList = tudumList.filter(t =>
-                (t.title || t.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (t.genre || t.genero || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (t.synopsis || t.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const catalog = useCatalogView(tudumList, searchTerm);
+            const filteredList = catalog.items;
 
             return (
                 <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 md:p-7 animate-fade-in space-y-6">
@@ -953,7 +951,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             <p className="text-xs text-slate-500 mt-1">Avances y próximos estrenos de Netflix para Box Play TV (<code>tudum.json</code>)</p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setEditingItem({ isNew: true })} className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Estreno</button>
+                            <button onClick={() => { setMode('manual'); setEditingItem({ isNew: true }); }} className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Estreno</button>
                             <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
                         </div>
                     </div>
@@ -987,8 +985,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             {editingItem && (
                                 <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
                                     <h3 className="font-extrabold text-rose-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno Tudum' : 'Editar Estreno Tudum'}</h3>
-                                    <form key={editingItem.tmdbId || "manual"} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <MovieAutoSearch mediaType={editingItem.tmdbType || editingItem.mediaType || 'movie'} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...data, title: data.titulo, image: data.imagen, synopsis: data.sinopsis, genre: data.generosTexto, releaseDate: data.fechaEstreno, score: data.rating }))} />
+                                    <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <MovieAutoSearch mediaType={editingItem.tmdbType || editingItem.mediaType || 'movie'} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...data, __formRevision: Date.now(), title: data.titulo, image: data.imagen, synopsis: data.sinopsis, genre: data.generosTexto, releaseDate: data.fechaEstreno, score: data.rating }))} />
                                         <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Stranger Things 5" /></div>
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Fecha de Estreno</label><input name="releaseDate" defaultValue={editingItem.releaseDate || editingItem.fechaEstreno || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Verano 2026" /></div>
@@ -1005,25 +1003,10 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     </form>
                                 </div>
                             )}
-                            <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-                                {filteredList.map((item, index) => {
-                                    const poster = item.image || item.imagen;
-                                    const title = item.title || item.titulo;
-                                    const genre = item.genre || item.genero;
-                                    const release = item.releaseDate || item.fechaEstreno;
-                                    const trailer = item.trailerUrl || item.urlTrailer;
-                                    return (
-                                        <div key={item.id || index} className="space-y-3 p-2 bg-slate-50 border border-slate-200 rounded-2xl"><MediaProfile item={item} kind="movie" />
+                            <CatalogToolbar {...catalog.props} />
+                            <div className="catalog-grid">{filteredList.map(item => <CatalogPoster key={item.id} item={item} onSelect={() => setEditingItem(item)} onEdit={() => setEditingItem(item)} onDelete={() => requestConfirm(`¿Eliminar "${BoxCatalog.title(item)}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} caption={item.releaseDate || item.fechaEstreno || 'Próximamente'} />)}</div>
+                            {filteredList.length === 0 && <p className="catalog-empty">No hay próximos estrenos que coincidan con estos filtros.</p>}
 
-                                            <div className="flex flex-wrap items-center justify-end gap-2">
-                                                {trailer && (<button onClick={() => onTestPlayer(title, trailer)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
-                                                <button onClick={() => setEditingItem(item)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
-                                                <button onClick={() => requestConfirm(`¿Eliminar "${title}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
                         </>
                     )}
                 </div>
@@ -1179,6 +1162,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA' }) => {
             const [query, setQuery] = useState('');
+            const [searchYear, setSearchYear] = useState('');
             const [category, setCategory] = useState('search');
             const [page, setPage] = useState(1);
             const [totalPages, setTotalPages] = useState(1);
@@ -1203,8 +1187,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 setSelected(null);
                 setResults([]);
                 try {
-                    const endpoint = category === 'search' ? `search/${mediaType}` : category === 'trending' ? `trending/${mediaType}/week` : `${mediaType}/${category}`;
-                    const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(key)}&language=es-ES&include_adult=false&page=${nextPage}&query=${encodeURIComponent(q)}`;
+                    const url = BoxCatalog.searchURL({ key,mediaType,category,query:q,page:nextPage,year:searchYear });
                     const response = await fetch(url);
                     const data = await response.json();
                     if (response.status === 401) { setShowKeyBox(true); throw new Error('Clave TMDB inválida o revocada.'); }
@@ -1333,12 +1316,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                     {explore && <label className="block text-xs">Explorar <select aria-label="Categoría TMDB" value={category} onChange={e => setCategory(e.target.value)} className="ml-2 p-2 bg-slate-800 rounded-lg"><option value="search">Búsqueda</option><option value="trending">Tendencias semanales</option><option value="popular">Populares</option><option value="top_rated">Mejor valoradas</option><option value={mediaType === 'movie' ? 'upcoming' : 'on_the_air'}>{mediaType === 'movie' ? 'Próximos estrenos' : 'En emisión'}</option></select></label>}
                     <div className="flex gap-2">
-                        <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchMovies(); } }} placeholder="Ej: Gladiador II, Dune, Interestelar..." className="flex-1 p-2.5 rounded-xl bg-white text-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
+                        <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); searchMovies(); } }} aria-label={mediaType === 'tv' ? 'Buscar series en TMDB' : 'Buscar películas en TMDB'} placeholder={mediaType === 'tv' ? 'Ej: Breaking Bad, Dark...' : 'Ej: Dune, Interestelar...'} className="flex-1 p-2.5 rounded-xl bg-white text-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-500" />
                         <button type="button" onClick={() => searchMovies()} disabled={loading} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-xl text-xs font-black">{loading ? 'Buscando...' : '🔎 Buscar'}</button>
                     </div>
 
+                    <label className="tmdb-year-field">Año de estreno (opcional)<input aria-label="Año de estreno en TMDB" type="number" min="1900" max={new Date().getFullYear()+5} value={searchYear} disabled={category !== 'search'} onChange={e => setSearchYear(e.target.value)} placeholder="Todos" /></label>
                     {results.length > 0 && !selected && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto custom-scrollbar">
+                        <div className="catalog-grid tmdb-results">
                             {results.map(movie => (
                                 <button type="button" key={movie.id} onClick={() => getDetails(movie)} className="text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500 rounded-xl overflow-hidden transition-all">
                                     <div className="aspect-[2/3] bg-slate-800">
@@ -1388,7 +1372,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             {mediaType === 'tv' && <p className="text-xs">{selected.number_of_seasons || 0} temporadas · {selected.number_of_episodes || 0} episodios · {(selected.created_by || []).map(p => p.name).join(', ')}</p>}
                             <div className="flex flex-wrap gap-2">{(selected.videos?.results || []).filter(v => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type)).slice(0, 4).map(v => <a key={v.id} href={`https://www.youtube.com/watch?v=${encodeURIComponent(v.key)}`} target="_blank" rel="noopener noreferrer" className="text-cyan-300 text-xs underline">{v.name}</a>)}</div>
                             {(selected.images?.backdrops || []).length > 0 && <div className="flex gap-2 overflow-x-auto">{selected.images.backdrops.slice(0, 6).map(i => <img key={i.file_path} src={`https://image.tmdb.org/t/p/w300${i.file_path}`} alt="Imagen del título" className="w-40 rounded-lg" />)}</div>}
-                            {(selected.recommendations?.results || []).length > 0 && <div><h6 className="text-xs font-bold mb-2">Recomendaciones</h6><div className="flex gap-2 overflow-x-auto">{selected.recommendations.results.slice(0, 8).map(m => <button type="button" disabled={loading} key={m.id} onClick={() => getDetails(m)} className="w-24 shrink-0 text-xs text-left">{m.poster_path && <img src={`https://image.tmdb.org/t/p/w185${m.poster_path}`} alt="" className="rounded-lg" />}{m.title || m.name}</button>)}</div></div>}
+                            {(selected.recommendations?.results || []).length > 0 && <div><h6 className="text-xs font-bold mb-2">Recomendaciones</h6><div className="catalog-related-grid">{selected.recommendations.results.slice(0, 8).map(m => <button type="button" disabled={loading} key={m.id} onClick={() => getDetails(m)} className="min-w-0 text-xs text-left">{m.poster_path && <img src={`https://image.tmdb.org/t/p/w185${m.poster_path}`} alt="" className="rounded-lg" />}{m.title || m.name}</button>)}</div></div>}
                             <div className="flex flex-wrap gap-2 pt-1">
                                 <button type="button" disabled={loading} onClick={useSelected} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-black">{actionLabel}</button>
                                 <button type="button" onClick={() => setSelected(null)} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold">Volver a resultados</button>
@@ -1726,12 +1710,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
+            useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setAutoData(null); } }, [initialEdit]);
 
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
-                const existingIndex = movies.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
+                const existingIndex = movies.findIndex(m => m.id !== editingItem?.id && BoxCatalog.findMatch([m], { ...editingItem, titulo, year: formData.get('year') || editingItem?.year }, 'movie'));
                 if (existingIndex !== -1) { showToast(`La película "${titulo}" ya existe.`, 'error'); return; }
                 const rawImage = formData.get('imagen') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
@@ -1833,11 +1818,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 setMovies(newMovies);
             };
 
-            const filteredMovies = movies.filter(m =>
-                (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (m.director || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const catalog = useCatalogView(movies, searchTerm);
+            const filteredMovies = catalog.items;
 
             const startNewMovie = () => {
                 setAutoData(null);
@@ -1846,7 +1828,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const applyAutoData = (data) => {
                 setAutoData(data);
-                setEditingItem(item => ({ ...(item || { isNew: true }), ...data }));
+                setEditingItem(item => ({ ...(item || { isNew: true }), ...data, __formRevision: Date.now() }));
             };
 
             const hasEnrichedData = (movie) =>
@@ -1881,7 +1863,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nueva Película' : 'Editar Película'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
@@ -1940,7 +1922,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start">
+                    <CatalogToolbar {...catalog.props} />
+                    {filteredMovies.length === 0 && <p className="catalog-empty">No hay películas que coincidan. Prueba otro filtro o añade una ficha desde TMDB.</p>}
+                    <div className="catalog-grid">
                         {filteredMovies.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
@@ -1951,7 +1935,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
-
+                                    <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
                                     <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
@@ -1977,12 +1961,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
+            useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setAutoData(null); } }, [initialEdit]);
 
             const handleSave = (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
-                const existingIndex = estrenos.findIndex(m => (m.titulo || m.title || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || m.id !== editingItem.id));
+                const existingIndex = estrenos.findIndex(m => m.id !== editingItem?.id && BoxCatalog.findMatch([m], { ...editingItem, titulo, year: formData.get('year') || editingItem?.year }, 'movie'));
                 if (existingIndex !== -1) { showToast(`El estreno "${titulo}" ya existe.`, 'error'); return; }
                 const rawImage = formData.get('imagen') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
@@ -2084,11 +2069,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 setEstrenos(newItems);
             };
 
-            const filteredEstrenos = estrenos.filter(m =>
-                (m.titulo || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (m.descripcion || m.sinopsis || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (m.director || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const catalog = useCatalogView(estrenos, searchTerm);
+            const filteredEstrenos = catalog.items;
 
             const startNewEstreno = () => {
                 setAutoData(null);
@@ -2097,7 +2079,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const applyAutoData = (data) => {
                 setAutoData(data);
-                setEditingItem(item => ({ ...(item || { isNew: true }), ...data }));
+                setEditingItem(item => ({ ...(item || { isNew: true }), ...data, __formRevision: Date.now() }));
             };
 
             const hasEnrichedData = (movie) =>
@@ -2132,7 +2114,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
@@ -2191,7 +2173,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start">
+                    <CatalogToolbar {...catalog.props} />
+                    {filteredEstrenos.length === 0 && <p className="catalog-empty">No hay estrenos que coincidan. Prueba otro filtro o añade una ficha desde TMDB.</p>}
+                    <div className="catalog-grid">
                         {filteredEstrenos.map((movie, index) => {
                             const poster = movie.imagen || movie.image;
                             const title = movie.titulo || movie.title;
@@ -2202,7 +2186,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
-
+                                    <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
                                     <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
@@ -2228,6 +2212,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [selectedSerieId, setSelectedSerieId] = useState(initialEdit?.id || null);
             const [editingSerie, setEditingSerie] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
+            useEffect(() => { if (initialEdit) { setEditingSerie(initialEdit); setSelectedSerieId(initialEdit.id || null); } }, [initialEdit]);
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
 
@@ -2316,14 +2301,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 });
             };
 
-            const filteredSeries = series.filter(s =>
-                (s.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (s.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const catalog = useCatalogView(series, searchTerm);
+            const filteredSeries = catalog.items;
 
             return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
+                <div className="catalog-collection bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div className="w-full border-b border-slate-200 bg-slate-50">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="film" className="text-purple-600" size={16} /> Series</h2>
@@ -2337,33 +2320,19 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input type="text" placeholder="Buscar serie..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none text-xs" />
                         </div>
-                        <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
-                            {filteredSeries.length === 0 ? (<p className="text-xs text-slate-400 text-center py-6">No se encontraron series</p>) : (
-                                filteredSeries.map(serie => {
-                                    const isSelected = selectedSerieId === serie.id;
-                                    const totalEps = (serie.temporadas || []).reduce((acc, t) => acc + (t.episodios?.length || 0), 0);
-                                    return (
-                                        <div key={serie.id} onClick={() => setSelectedSerieId(serie.id)} className={`p-2.5 rounded-2xl cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'bg-purple-100/80 border-l-4 border-purple-600 shadow-sm' : 'hover:bg-slate-200/60'}`}>
-                                            <div className="w-10 h-14 rounded-lg bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm">
-                                                <img src={serie.imagen} className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/40x60/111/fff?text=S'; }} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-extrabold text-xs truncate text-slate-900">{serie.tituloSerie}</h4>
-                                                <p className="text-[10px] text-purple-700 font-bold mt-0.5">{serie.temporadas?.length || 0} Temps · {totalEps} Capítulos</p>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                        <div className="p-4"><CatalogToolbar {...catalog.props} />
+                            <div className="catalog-grid">{filteredSeries.map(serie => <CatalogPoster key={serie.id} item={serie} selected={selectedSerie?.id === serie.id} onSelect={() => { setSelectedSerieId(serie.id); requestAnimationFrame(()=>document.getElementById('series-detail')?.scrollIntoView({block:'start',behavior:'smooth'})); }} onEdit={() => setEditingSerie(serie)} caption={`${serie.temporadas?.length || 0} temporadas · ${(serie.temporadas || []).reduce((n,t)=>n+(t.episodios?.length || 0),0)} episodios`} />)}</div>
+                            {filteredSeries.length === 0 && <p className="catalog-empty">No hay títulos que coincidan con estos filtros.</p>}
                         </div>
                     </div>
 
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div id="series-detail" className="catalog-detail w-full p-4 md:p-6 bg-white">
+                        {selectedSerie && <button type="button" className="catalog-back" onClick={() => { setSelectedSerieId(null); document.querySelector('.catalog-collection')?.scrollIntoView({block:'start',behavior:'smooth'}); }}>← Volver a la cuadrícula</button>}
                         {!selectedSerie ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="film" size={48} className="mb-3 opacity-20 text-purple-600"/>
                                 <p className="text-sm font-bold text-slate-600">Ninguna serie seleccionada</p>
-                                <p className="text-xs text-slate-400 mt-1">Elige una serie de la lista lateral o añade una nueva.</p>
+                                <p className="text-xs text-slate-400 mt-1">Elige una portada de la cuadrícula o añade una nueva desde TMDB.</p>
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
@@ -2421,8 +2390,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingSerie.isNew ? 'Nueva Serie' : 'Editar Información de la Serie'}</h3>
-                                <form key={editingSerie.tmdbId || "manual"} onSubmit={saveSerieBase} className="space-y-3.5">
-                                    <MovieAutoSearch mediaType="tv" showToast={showToast} onUse={data => setEditingSerie(current => ({ ...current, ...tmdbMetadata(data), tituloSerie: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
+                                <form key={`${editingSerie.tmdbId || editingSerie.id || "manual"}:${editingSerie.__formRevision || 0}`} onSubmit={saveSerieBase} className="space-y-3.5">
+                                    <MovieAutoSearch mediaType="tv" showToast={showToast} onUse={data => setEditingSerie(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), tituloSerie: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
                                     <MediaMetadataFields item={editingSerie} onChange={setEditingSerie} kind="series" />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título de la Serie</label><input name="tituloSerie" defaultValue={editingSerie.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500" placeholder="Ej: Breaking Bad" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingSerie.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-500 font-mono" placeholder="https://..." /></div>
@@ -2469,6 +2438,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [searchTerm, setSearchTerm] = useState('');
             const [tmdbType, setTmdbType] = useState(initialEdit?.tmdbType || 'tv');
             const selectedItem = animados.find(s => s.id === selectedItemId);
+            useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setSelectedItemId(initialEdit.id || null); setTmdbType(initialEdit.tmdbType || 'tv'); } }, [initialEdit]);
 
             const exportData = () => {
                 const exportArray = animados.map(({ id, ...s }) => {
@@ -2510,6 +2480,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     codigo: formData.get('codigo') || null,
                     qualityTag: formData.get('qualityTag') || ''
                 };
+                newData.tmdbType = tmdbType;
                 if (editingItem.isNew) {
                     const newItem = { ...newData, id: `anim-${Date.now()}`, temporadas: [] };
                     setAnimados([newItem, ...animados]);
@@ -2562,14 +2533,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 });
             };
 
-            const filteredAnimados = animados.filter(a =>
-                (a.titulo || a.tituloSerie || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (a.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const catalog = useCatalogView(animados, searchTerm);
+            const filteredAnimados = catalog.items;
 
             return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
+                <div className="catalog-collection bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
+                    <div className="w-full border-b border-slate-200 bg-slate-50">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="smile" className="text-orange-500" size={16} /> Animados</h2>
@@ -2583,27 +2552,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input type="text" placeholder="Buscar animados..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none text-xs" />
                         </div>
-                        <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
-                            {filteredAnimados.length === 0 ? (<p className="text-xs text-slate-400 text-center py-6">No hay animados registrados</p>) : (
-                                filteredAnimados.map(item => {
-                                    const isSelected = selectedItemId === item.id;
-                                    const isSeries = item.temporadas && item.temporadas.length > 0;
-                                    return (
-                                        <div key={item.id} onClick={() => setSelectedItemId(item.id)} className={`p-2.5 rounded-2xl cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'bg-orange-100/80 border-l-4 border-orange-500 shadow-sm' : 'hover:bg-slate-200/60'}`}>
-                                            <div className="w-10 h-14 rounded-lg bg-black overflow-hidden border border-slate-200 flex-shrink-0 shadow-sm">
-                                                <img src={item.imagen} className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/40x60/111/fff?text=A'; }} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-extrabold text-xs truncate text-slate-900">{item.titulo || item.tituloSerie}</h4>
-                                                <p className="text-[10px] text-orange-700 font-bold mt-0.5">{isSeries ? `${item.temporadas.length} Temporadas` : 'Película / Video Único'}</p>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
+                        <div className="p-4"><CatalogToolbar {...catalog.props} />
+                            <div className="catalog-grid">{filteredAnimados.map(item => <CatalogPoster key={item.id} item={item} selected={selectedItem?.id === item.id} onSelect={() => { setSelectedItemId(item.id); requestAnimationFrame(()=>document.getElementById('animados-detail')?.scrollIntoView({block:'start',behavior:'smooth'})); }} onEdit={() => setEditingItem(item)} caption={item.tmdbType === 'tv' || item.temporadas?.length ? `${item.temporadas?.length || 0} temporadas` : 'Película animada'} />)}</div>
+                            {filteredAnimados.length === 0 && <p className="catalog-empty">No hay títulos que coincidan con estos filtros.</p>}
                         </div>
                     </div>
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div id="animados-detail" className="catalog-detail w-full p-4 md:p-6 bg-white">
+                        {selectedItem && <button type="button" className="catalog-back" onClick={() => { setSelectedItemId(null); document.querySelector('.catalog-collection')?.scrollIntoView({block:'start',behavior:'smooth'}); }}>← Volver a la cuadrícula</button>}
                         {!selectedItem ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="smile" size={48} className="mb-3 opacity-20 text-orange-500"/>
@@ -2669,8 +2624,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingItem.isNew ? 'Nuevo Animado' : 'Editar Información del Animado'}</h3>
-                                <form key={editingItem.tmdbId || "manual"} onSubmit={saveItemBase} className="space-y-3.5">
-                                    <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
+                                <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={saveItemBase} className="space-y-3.5">
+                                    <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
                                     <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ej: Los Simpson" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://..." /></div>
@@ -3417,37 +3372,24 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // APP PRINCIPAL
         // ============================================================
-        const TmdbExplorer = ({ catalogs, showToast, onOpenEditor }) => {
-            const [mediaType, setMediaType] = useState('movie');
-            const [destination, setDestination] = useState('movies');
+        const TmdbExplorer = ({ catalogs, showToast, onOpenEditor, initialDestination = 'movies', initialType = 'movie' }) => {
+            const [mediaType, setMediaType] = useState(initialType);
+            const [destination, setDestination] = useState(initialDestination);
             const [targetId, setTargetId] = useState('');
             const items = catalogs[destination][0];
             const titleOf = item => item.titulo || item.tituloSerie || item.title || 'Sin título';
             const applyTitle = data => {
-                const existing = targetId ? items.find(item => String(item.id) === targetId) : items.find(item =>
-                    (item.tmdbId === data.tmdbId && (item.tmdbType || item.mediaType || (destination === 'series' ? 'tv' : 'movie')) === data.tmdbType) ||
-                    titleOf(item).trim().toLocaleLowerCase() === data.titulo.trim().toLocaleLowerCase());
+                const existing = targetId ? items.find(item => String(item.id) === targetId) : BoxCatalog.findMatch(items,data,mediaType);
                 if (targetId && !existing) { showToast('El título seleccionado ya no existe. Selecciona otro.', 'error'); return; }
-                const draft = {
-                    ...(existing || { urlDrive: '', qualityTag: '', codigo: null }),
-                    ...data,
-                    title: data.titulo, image: data.imagen,
-                    id: existing?.id,
-                    isNew: !existing
-                };
-                if (destination === 'series' || destination === 'animados') {
-                    draft.tituloSerie = data.titulo;
-                    draft.temporadas = existing?.temporadas || [];
-                }
-                if (destination === 'tudum') Object.assign(draft, { synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating });
+                const draft = BoxCatalog.draft(data,existing,destination);
                 onOpenEditor(destination === 'estrenos' ? 'estrenos2026' : destination, draft);
                 showToast(existing ? 'Ficha aplicada al formulario. Revisa los cambios y pulsa Guardar.' : 'Ficha lista para crear un título. Completa los enlaces y pulsa Guardar.');
             };
             return (
                 <section className="space-y-4">
                     <h2 className="text-2xl font-black">Explorar TMDB</h2>
-                    <p className="text-sm text-slate-600">Busca una ficha y aplícala a un título de tu catálogo o crea uno nuevo. Podrás revisarla y editarla antes de guardar.</p>
-                    <div className="flex gap-4 flex-wrap">
+                    <p className="text-sm text-slate-600">1. Busca la película o serie. 2. Elige su catálogo. 3. Revisa la ficha y añade el enlace de reproducción en su editor. TMDB aporta portadas y datos, no los videos.</p>
+                    <div className="tmdb-destination-bar">
                         <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(e.target.value === 'tv' ? 'series' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
                         <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <option value="series">Series</option>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option></select></label>
                         <label>Aplicar a <select aria-label="Título que quieres editar" value={targetId} onChange={e => setTargetId(e.target.value)} className="p-2 rounded-lg ml-2 max-w-full"><option value="">Crear nuevo (o abrir el existente si coincide)</option>{items.map(item => <option key={item.id} value={String(item.id)}>{titleOf(item)}</option>)}</select></label>
@@ -3544,24 +3486,19 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         };
 
         const App = () => {
-            const [activeTab, setActiveTab] = useState(() => window.location.hash === '#portadas' ? 'homecovers' : window.location.hash === '#avisos' ? 'notices' : 'movies');
-            const selectSection = id => {
-                setActiveTab(id);
-                const hash = id === 'homecovers' ? '#portadas' : id === 'notices' ? '#avisos' : (['#avisos','#portadas'].includes(window.location.hash) ? '' : window.location.hash);
-                window.history.replaceState(null, '', window.location.pathname + window.location.search + hash);
-            };
-            useEffect(() => {
-                const openFromHash = () => { if (window.location.hash === '#avisos') setActiveTab('notices'); if (window.location.hash === '#portadas') setActiveTab('homecovers'); };
-                window.addEventListener('hashchange', openFromHash);
-                return () => window.removeEventListener('hashchange', openFromHash);
-            }, []);
+            const [activeTab, setActiveTab] = useState(adminSectionFromHash);
+            const [tmdbRequest,setTmdbRequest] = useState({ destination:'movies',type:'movie',key:0 });
+            const selectSection = id => { setActiveTab(id); window.history.replaceState(null,'',window.location.pathname+window.location.search+'#'+(id==='homecovers'?'portadas':id==='notices'?'avisos':id)); };
+            useEffect(() => { const openFromHash=()=>setActiveTab(adminSectionFromHash()); window.addEventListener('hashchange',openFromHash); return ()=>window.removeEventListener('hashchange',openFromHash); },[]);
+            const openTmdbFor = section => { const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
             const [editorRequest, setEditorRequest] = useState(null);
             useEffect(() => {
                 if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);
             }, [activeTab, editorRequest]);
             const openCatalogEditor = (section, item) => {
                 setEditorRequest({ section, item });
-                setActiveTab(section);
+                selectSection(section);
+                window.scrollTo({top:0,behavior:'instant'});
             };
             const [loading, setLoading] = useState(true);
             const [toast, setToast] = useState(null);
@@ -4054,6 +3991,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }
 
             const tabs = [
+                { id: 'overview', label: 'Resumen', icon: 'grip', count: 0, color: 'text-cyan-500' },
                 { id: 'homecovers', label: 'Portadas', icon: 'film', count: 5, color: 'text-cyan-500' },
                 { id: 'notices', label: 'Avisos', icon: 'chat', count: 0, color: 'text-cyan-500' },
                 { id: 'tmdb', label: 'Explorar TMDB', icon: 'search', count: 0, color: 'text-teal-500' },
@@ -4069,28 +4007,16 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             ];
 
             return (
-                <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900">
+                <div className="admin-app min-h-screen flex flex-col bg-slate-100 text-slate-900">
                     {toast && <Toast key={toast.id} message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
                     <ConfirmModal isOpen={confirmDialog.isOpen} message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} />
                     <GithubSyncModal isOpen={githubModalOpen} onClose={() => setGithubModalOpen(false)} onSync={syncToGithub} />
                     <PlayerModal isOpen={playerData.isOpen} title={playerData.title} url={playerData.url} onClose={() => setPlayerData({ isOpen: false, title: '', url: '' })} />
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json,.m3u,.m3u8" />
 
-                    <header className="bg-slate-950 text-white shadow-2xl sticky top-0 z-40 border-b border-slate-800">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-3 text-center md:text-left">
-                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.4)] flex-shrink-0">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className="w-5 h-5 fill-white"><polygon points="40,30 70,50 40,70"/></svg>
-                                </div>
-                                <div>
-                                    <h1 className="text-lg font-black tracking-tight flex items-center gap-2">
-                                        <span>BOXPLAY<span className="text-cyan-400">TV</span></span>
-                                        <span className="text-[10px] uppercase font-bold tracking-widest bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full">Panel Pro</span>
-                                    </h1>
-                                    <p className="text-slate-400 text-[10px]">Administrador maestro del ecosistema Box Play TV</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap items-center justify-center gap-2">
+                    <header className="admin-header">
+                        <div className="admin-topbar"><a className="admin-brand" href="#overview" onClick={() => selectSection('overview')}><span className="admin-logo" aria-hidden="true">▶</span><span><strong>BOXPLAY<span>TV</span></strong><small>Administrador de contenidos</small></span></a>
+                            <div className="admin-primary-actions"><ThemeToggle/><button className="admin-add-button" onClick={() => openTmdbFor(activeTab)}>＋ Añadir desde TMDB</button><details className="admin-actions-menu"><summary>Herramientas ▾</summary><div>
                                 <button onClick={() => selectSection('homecovers')} className="text-xs bg-cyan-950 hover:bg-cyan-900 text-cyan-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><Icon name="film" size={14}/><span>Portadas de inicio</span></button>
                                 <button onClick={() => selectSection('notices')} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2" title="Crear y publicar avisos en Box Play TV">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
@@ -4111,32 +4037,17 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 <button onClick={() => requestConfirm('⚠ Se descargarán los datos desde GitHub y se SOBRESCRIBIRÁN los cambios locales no sincronizados. ¿Continuar?', fetchFromCloud)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-200 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-1.5 font-bold transition-all shadow-sm">
                                     <Icon name="refresh" size={13} /> <span>Recargar</span>
                                 </button>
-                            </div>
+                            </div></details></div>
                         </div>
-                        <div className="bg-slate-900 border-t border-slate-800/80 px-4 py-2">
-                            <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto custom-scrollbar">
-                                <div className="flex gap-1.5 py-1">
-                                    {tabs.map(tab => {
-                                        const isActive = activeTab === tab.id;
-                                        return (
-                                            <button key={tab.id} onClick={() => selectSection(tab.id)}
-                                                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl font-bold text-xs transition-all whitespace-nowrap ${isActive ? 'bg-gradient-to-r from-cyan-600 to-teal-500 text-white tab-active-indicator shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'}`}>
-                                                <Icon name={tab.icon} size={14} className={isActive ? 'text-white' : tab.color} />
-                                                <span>{tab.label}</span>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${isActive ? 'bg-black/30 text-white' : 'bg-slate-800 text-slate-300'}`}>{tab.count}</span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
+                        <nav className="admin-navigation" aria-label="Secciones del administrador"><label className="admin-mobile-section">Sección<select aria-label="Elegir sección" value={activeTab} onChange={e=>selectSection(e.target.value)}>{ADMIN_GROUPS.map(group=><optgroup label={group.label} key={group.label}>{group.ids.map(id=><option key={id} value={id}>{tabs.find(tab=>tab.id===id)?.label}</option>)}</optgroup>)}</select></label>{ADMIN_GROUPS.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p><div>{group.ids.map(id => { const tab=tabs.find(t=>t.id===id);return <button key={id} type="button" aria-current={activeTab===id?'page':undefined} onClick={() => selectSection(id)}><Icon name={tab.icon} size={14}/><span>{tab.label}</span>{tab.count>0&&<small>{tab.count}</small>}</button>;})}</div></div>)}</nav>
                     </header>
-
                     <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
+                        <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
                         <ErrorBoundary>
+                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
                             {activeTab === 'homecovers' && <HomeCoversEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'notices' && <NoticesEditor showToast={showToast} requestConfirm={requestConfirm} />}
-                            {activeTab === 'tmdb' && <TmdbExplorer onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
+                            {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
                             {activeTab === 'movies' && (<MoviesEditor initialEdit={editorRequest?.section === 'movies' ? editorRequest.item : null} movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
                             {activeTab === 'estrenos2026' && (<Estrenos2026Editor initialEdit={editorRequest?.section === 'estrenos2026' ? editorRequest.item : null} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
@@ -4152,7 +4063,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
                         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
-                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v7.3 (Producción y conexión)</span>
+                            <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v8.0 · Catálogo organizado</span>
                         </div>
                     </footer>
                 </div>
@@ -4161,3 +4072,4 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+

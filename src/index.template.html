@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-admin-theme="dark">
 <head>
     <script src="./notice-config.js"></script>
     <script src="./notices.js"></script>
     <script src="./home-covers.js?v=2026-1"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Box Play TV - Panel de Control Pro</title>
+    <title>BOXPLAYTV · Administrador de contenidos</title>
+    <meta name="theme-color" content="#080f1e">
+    <script>try { document.documentElement.dataset.adminTheme = localStorage.getItem('boxplay_admin_theme') === 'light' ? 'light' : 'dark'; } catch (_) {}</script>
 
     <link rel="stylesheet" href="./assets/{{CSS}}">
 
@@ -43,3 +45,4 @@
     <script defer src="./assets/{{APP_JS}}"></script>
 </body>
 </html>
+
