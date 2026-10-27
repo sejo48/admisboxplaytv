@@ -880,6 +880,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [mode, setMode] = useState('manual');
             useEffect(() => { if (initialEdit) { setMode('manual'); setEditingItem(initialEdit); } }, [initialEdit]);
             const [editingItem, setEditingItem] = useState(initialEdit || null);
+            const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
             const [searchTerm, setSearchTerm] = useState('');
 
             const handleSave = (e) => {
@@ -983,9 +984,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             </div>
 
                             {editingItem && (
-                                <div className="bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
+                                <div ref={editorRef} tabIndex={-1} role="region" aria-label="Editor de estreno Tudum" className="admin-inline-editor bg-rose-50/70 p-5 md:p-6 rounded-2xl border border-rose-200/80 animate-fade-in space-y-4">
                                     <h3 className="font-extrabold text-rose-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Estreno Tudum' : 'Editar Estreno Tudum'}</h3>
-                                    <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <MovieAutoSearch mediaType={editingItem.tmdbType || editingItem.mediaType || 'movie'} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...data, __formRevision: Date.now(), title: data.titulo, image: data.imagen, synopsis: data.sinopsis, genre: data.generosTexto, releaseDate: data.fechaEstreno, score: data.rating }))} />
                                         <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
                                         <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500 bg-white" placeholder="Ej: Stranger Things 5" /></div>
@@ -1004,7 +1005,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 </div>
                             )}
                             <CatalogToolbar {...catalog.props} />
-                            <div className="catalog-grid">{filteredList.map(item => <CatalogPoster key={item.id} item={item} onSelect={() => setEditingItem(item)} onEdit={() => setEditingItem(item)} onDelete={() => requestConfirm(`¿Eliminar "${BoxCatalog.title(item)}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} caption={item.releaseDate || item.fechaEstreno || 'Próximamente'} />)}</div>
+                            <div className="catalog-grid">{filteredList.map(item => <CatalogPoster key={item.id} item={item} onSelect={() => openEditor(item)} onEdit={() => openEditor(item)} onDelete={() => requestConfirm(`¿Eliminar "${BoxCatalog.title(item)}" de Tudum?`, () => setTudumList(tudumList.filter(t => t.id !== item.id)))} caption={item.releaseDate || item.fechaEstreno || 'Próximamente'} />)}</div>
                             {filteredList.length === 0 && <p className="catalog-empty">No hay próximos estrenos que coincidan con estos filtros.</p>}
 
                         </>
@@ -1708,6 +1709,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
             const [editingItem, setEditingItem] = useState(initialEdit || null);
+            const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
             useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setAutoData(null); } }, [initialEdit]);
@@ -1857,13 +1859,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </div>
 
                     {editingItem && (
-                        <div className="bg-blue-50/70 p-5 md:p-6 rounded-2xl border border-blue-200/80 animate-fade-in space-y-4">
+                        <div ref={editorRef} tabIndex={-1} role="region" aria-label="Editor de película" className="admin-inline-editor bg-blue-50/70 p-5 md:p-6 rounded-2xl border border-blue-200/80 animate-fade-in space-y-4">
                             <h3 className="font-extrabold text-blue-950 text-sm sm:text-base flex items-center gap-2">
                                 <Icon name="edit" size={16} />
                                 {editingItem.isNew ? 'Añadir Nueva Película' : 'Editar Película'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
@@ -1932,7 +1934,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             const originalIndex = movies.indexOf(movie);
                             return (
                                 <div key={movie.id || index} className="overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl" data-poster-card={movie.id || title}>
-                                    <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
+                                    <button type="button" onClick={() => openEditor(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
                                     <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
@@ -1943,7 +1945,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                             <button title="Subir" onClick={() => moveItem(originalIndex, 'up')} disabled={originalIndex === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
                                             <button title="Bajar" onClick={() => moveItem(originalIndex, 'down')} disabled={originalIndex === movies.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
+                                        <button onClick={() => openEditor(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setMovies(movies.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
@@ -1959,6 +1961,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         const Estrenos2026Editor = ({ estrenos, setEstrenos, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
             const [editingItem, setEditingItem] = useState(initialEdit || null);
+            const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
             const [searchTerm, setSearchTerm] = useState('');
             const [autoData, setAutoData] = useState(null);
             useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setAutoData(null); } }, [initialEdit]);
@@ -2108,13 +2111,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </div>
 
                     {editingItem && (
-                        <div className="bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
+                        <div ref={editorRef} tabIndex={-1} role="region" aria-label="Editor de estreno 2026" className="admin-inline-editor bg-amber-50/70 p-5 md:p-6 rounded-2xl border border-amber-200/80 animate-fade-in space-y-4">
                             <h3 className="font-extrabold text-amber-950 text-sm sm:text-base flex items-center gap-2">
                                 <Icon name="edit" size={16} />
                                 {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
 
@@ -2183,7 +2186,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             const originalIndex = estrenos.indexOf(movie);
                             return (
                                 <div key={movie.id || index} className="overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl" data-poster-card={movie.id || title}>
-                                    <button type="button" onClick={() => setEditingItem(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
+                                    <button type="button" onClick={() => openEditor(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
                                     <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
@@ -2194,7 +2197,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                             <button title="Subir" onClick={() => moveItem(originalIndex, 'up')} disabled={originalIndex === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
                                             <button title="Bajar" onClick={() => moveItem(originalIndex, 'down')} disabled={originalIndex === estrenos.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
+                                        <button onClick={() => openEditor(movie)} className="p-2 min-h-[44px] text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors flex items-center gap-1 text-xs font-bold" title="Editar"><Icon name="edit" size={15} /> Editar</button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setEstrenos(estrenos.filter(m => m.id !== movie.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
@@ -2388,7 +2391,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                     {editingSerie && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
+                            <div className="admin-editor-dialog bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingSerie.isNew ? 'Nueva Serie' : 'Editar Información de la Serie'}</h3>
                                 <form key={`${editingSerie.tmdbId || editingSerie.id || "manual"}:${editingSerie.__formRevision || 0}`} onSubmit={saveSerieBase} className="space-y-3.5">
                                     <MovieAutoSearch mediaType="tv" showToast={showToast} onUse={data => setEditingSerie(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), tituloSerie: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
@@ -2622,7 +2625,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </div>
                     {editingItem && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
+                            <div className="admin-editor-dialog bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-h-[90vh] overflow-y-auto space-y-4">
                                 <h3 className="font-extrabold text-base text-slate-900">{editingItem.isNew ? 'Nuevo Animado' : 'Editar Información del Animado'}</h3>
                                 <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={saveItemBase} className="space-y-3.5">
                                     <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
@@ -4041,7 +4044,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                         <nav className="admin-navigation" aria-label="Secciones del administrador"><label className="admin-mobile-section">Sección<select aria-label="Elegir sección" value={activeTab} onChange={e=>selectSection(e.target.value)}>{ADMIN_GROUPS.map(group=><optgroup label={group.label} key={group.label}>{group.ids.map(id=><option key={id} value={id}>{tabs.find(tab=>tab.id===id)?.label}</option>)}</optgroup>)}</select></label>{ADMIN_GROUPS.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p><div>{group.ids.map(id => { const tab=tabs.find(t=>t.id===id);return <button key={id} type="button" aria-current={activeTab===id?'page':undefined} onClick={() => selectSection(id)}><Icon name={tab.icon} size={14}/><span>{tab.label}</span>{tab.count>0&&<small>{tab.count}</small>}</button>;})}</div></div>)}</nav>
                     </header>
-                    <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8">
+                    <main className="admin-main flex-1 w-full p-4 md:p-6 lg:p-8">
                         <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
                         <ErrorBoundary>
                             {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
@@ -4061,7 +4064,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </main>
 
                     <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-4 px-4 sm:px-8 text-center mt-auto">
-                        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <div className="admin-footer flex flex-col sm:flex-row items-center justify-between gap-2">
                             <span>Box Play TV Panel de Control Pro • Plataforma Administrativa</span>
                             <span className="font-mono text-[11px] text-cyan-400">Compatible con StreamTube-V20 // v8.0 · Catálogo organizado</span>
                         </div>

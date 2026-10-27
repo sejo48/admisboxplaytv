@@ -2,6 +2,10 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Área de trabajo ampliada
+
+El encabezado y el contenido usan el ancho del monitor, con márgenes laterales y portadas que se distribuyen según el espacio disponible. Los formularios tienen campos más legibles y la ficha organiza sus datos en columnas. Al pulsar una portada o Editar en Películas, Estrenos 2026 o Tudum, el panel lleva el foco al editor y lo muestra debajo del encabezado fijo; escribir en los campos no vuelve a desplazar la página.
+
 ## Administrador 8.0
 
 El panel abre en **modo oscuro**. El botón de tema permite elegir modo claro y recuerda la preferencia en ese navegador.

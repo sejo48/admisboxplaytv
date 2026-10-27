@@ -1,3 +1,25 @@
+// Reveal inline forms after React commits, including repeated selections of the same card.
+const useInlineEditor = (item, setItem) => {
+    const ref = React.useRef(null);
+    const frame = React.useRef(null);
+    const reveal = React.useCallback(() => {
+        cancelAnimationFrame(frame.current);
+        frame.current = requestAnimationFrame(() => {
+            const editor = ref.current;
+            if (!editor) return;
+            const header = document.querySelector('.admin-header');
+            const top = (header?.getBoundingClientRect().bottom || 0) + 16;
+            window.scrollTo({ top: Math.max(0, window.scrollY + editor.getBoundingClientRect().top - top), behavior: 'instant' });
+            editor.focus({ preventScroll: true });
+        });
+    }, []);
+    React.useEffect(() => {
+        if (item) reveal();
+        return () => cancelAnimationFrame(frame.current);
+    }, [!!item, item?.id, reveal]);
+    return [ref, next => { setItem(next); reveal(); }];
+};
+
 const useCatalogView = (items, search = '') => {
     const [filters,setFilters] = React.useState({ sort: 'manual',genre: '',year: '' });
     const genres = [...new Set(items.flatMap(BoxCatalog.genres))].sort((a,b) => a.localeCompare(b,'es'));
