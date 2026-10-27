@@ -20,6 +20,59 @@ const useInlineEditor = (item, setItem) => {
     return [ref, next => { setItem(next); reveal(); }];
 };
 
+const MediaTile = ({ item, kind, onOpen }) => {
+    const title = item.title || item.titulo || item.album || 'Sin título';
+    return <button type="button" className={'media-tile media-tile-' + kind} onClick={onOpen} aria-label={(kind === 'music' ? 'Abrir ' : 'Editar ') + title}>
+        <div className="media-tile-art"><MediaImage src={item.logo || item.cover || item.imagen || item.image} alt={title} className="media-tile-image" /></div>
+        <div className="catalog-poster-copy"><h3>{title}</h3><p>{kind === 'music' ? (item.artist || item.artista || 'Artista sin indicar') : (item.group || item.categoria || 'Sin grupo')}</p>{kind === 'music' && <p>{item.year || item.año || 'Sin año'} · {(item.tracks || item.pistas || []).length} pistas</p>}</div>
+    </button>;
+};
+
+const useChannelChecks = () => {
+    const [results, setResults] = React.useState({});
+    const [progress, setProgress] = React.useState({ running: false, done: 0, total: 0 });
+    const runRef = React.useRef({ id: 0, controllers: [] });
+    React.useEffect(() => () => { runRef.current.id++; runRef.current.controllers.forEach(c => c.abort()); }, []);
+    const cancel = () => {
+        runRef.current.id++;
+        runRef.current.controllers.forEach(c => c.abort());
+        runRef.current.controllers = [];
+        setResults(current => Object.fromEntries(Object.entries(current).map(([id, result]) => [id, result.status === 'checking' ? { ...result, status: 'unknown', detail: 'Revisión cancelada.' } : result])));
+        setProgress(current => ({ ...current, running: false, cancelled: true }));
+    };
+    const run = async channels => {
+        if (progress.running || !channels.length) return;
+        const job = { id: runRef.current.id + 1, controllers: [] };
+        runRef.current = job;
+        const id = job.id;
+        setProgress({ running: true, done: 0, total: channels.length });
+        let cursor = 0;
+        const worker = async () => {
+            while (cursor < channels.length && runRef.current.id === id) {
+                const channel = channels[cursor++];
+                const controller = new AbortController();
+                job.controllers.push(controller);
+                setResults(current => ({ ...current, [channel.id]: { url: channel.url, status: 'checking', detail: 'Comprobando señal…' } }));
+                const result = await BoxStreamHealth.check(channel.url, { signal: controller.signal });
+                job.controllers = job.controllers.filter(c => c !== controller);
+                if (runRef.current.id !== id) return;
+                setResults(current => ({ ...current, [channel.id]: { ...result, url: channel.url } }));
+                setProgress(current => ({ ...current, done: current.done + 1 }));
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(3, channels.length) }, worker));
+        if (runRef.current.id === id) setProgress(current => ({ ...current, running: false }));
+    };
+    const resultFor = channel => results[channel.id]?.url === channel.url ? results[channel.id] : null;
+    return { run, cancel, progress, resultFor };
+};
+
+const ChannelStatus = ({ result }) => {
+    const status = result?.status || 'unchecked';
+    const labels = { unchecked: 'Sin revisar', checking: 'Revisando…', online: 'En línea', offline: 'No disponible', unknown: 'No verificable' };
+    return <div className={'channel-status channel-status-' + status} role="status"><strong>{labels[status]}</strong>{result?.detail && <p>{result.detail}</p>}{result?.checkedAt && <small>Revisado: {new Date(result.checkedAt).toLocaleTimeString()}</small>}</div>;
+};
+
 const useCatalogView = (items, search = '') => {
     const [filters,setFilters] = React.useState({ sort: 'manual',genre: '',year: '' });
     const genres = [...new Set(items.flatMap(BoxCatalog.genres))].sort((a,b) => a.localeCompare(b,'es'));

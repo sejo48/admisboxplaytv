@@ -3,7 +3,7 @@ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),
 const storage={getItem:()=>null,setItem:()=>{}};
 const sandbox={React,ReactDOM:{createRoot:()=>({render:()=>{}})},BoxCatalog:require('../src/catalog-tools.js'),BoxNotices:require('../notices.js'),BoxHomeCovers:require('../home-covers.js'),localStorage:storage,window:{location:{hash:'',pathname:'/',search:''}},document:{getElementById:()=>({}),documentElement:{dataset:{adminTheme:'dark'}}},URL,URLSearchParams,setTimeout,clearTimeout,console};
 const source=['src/catalog-ui.jsx','src/home-covers.jsx','src/app.jsx'].map(p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8')).join('\n');
-const compiled=Babel.transform(source,{presets:['react']}).code+';globalThis.editors={App,MoviesEditor,Estrenos2026Editor,SeriesEditor,AnimadosEditor,TudumEditor,TmdbExplorer,ThemeToggle};';
+const compiled=Babel.transform(source,{presets:['react']}).code+';globalThis.editors={App,MoviesEditor,Estrenos2026Editor,SeriesEditor,AnimadosEditor,TudumEditor,TmdbExplorer,ThemeToggle,TvEditor,RadiosEditor,VideotecaEditor};';
 vm.runInNewContext(compiled,sandbox);
 const item={id:'sample',titulo:'Película de prueba',tituloSerie:'Serie de prueba',image:'https://example.com/poster.jpg',imagen:'https://example.com/poster.jpg',year:'2020',temporadas:[]};
 const no=()=>{};
@@ -30,4 +30,10 @@ test('La navegación completa incluye Resumen y todas las secciones',()=>{
  vm.runInNewContext(compiled,context);
  const result=renderToStaticMarkup(React.createElement(context.editors.App));
  assert(result.includes('admin-overview'));assert(result.includes('Elegir sección'));assert(result.includes('aria-current="page"'));assert(result.includes('Añadir desde TMDB'));
+});
+
+
+test('TV, radios y música muestran colecciones de tarjetas compactas',()=>{
+ const cases=[['TvEditor',{channels:[{id:'tv',title:'Canal',url:'https://example.com/live.m3u8'}],setChannels:no}],['RadiosEditor',{radios:[{id:'radio',title:'Radio'}],setRadios:no}],['VideotecaEditor',{videoteca:[{id:'album',album:'Disco',tracks:[]}],setVideoteca:no}]];
+ for(const [name,props] of cases){const html=renderToStaticMarkup(React.createElement(sandbox.editors[name],{...props,showToast:no,requestConfirm:no,onTestPlayer:no}));assert(html.includes('media-grid'),name);assert(html.includes('data-media-card='),name);assert(!html.includes('max-h-[60vh]'),name);}
 });

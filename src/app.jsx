@@ -1019,6 +1019,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         const TvEditor = ({ channels, setChannels, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
+            const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
+            const checks = useChannelChecks();
             const [searchTerm, setSearchTerm] = useState('');
             const [localOrder, setLocalOrder] = useState(channels);
             const dragSourceIdRef = useRef(null);
@@ -1107,7 +1109,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             <p className="text-xs text-slate-500 mt-1">Lista oficial M3U compatible con reproductores HLS / Smart TV (<code>listaoficial.m3u</code>)</p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setEditingItem({ isNew: true })} className="flex-1 md:flex-none bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Canal</button>
+                            <button onClick={() => openEditor({ isNew: true })} className="flex-1 md:flex-none bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nuevo Canal</button>
                             <button onClick={exportData} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar M3U</button>
                         </div>
                     </div>
@@ -1115,10 +1117,16 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <input type="text" placeholder="Buscar canal por nombre o categoría..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-3.5 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-500 outline-none text-xs sm:text-sm pl-10" />
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
+                    <div className="channel-check-toolbar">
+                        <div><h3>Estado de las señales</h3><p>Revisa los canales de la búsqueda actual. La comprobación recibe video sin sonido; los bloqueos del navegador se muestran como «No verificable».</p></div>
+                        <button type="button" className="admin-outline-button" disabled={checks.progress.running || !visible.length} onClick={() => checks.run(visible)}>Revisar canales visibles ({visible.length})</button>
+                        {checks.progress.running && <button type="button" className="admin-outline-button" onClick={checks.cancel}>Cancelar revisión</button>}
+                        <p className="channel-check-progress" role="status">{checks.progress.running ? `Revisando: ${checks.progress.done} de ${checks.progress.total}` : checks.progress.total ? `${checks.progress.cancelled ? 'Revisión cancelada' : 'Revisión finalizada'}: ${checks.progress.done} de ${checks.progress.total}` : 'Pulsa Revisar para comprobar las señales.'} · {channels.filter(c => checks.resultFor(c)?.status === 'online').length} en línea · {channels.filter(c => checks.resultFor(c)?.status === 'offline').length} no disponibles · {channels.filter(c => checks.resultFor(c)?.status === 'unknown').length} no verificables</p>
+                    </div>
                     {editingItem && (
-                        <div className="bg-cyan-50/70 p-5 md:p-6 rounded-2xl border border-cyan-200/80 animate-fade-in space-y-4">
+                        <div ref={editorRef} tabIndex={-1} role="region" aria-label="Editor de canal" className="admin-inline-editor bg-cyan-50/70 p-5 md:p-6 rounded-2xl border border-cyan-200/80 animate-fade-in space-y-4">
                             <h3 className="font-extrabold text-cyan-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nuevo Canal de TV' : 'Editar Canal'}</h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={editingItem.id || "new"} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div><label className="block text-xs font-bold mb-1 text-slate-700">Nombre del Canal</label><input name="title" defaultValue={editingItem.title || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-cyan-500 bg-white" placeholder="Ej: Teletica Canal 7" /></div>
                                 <div><label className="block text-xs font-bold mb-1 text-slate-700">Grupo / Categoría</label><input name="group" defaultValue={editingItem.group || 'Costa Rica'} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-cyan-500 bg-white" placeholder="Ej: Costa Rica, Deportes..." /></div>
                                 <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Logo (Opcional)</label><input name="logo" defaultValue={editingItem.logo || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-cyan-500 bg-white font-mono" placeholder="https://..." /></div>
@@ -1130,7 +1138,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             </form>
                         </div>
                     )}
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                    <div className="media-grid" aria-label="Cuadrícula de canales de TV">
                         {visible.map((channel) => {
                             const globalIndex = channels.findIndex(c => c.id === channel.id);
                             return (
@@ -1139,21 +1147,23 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     onDragStart={(e) => !dragDisabled && handleDragStart(e, channel.id)}
                                     onDragOver={(e) => !dragDisabled && handleDragOver(e, channel.id)}
                                     onDragEnd={handleDragEnd}
-                                    className={`flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all ${dragDisabled ? 'opacity-90' : 'cursor-grab active:cursor-grabbing'}`}>
-                                    <div className="w-full min-w-0"><MediaProfile item={channel} kind="tv" /></div>
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                    data-media-card={channel.id} className={`media-grid-card flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all ${dragDisabled ? 'opacity-90' : 'cursor-grab active:cursor-grabbing'}`}>
+                                    <MediaTile item={channel} kind="tv" onOpen={() => openEditor(channel)} /><ChannelStatus result={checks.resultFor(channel)} />
+                                    <div className="media-card-actions flex flex-wrap items-center justify-center gap-2">
+                                        <button type="button" disabled={checks.progress.running} onClick={() => checks.run([channel])} className="channel-check-button" aria-label={'Revisar señal de ' + channel.title}>Revisar señal</button>
                                         <button onClick={() => onTestPlayer(channel.title, channel.url)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>
                                         <div className="flex gap-1">
                                             <button onClick={() => moveItem(globalIndex, 'up')} disabled={globalIndex <= 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
                                             <button onClick={() => moveItem(globalIndex, 'down')} disabled={globalIndex === channels.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(channel)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                        <button onClick={() => openEditor(channel)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${channel.title}"?`, () => setChannels(channels.filter(c => c.id !== channel.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
+                    {!visible.length && <p className="catalog-empty">No hay canales que coincidan con la búsqueda.</p>}
                 </div>
             );
         };
@@ -2670,6 +2680,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         const RadiosEditor = ({ radios, setRadios, showToast, requestConfirm, onTestPlayer }) => {
             const [editingItem, setEditingItem] = useState(null);
+            const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
             const [searchTerm, setSearchTerm] = useState('');
 
             const handleSave = (e) => {
@@ -2738,7 +2749,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             <p className="text-xs text-slate-500 mt-1">Estaciones de radio online y nacionales (<code>radios.json</code>)</p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={() => setEditingItem({ isNew: true })} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nueva Emisora</button>
+                            <button onClick={() => openEditor({ isNew: true })} className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="plus" size={14} /> Nueva Emisora</button>
                             <button onClick={exportData} className="flex-1 md:flex-none bg-teal-600 hover:bg-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"><Icon name="download" size={14} /> Exportar JSON</button>
                         </div>
                     </div>
@@ -2747,9 +2758,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="absolute left-3.5 top-4 text-slate-400"><Icon name="search" size={14} /></div>
                     </div>
                     {editingItem && (
-                        <div className="bg-emerald-50/70 p-5 md:p-6 rounded-2xl border border-emerald-200/80 animate-fade-in space-y-4">
+                        <div ref={editorRef} tabIndex={-1} role="region" aria-label="Editor de radio" className="admin-inline-editor bg-emerald-50/70 p-5 md:p-6 rounded-2xl border border-emerald-200/80 animate-fade-in space-y-4">
                             <h3 className="font-extrabold text-emerald-950 text-sm sm:text-base flex items-center gap-2"><Icon name="edit" size={16} /> {editingItem.isNew ? 'Añadir Nueva Emisora' : 'Editar Emisora'}</h3>
-                            <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <form key={editingItem.id || "new"} onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div><label className="block text-xs font-bold mb-1 text-slate-700">Nombre</label><input name="title" defaultValue={editingItem.title || editingItem.titulo || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 bg-white" placeholder="Ej: Teletica Radio 91.5 FM" /></div>
                                 <div>
                                     <label className="block text-xs font-bold mb-1 text-slate-700">Categoría</label>
@@ -2768,7 +2779,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             </form>
                         </div>
                     )}
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+                    <div className="media-grid" aria-label="Cuadrícula de radios">
                         {filteredRadios.map((radio, index) => {
                             const logo = radio.logo || radio.imagen;
                             const title = radio.title || radio.titulo;
@@ -2776,15 +2787,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             const group = radio.group || radio.categoria || 'Nacionales';
                             const genre = radio.genre || radio.genero;
                             return (
-                                <div key={radio.id || index} className="flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
-                                    <div className="w-full min-w-0"><MediaProfile item={radio} kind="radio" /></div>
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                <div key={radio.id || index} data-media-card={radio.id || index} className="media-grid-card flex flex-col items-stretch gap-3 p-2 bg-slate-50 border border-slate-200/80 rounded-2xl hover:bg-slate-100/90 transition-all">
+                                    <MediaTile item={radio} kind="radio" onOpen={() => openEditor(radio)} />
+                                    <div className="media-card-actions flex flex-wrap items-center justify-center gap-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         <div className="flex gap-1">
-                                            <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
-                                            <button onClick={() => moveItem(index, 'down')} disabled={index === radios.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
+                                            <button onClick={() => moveItem(radios.indexOf(radio), 'up')} disabled={radios.indexOf(radio) === 0} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={13}/></button>
+                                            <button onClick={() => moveItem(radios.indexOf(radio), 'down')} disabled={radios.indexOf(radio) === radios.length - 1} className="p-1.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={13}/></button>
                                         </div>
-                                        <button onClick={() => setEditingItem(radio)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
+                                        <button onClick={() => openEditor(radio)} className="p-2 text-cyan-600 hover:bg-cyan-50 rounded-xl transition-colors" title="Editar"><Icon name="edit" size={15} /></button>
                                         <button onClick={() => requestConfirm(`¿Eliminar "${title}"?`, () => setRadios(radios.filter(r => r.id !== radio.id)))} className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="Eliminar"><Icon name="trash" size={15} /></button>
                                     </div>
                                 </div>
@@ -3093,8 +3104,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             });
 
             return (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row min-h-[72vh] overflow-hidden">
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50 flex flex-col h-[35vh] md:h-auto md:max-h-[82vh]">
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 flex flex-col min-h-[72vh] overflow-hidden">
+                    <div className="w-full border-b border-slate-200 bg-slate-50 flex flex-col">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
                                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="disc" className="text-amber-600" size={16}/> BoxPlayMusic</h2>
@@ -3108,7 +3119,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <div className="p-3 bg-white border-b border-slate-200">
                             <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none text-xs" />
                         </div>
-                        <div className="overflow-y-auto custom-scrollbar flex-1 p-2 space-y-1.5">
+                        <div className="media-grid p-4">
                             {filteredVideoteca.map((item, index) => {
                                 const albumTitle = item.album || item.titulo || item.title || 'Álbum';
                                 const artistName = item.artist || item.artista || 'Artista';
@@ -3116,31 +3127,20 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 const tracksCount = (item.tracks || item.pistas || []).length;
                                 const isSelected = selectedItemId === item.id;
                                 return (
-                                    <div key={item.id || index} onClick={() => setSelectedItemId(item.id)} className={`p-2.5 rounded-2xl cursor-pointer flex items-center justify-between gap-3 transition-all ${isSelected ? 'bg-amber-100/80 border-l-4 border-amber-600 shadow-sm' : 'hover:bg-slate-200/60'}`}>
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-11 h-11 rounded-lg bg-black border border-slate-200 overflow-hidden shrink-0 shadow-sm">
-                                                <img src={coverImg} className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/80x80/111/d4af37?text=DISCO'; }} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="font-extrabold text-xs truncate text-slate-900">{albumTitle}</h4>
-                                                <p className="text-[11px] text-amber-800 font-bold truncate">{artistName}</p>
-                                                <p className="text-[10px] text-slate-400 truncate mt-0.5">{item.year || '1980'} · {item.genre || 'Rock'} · {tracksCount} pistas</p>
-                                            </div>
+                                    <article key={item.id || index} data-media-card={item.id || index} className={'media-grid-card' + (isSelected ? ' is-selected' : '')}>
+                                        <MediaTile item={item} kind="music" onOpen={() => { setSelectedItemId(item.id); requestAnimationFrame(() => document.getElementById('music-detail')?.scrollIntoView({ block: 'start', behavior: 'instant' })); }} />
+                                        <div className="media-card-actions">
+                                            <button type="button" onClick={() => setEditingItem(item)}>Editar álbum</button>
+                                            <button type="button" aria-label={'Subir ' + albumTitle} onClick={() => moveItem(videoteca.indexOf(item), 'up')} disabled={videoteca.indexOf(item) === 0}>↑</button>
+                                            <button type="button" aria-label={'Bajar ' + albumTitle} onClick={() => moveItem(videoteca.indexOf(item), 'down')} disabled={videoteca.indexOf(item) === videoteca.length - 1}>↓</button>
                                         </div>
-                                        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                                            <button onClick={() => setEditingItem(item)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg" title="Editar"><Icon name="edit" size={13}/></button>
-                                            <div className="flex flex-col gap-0.5">
-                                                <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="up" size={10}/></button>
-                                                <button onClick={() => moveItem(index, 'down')} disabled={index === videoteca.length - 1} className="p-0.5 text-slate-400 hover:text-slate-800 disabled:opacity-20"><Icon name="down" size={10}/></button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </article>
                                 );
                             })}
                         </div>
                     </div>
 
-                    <div className="w-full md:w-2/3 p-4 md:p-6 overflow-y-auto max-h-none md:max-h-[82vh] custom-scrollbar bg-white">
+                    <div id="music-detail" className="catalog-detail w-full p-4 md:p-6 bg-white">
                         {!selectedItem ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="disc" size={56} className="mb-3 opacity-20 text-amber-600"/>
@@ -3484,7 +3484,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 </form>
                 <div className="flex justify-between items-center"><h3 className="font-bold">Avisos publicados</h3><button onClick={reload} disabled={busy} className="text-sm text-cyan-700">Actualizar lista</button></div>
                 {feed.notices.length === 0 && <p className="text-sm text-slate-500">Todavía no hay avisos publicados.</p>}
-                {feed.notices.map(notice => <article key={notice.id} className="p-4 rounded-xl border border-slate-200"><h4 className="font-bold">{notice.title}</h4><p className="text-sm whitespace-pre-wrap break-words mt-2">{notice.message}</p><p className="text-xs text-slate-500 mt-2">{notice.expiresAt && new Date(notice.expiresAt) <= new Date() ? 'Vencido' : 'Visible'} · {notice.expiresAt ? 'Hasta ' + new Intl.DateTimeFormat('es-CR', {timeZone:'America/Costa_Rica', dateStyle:'medium'}).format(new Date(notice.expiresAt)) : 'Sin vencimiento'}</p><button disabled={busy || !connected} onClick={() => retire(notice)} className="text-sm text-red-700 mt-3 disabled:opacity-50">Retirar aviso</button></article>)}
+                <div className="media-grid" aria-label="Cuadrícula de avisos">{feed.notices.map(notice => <article key={notice.id} className="p-4 rounded-xl border border-slate-200"><h4 className="font-bold">{notice.title}</h4><p className="text-sm whitespace-pre-wrap break-words mt-2">{notice.message}</p><p className="text-xs text-slate-500 mt-2">{notice.expiresAt && new Date(notice.expiresAt) <= new Date() ? 'Vencido' : 'Visible'} · {notice.expiresAt ? 'Hasta ' + new Intl.DateTimeFormat('es-CR', {timeZone:'America/Costa_Rica', dateStyle:'medium'}).format(new Date(notice.expiresAt)) : 'Sin vencimiento'}</p><button disabled={busy || !connected} onClick={() => retire(notice)} className="text-sm text-red-700 mt-3 disabled:opacity-50">Retirar aviso</button></article>)}</div>
             </section>;
         };
 

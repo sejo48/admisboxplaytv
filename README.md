@@ -2,6 +2,24 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Cuadrículas y revisión de señales de TV
+
+TV, Radios, BoxPlayMusic, Revisar fichas y los avisos publicados usan tarjetas en cuadrícula, además de los catálogos de películas y series. Los logos y álbumes tienen una imagen cuadrada y controles compactos. Las listas principales se desplazan con la página. Al editar TV o radio, el panel muestra el formulario automáticamente.
+
+En **TV en Vivo**, pulsa **Revisar canales visibles** para comprobar los canales de la búsqueda actual, o **Revisar señal** en una tarjeta. Se comprueban hasta tres señales simultáneas, con un límite de 12 segundos por señal y opción de cancelar. No se reproduce audio ni se alteran los canales o su orden.
+
+- **En línea:** el navegador recibió datos de video reproducibles (HLS o video nativo compatible).
+- **No disponible:** el servidor devolvió un error HTTP o falta una URL válida.
+- **No verificable:** CORS, acceso restringido, HTTP en una página HTTPS, demora o formato no compatible (incluido MPEG-DASH). Este estado no confirma que el canal esté caído.
+
+Los resultados incluyen hora de comprobación y se descartan al cambiar de sección. Si editas la URL, la tarjeta vuelve a «Sin revisar». Usa **Probar** para abrir el reproductor y comprobar manualmente.
+
+Prueba integrada con señales locales generadas por ffmpeg, sin escrituras remotas:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/media-grid-browser.cjs
+```
+
 ## Revisar fichas
 
 Abre **Catálogo → Revisar fichas** o el acceso del Resumen. La revisión comprueba Películas y Estrenos 2026 y empieza mostrando las que no tienen `urlDrive`. Un enlace alternativo OK.ru no sustituye el enlace de Google Drive en esta comprobación. También puedes filtrar por título, sinopsis, portada, año, género, director o duración faltantes, y elegir cualquiera de los dos catálogos.
