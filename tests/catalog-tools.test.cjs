@@ -37,3 +37,20 @@ test('Usa los endpoints y filtros de año correctos para películas y series',()
  assert.equal(popular.pathname,'/3/movie/popular');assert.equal(popular.searchParams.has('primary_release_year'),false);
  assert.throws(()=>tools.searchURL({key:'test',mediaType:'tv',category:'upcoming'}));
 });
+
+test('La revisión detecta Google Drive aunque exista otra reproducción y no modifica las fichas',()=>{
+ const item=Object.freeze({titulo:'Prueba',urlDrive:'   ',urlOkRu:'https://ok.ru/video/123'});
+ const missing=tools.missingInfo(item);
+ assert(missing.some(field=>field.id==='drive'));
+ assert(missing.some(field=>field.id==='director'));
+ assert.equal(item.urlDrive,'   ');
+ assert(!tools.missingInfo({...item,urlDrive:' https://drive.google.com/file/d/test/view '}).some(field=>field.id==='drive'));
+});
+
+test('La revisión respeta los alias de ficha y rechaza datos vacíos',()=>{
+ const complete={title:'Completa',sinopsis:'Sinopsis',image:'poster',releaseDate:'2026-10-01',genres:[{name:'Drama'}],director:'Directora',runtimeMin:90,urlDrive:'https://drive.google.com/test'};
+ assert.deepEqual(tools.missingInfo(complete),[]);
+ assert.deepEqual(tools.missingInfo({...complete,title:'  ',director:' ',genres:[],runtimeMin:0,runtime:'0 min'}).map(field=>field.id),['title','genre','director','duration']);
+ assert.equal(tools.missingInfo({}).length,8);
+ assert(!tools.missingInfo({...complete,runtimeMin:0,runtime:'1h 30min'}).some(field=>field.id==='duration'));
+});

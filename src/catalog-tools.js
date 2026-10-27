@@ -20,6 +20,19 @@
         if (options.sort === 'rating') filtered.sort((a,b) => (parseFloat(b.rating || b.score) || 0) - (parseFloat(a.rating || a.score) || 0) || compareTitle(a,b));
         return filtered;
     }
+    const hasText = value => typeof value === 'string' && value.trim().length > 0;
+    const anyText = (...values) => values.some(hasText);
+    const reviewFields = [
+        { id: 'drive', label: 'Enlace de Google Drive', present: item => hasText(item.urlDrive) },
+        { id: 'title', label: 'Título', present: item => anyText(item.titulo, item.title, item.name) },
+        { id: 'synopsis', label: 'Sinopsis', present: item => anyText(item.descripcion, item.sinopsis, item.synopsis) },
+        { id: 'poster', label: 'Portada', present: item => anyText(item.imagen, item.image) },
+        { id: 'year', label: 'Año', present: item => !!year(item) },
+        { id: 'genre', label: 'Género', present: item => genres(item).length > 0 },
+        { id: 'director', label: 'Director', present: item => hasText(item.director) },
+        { id: 'duration', label: 'Duración', present: item => Number(item.runtimeMin) > 0 || (hasText(item.runtime) && /[1-9]/.test(item.runtime)) }
+    ];
+    const missingInfo = item => reviewFields.filter(field => !field.present(item)).map(({ id, label }) => ({ id, label }));
     function findMatch(items, data, mediaType = data.tmdbType || 'movie') {
         const typed = item => (item.tmdbType || item.mediaType || (item.tituloSerie ? 'tv' : 'movie')) === mediaType;
         if (data.tmdbId) {
@@ -43,5 +56,5 @@
         if (category === 'search') { params.set('query',query.trim()); if (/^\d{4}$/.test(selectedYear)) params.set(type === 'tv' ? 'first_air_date_year' : 'primary_release_year',selectedYear); }
         return `https://api.themoviedb.org/3/${endpoint}?${params}`;
     }
-    return { fold, title, year, genres, filter, findMatch, draft, searchURL };
+    return { fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo };
 });

@@ -2,6 +2,19 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Revisar fichas
+
+Abre **Catálogo → Revisar fichas** o el acceso del Resumen. La revisión comprueba Películas y Estrenos 2026 y empieza mostrando las que no tienen `urlDrive`. Un enlace alternativo OK.ru no sustituye el enlace de Google Drive en esta comprobación. También puedes filtrar por título, sinopsis, portada, año, género, director o duración faltantes, y elegir cualquiera de los dos catálogos.
+
+Pulsa **Completar ficha** para abrir la película en su editor. Al guardar, la revisión se actualiza con la información local; publica tus cambios de catálogo con GitHub Sync cuando estén listos. Esta función detecta campos vacíos, sin abrir enlaces ni comprobar permisos o reproducción. No añade datos automáticamente.
+
+Prueba de revisión con datos de ejemplo y sin escrituras remotas:
+
+```sh
+node --test tests/catalog-tools.test.cjs tests/catalog-render.test.cjs
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/catalog-review-browser.cjs
+```
+
 ## Área de trabajo ampliada
 
 El encabezado y el contenido usan el ancho del monitor, con márgenes laterales y portadas que se distribuyen según el espacio disponible. Los formularios tienen campos más legibles y la ficha organiza sus datos en columnas. Al pulsar una portada o Editar en Películas, Estrenos 2026 o Tudum, el panel lleva el foco al editor y lo muestra debajo del encabezado fijo; escribir en los campos no vuelve a desplazar la página.

@@ -45,6 +45,42 @@ const CatalogPoster = ({ item,selected=false,onSelect,onEdit,onDelete,caption })
     </article>;
 };
 
+const CatalogReview = ({ movies, estrenos, onOpenEditor }) => {
+    const [search, setSearch] = React.useState('');
+    const [field, setField] = React.useState('drive');
+    const [section, setSection] = React.useState('all');
+    const [limit, setLimit] = React.useState(30);
+    const rows = React.useMemo(() => [
+        ...movies.map((item, index) => ({ item, index, section: 'movies', catalog: 'Películas' })),
+        ...estrenos.map((item, index) => ({ item, index, section: 'estrenos2026', catalog: 'Estrenos 2026' }))
+    ].map(row => ({ ...row, missing: BoxCatalog.missingInfo(row.item) })), [movies, estrenos]);
+    const pending = rows.filter(row => row.missing.length);
+    const noDrive = rows.filter(row => row.missing.some(issue => issue.id === 'drive')).length;
+    const visible = pending.filter(row => (section === 'all' || row.section === section) &&
+        (!field || row.missing.some(issue => issue.id === field)) &&
+        BoxCatalog.fold(BoxCatalog.title(row.item)).includes(BoxCatalog.fold(search)));
+    const change = setter => event => { setter(event.target.value); setLimit(30); };
+    return <section className="catalog-review" aria-label="Revisión de información">
+        <div className="admin-workflow">
+            <h3>Encuentra las fichas incompletas</h3>
+            <p>Revisa Películas y Estrenos 2026. Abre una ficha, completa sus datos y guarda; la revisión se actualiza automáticamente.</p>
+            <p>Se comprueba si los campos tienen información. Los enlaces no se abren ni se comprueba su acceso o reproducción.</p>
+            <div className="review-summary" aria-live="polite"><span><strong>{rows.length}</strong> películas revisadas</span><span><strong>{noDrive}</strong> sin enlace de Google Drive</span><span><strong>{pending.length}</strong> con datos por completar</span></div>
+        </div>
+        <div className="review-filters">
+            <label>Buscar película<input aria-label="Buscar película para revisar" value={search} onChange={change(setSearch)} placeholder="Título de la película" /></label>
+            <label>Catálogo<select aria-label="Catálogo a revisar" value={section} onChange={change(setSection)}><option value="all">Ambos catálogos</option><option value="movies">Películas</option><option value="estrenos2026">Estrenos 2026</option></select></label>
+            <label>Información que falta<select aria-label="Información que falta" value={field} onChange={change(setField)}><option value="">Cualquier dato de la ficha</option>{BoxCatalog.reviewFields.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
+        </div>
+        <p className="text-sm" role="status">{visible.length} películas coinciden con esta revisión.</p>
+        {!rows.length ? <p className="catalog-empty">Los catálogos están vacíos. Añade o carga películas para revisarlas.</p> : !visible.length ? <p className="catalog-empty">No hay películas con datos faltantes para estos filtros.</p> : <ul className="review-list">{visible.slice(0, limit).map(row => <li key={row.section + ':' + row.index}>
+            <div><p className="review-catalog">{row.catalog} · {BoxCatalog.year(row.item) || 'Sin año'}</p><h3>{BoxCatalog.title(row.item)}</h3><p className="review-missing">Falta: {row.missing.map(issue => issue.label).join(' · ')}</p></div>
+            <button type="button" className="admin-outline-button" aria-label={'Completar ' + BoxCatalog.title(row.item)} onClick={() => onOpenEditor(row.section, row.item)}>Completar ficha →</button>
+        </li>)}</ul>}
+        {visible.length > limit && <button type="button" className="admin-outline-button" onClick={() => setLimit(value => value + 30)}>Mostrar más películas ({visible.length - limit} pendientes)</button>}
+    </section>;
+};
+
 const ThemeToggle = () => {
     const [theme,setTheme]=React.useState(()=>document.documentElement.dataset.adminTheme || 'dark');
     const toggle=()=>{const next=theme==='dark'?'light':'dark';document.documentElement.dataset.adminTheme=next;try{localStorage.setItem('boxplay_admin_theme',next);}catch(_){}setTheme(next);};
@@ -52,7 +88,7 @@ const ThemeToggle = () => {
 };
 
 const ADMIN_GROUPS = [
-    {label:'Catálogo',ids:['overview','movies','estrenos2026','series','animados','tudum']},
+    {label:'Catálogo',ids:['overview','movies','estrenos2026','series','animados','tudum','review']},
     {label:'Descubrir',ids:['tmdb','trending']},
     {label:'Publicar',ids:['homecovers','notices']},
     {label:'En vivo y música',ids:['tv','radios','videoteca']}
