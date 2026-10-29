@@ -2,6 +2,19 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const tools=require('../src/catalog-tools.js');
 
+test('Navidad respeta selección manual y conserva el modo automático de fichas anteriores',()=>{
+ assert.equal(tools.isChristmas({titulo:'Una película',navidad:true}),true);
+ assert.equal(tools.isChristmas({titulo:'El Grinch',navidad:false}),false);
+ assert.equal(tools.isChristmas({descripcion:'Una aventura navideña'}),true);
+ assert.equal(tools.isChristmas({titulo:'Drama',similares:[{titulo:'Navidad'}],reparto:[{nombre:'Noel'}]}),false);
+ for(const navidad of [true,false]) {
+  const restored=JSON.parse(JSON.stringify(tools.christmasMetadata({navidad})));
+  assert.equal(restored.navidad,navidad);
+  assert.equal(tools.draft({titulo:'Ficha TMDB renovada'}, {navidad}, 'movies').navidad,navidad);
+ }
+ assert.deepEqual(tools.christmasMetadata({titulo:'El Grinch'}),{});
+});
+
 test('Busca sin tildes y filtra géneros/años sin cambiar el catálogo',()=>{
  const items=[{titulo:'Érase una vez',year:'2020',genres:[{name:'Animación'}]},{titulo:'Titanic',year:'1997',generosTexto:'Drama, Romance'},{titulo:'Dune',year:'2021',rating:8}];
  assert.equal(tools.filter(items,{search:'erase'})[0],items[0]);
@@ -54,3 +67,4 @@ test('La revisión respeta los alias de ficha y rechaza datos vacíos',()=>{
  assert.equal(tools.missingInfo({}).length,8);
  assert(!tools.missingInfo({...complete,runtimeMin:0,runtime:'1h 30min'}).some(field=>field.id==='duration'));
 });
+

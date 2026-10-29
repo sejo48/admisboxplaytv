@@ -1770,6 +1770,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     keywords: editingItem.keywords || '',
                     similares: editingItem.similares || [],
                     ...tmdbMetadata(editingItem),
+                    navidad: formData.get('navidad') === 'on',
                     tmdbId: editingItem.tmdbId || null,
                     homepage: editingItem.homepage || ''
                 };
@@ -1817,6 +1818,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     keywords: rest.keywords || '',
                     similares: rest.similares || [],
                     ...tmdbMetadata(rest),
+                    ...BoxCatalog.christmasMetadata(rest),
                         tmdbId: rest.tmdbId || null
                 }));
                 downloadFile(JSON.stringify(exportMovies, null, 2), 'peliculas.json', 'application/json');
@@ -1878,6 +1880,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
+                                <ChristmasField item={editingItem} onChange={setEditingItem} />
 
                                 {(editingItem.imagen || editingItem.titulo) && (
                                     <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
@@ -2022,6 +2025,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     keywords: editingItem.keywords || '',
                     similares: editingItem.similares || [],
                     ...tmdbMetadata(editingItem),
+                    navidad: formData.get('navidad') === 'on',
                     tmdbId: editingItem.tmdbId || null,
                     homepage: editingItem.homepage || ''
                 };
@@ -2069,6 +2073,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     keywords: rest.keywords || '',
                     similares: rest.similares || [],
                     ...tmdbMetadata(rest),
+                    ...BoxCatalog.christmasMetadata(rest),
                         tmdbId: rest.tmdbId || null
                 }));
                 downloadFile(JSON.stringify(exportEstrenos, null, 2), 'peliculas2.json', 'application/json');
@@ -2130,6 +2135,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
                                 <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
+                                <ChristmasField item={editingItem} onChange={setEditingItem} />
 
                                 {(editingItem.imagen || editingItem.titulo) && (
                                     <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
@@ -3711,6 +3717,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         keywords: rest.keywords || '',
                         similares: rest.similares || [],
                         ...tmdbMetadata(rest),
+                        ...BoxCatalog.christmasMetadata(rest),
                         tmdbId: rest.tmdbId || null
                     })),
                     'peliculas2.json': estrenos.map(({ id, ...rest }) => ({
@@ -3745,6 +3752,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         keywords: rest.keywords || '',
                         similares: rest.similares || [],
                         ...tmdbMetadata(rest),
+                        ...BoxCatalog.christmasMetadata(rest),
                         tmdbId: rest.tmdbId || null
                     })),
                     'tudum.json': tudumList.map(({ id, ...rest }) => ({
@@ -4077,4 +4085,5 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
 

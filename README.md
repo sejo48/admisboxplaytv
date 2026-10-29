@@ -2,6 +2,12 @@
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/
 
+## Selección para Navidad
+
+En Películas o Estrenos 2026, abre una ficha y marca **🎄 Incluir en Navidad**. Guarda la película y publica con **GitHub Sync**. Luego actualiza el catálogo en BOXPLAYTV. Desmarcar la casilla permite retirar una película de Navidad sin eliminarla de su catálogo.
+
+La selección `navidad: true/false` se conserva al editar, importar, exportar, respaldar y publicar. Las fichas anteriores sin selección manual mantienen la detección por título, sinopsis y palabras clave; la casilla muestra esa detección al abrirlas. Actualizar los metadatos desde TMDB conserva la selección manual.
+
 ## Cuadrículas y revisión de señales de TV
 
 TV, Radios, BoxPlayMusic, Revisar fichas y los avisos publicados usan tarjetas en cuadrícula, además de los catálogos de películas y series. Los logos y álbumes tienen una imagen cuadrada y controles compactos. Las listas principales se desplazan con la página. Al editar TV o radio, el panel muestra el formulario automáticamente.
@@ -132,4 +138,5 @@ npm run build
 ```
 
 Después de editar el código fuente, incluye las salidas generadas en el mismo commit. `node_modules/` se ignora. Las bibliotecas se descargan por npm con su comprobación de integridad; los archivos de fuentes e iconos web siguen usando sus proveedores originales.
+
 

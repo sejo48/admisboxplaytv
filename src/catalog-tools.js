@@ -20,6 +20,12 @@
         if (options.sort === 'rating') filtered.sort((a,b) => (parseFloat(b.rating || b.score) || 0) - (parseFloat(a.rating || a.score) || 0) || compareTitle(a,b));
         return filtered;
     }
+    function isChristmas(item) {
+        if (typeof item.navidad === 'boolean') return item.navidad;
+        const metadata = [item.title, item.titulo, item.tituloOriginal, item.original_title, item.description, item.descripcion, item.sinopsis, item.keywords, item.coleccion, item.tags, item.categoria].join(' ');
+        return /\b(navidad(?:es)?|naviden\w*|nochebuena|christmas|xmas|grinch|santa claus|papa noel)\b/.test(fold(metadata));
+    }
+    const christmasMetadata = item => typeof item.navidad === 'boolean' ? { navidad: item.navidad } : {};
     const hasText = value => typeof value === 'string' && value.trim().length > 0;
     const anyText = (...values) => values.some(hasText);
     const reviewFields = [
@@ -56,5 +62,6 @@
         if (category === 'search') { params.set('query',query.trim()); if (/^\d{4}$/.test(selectedYear)) params.set(type === 'tv' ? 'first_air_date_year' : 'primary_release_year',selectedYear); }
         return `https://api.themoviedb.org/3/${endpoint}?${params}`;
     }
-    return { fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo };
+    return { fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
 });
+

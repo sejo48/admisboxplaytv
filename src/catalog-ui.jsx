@@ -20,6 +20,11 @@ const useInlineEditor = (item, setItem) => {
     return [ref, next => { setItem(next); reveal(); }];
 };
 
+const ChristmasField = ({ item, onChange }) => <label className="md:col-span-2 flex items-center gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3 cursor-pointer">
+    <input type="checkbox" name="navidad" checked={BoxCatalog.isChristmas(item)} onChange={event => { const checked = event.target.checked; onChange(current => ({ ...current, navidad: checked })); }} className="h-5 w-5 accent-emerald-600 shrink-0" />
+    <span><strong className="block text-sm text-slate-800">🎄 Incluir en Navidad</strong><span className="block text-xs text-slate-500 mt-1">Marca o desmarca esta opción y guarda la ficha. Después publica con GitHub Sync.</span></span>
+</label>;
+
 const MediaTile = ({ item, kind, onOpen }) => {
     const title = item.title || item.titulo || item.album || 'Sin título';
     return <button type="button" className={'media-tile media-tile-' + kind} onClick={onOpen} aria-label={(kind === 'music' ? 'Abrir ' : 'Editar ') + title}>
@@ -151,3 +156,4 @@ const adminSectionFromHash = () => {
     const section=hash==='portadas'?'homecovers':hash==='avisos'?'notices':hash;
     return ADMIN_GROUPS.some(group=>group.ids.includes(section))?section:'overview';
 };
+
