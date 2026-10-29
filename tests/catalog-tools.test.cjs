@@ -2,10 +2,13 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const tools=require('../src/catalog-tools.js');
 
-test('Navidad respeta selección manual y conserva el modo automático de fichas anteriores',()=>{
+test('Navidad está desmarcada por defecto y solo acepta selección manual',()=>{
  assert.equal(tools.isChristmas({titulo:'Una película',navidad:true}),true);
  assert.equal(tools.isChristmas({titulo:'El Grinch',navidad:false}),false);
- assert.equal(tools.isChristmas({descripcion:'Una aventura navideña'}),true);
+ assert.equal(tools.isChristmas({descripcion:'Una aventura navideña'}),false);
+ assert.equal(tools.isChristmas({titulo:'El Grinch',keywords:'christmas, santa claus'}),false);
+ assert.equal(tools.isChristmas({navidad:'true'}),false);
+ assert.equal(tools.isChristmas({}),false);
  assert.equal(tools.isChristmas({titulo:'Drama',similares:[{titulo:'Navidad'}],reparto:[{nombre:'Noel'}]}),false);
  for(const navidad of [true,false]) {
   const restored=JSON.parse(JSON.stringify(tools.christmasMetadata({navidad})));

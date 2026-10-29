@@ -21,9 +21,7 @@
         return filtered;
     }
     function isChristmas(item) {
-        if (typeof item.navidad === 'boolean') return item.navidad;
-        const metadata = [item.title, item.titulo, item.tituloOriginal, item.original_title, item.description, item.descripcion, item.sinopsis, item.keywords, item.coleccion, item.tags, item.categoria].join(' ');
-        return /\b(navidad(?:es)?|naviden\w*|nochebuena|christmas|xmas|grinch|santa claus|papa noel)\b/.test(fold(metadata));
+        return item.navidad === true;
     }
     const christmasMetadata = item => typeof item.navidad === 'boolean' ? { navidad: item.navidad } : {};
     const hasText = value => typeof value === 'string' && value.trim().length > 0;

@@ -6,7 +6,7 @@ Panel principal: https://sejo48.github.io/admisboxplaytv/
 
 En Películas o Estrenos 2026, abre una ficha y marca **🎄 Incluir en Navidad**. Guarda la película y publica con **GitHub Sync**. Luego actualiza el catálogo en BOXPLAYTV. Desmarcar la casilla permite retirar una película de Navidad sin eliminarla de su catálogo.
 
-La selección `navidad: true/false` se conserva al editar, importar, exportar, respaldar y publicar. Las fichas anteriores sin selección manual mantienen la detección por título, sinopsis y palabras clave; la casilla muestra esa detección al abrirlas. Actualizar los metadatos desde TMDB conserva la selección manual.
+La casilla está desmarcada por defecto: el título, la sinopsis y los datos de TMDB nunca la activan automáticamente. Solo las películas guardadas con `navidad: true` aparecen en Navidad. La selección manual se conserva al editar, importar, exportar, respaldar y publicar. Actualizar los metadatos desde TMDB también conserva la selección manual.
 
 ## Cuadrículas y revisión de señales de TV
 

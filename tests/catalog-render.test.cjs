@@ -14,7 +14,7 @@ test('Películas y Estrenos ofrecen una casilla Navidad que respeta las decision
    const html=renderToStaticMarkup(React.createElement(sandbox.editors[name],{[list]:[draft],[set]:no,initialEdit:draft,showToast:no,requestConfirm:no,onTestPlayer:no}));
    assert(html.includes('🎄 Incluir en Navidad'));
    const checkbox=html.match(/<input[^>]*name="navidad"[^>]*>/)[0];
-   assert.equal(checkbox.includes('checked=""'),navidad!==false);
+   assert.equal(checkbox.includes('checked=""'),navidad===true);
   }
  }
 });
