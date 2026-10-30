@@ -25,6 +25,8 @@ const ChristmasField = ({ item, onChange }) => <label className="md:col-span-2 f
     <span><strong className="block text-sm text-slate-800">🎄 Incluir en Navidad</strong><span className="block text-xs text-slate-500 mt-1">Solo se incluye cuando la marcas manualmente. Guarda la ficha y publica con GitHub Sync.</span></span>
 </label>;
 
+const ChristmasBadge = ({ item }) => BoxCatalog.isChristmas(item) ? <span className="christmas-badge" title="Asignada a Navidad"><span aria-hidden="true">🎄</span> Navidad</span> : null;
+
 const MediaTile = ({ item, kind, onOpen }) => {
     const title = item.title || item.titulo || item.album || 'Sin título';
     return <button type="button" className={'media-tile media-tile-' + kind} onClick={onOpen} aria-label={(kind === 'music' ? 'Abrir ' : 'Editar ') + title}>

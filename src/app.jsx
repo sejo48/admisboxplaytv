@@ -1949,7 +1949,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     <button type="button" onClick={() => openEditor(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
-                                    <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
+                                    <div className="catalog-poster-copy"><h3>{title}</h3><ChristmasBadge item={movie} /><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
                                     <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
@@ -2204,7 +2204,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     <button type="button" onClick={() => openEditor(movie)} aria-label={`Editar ${title}`} className="block w-full text-left focus-visible:ring-4 focus-visible:ring-cyan-500 rounded-t-2xl overflow-hidden">
                                         <MediaImage src={poster} alt={title} className="w-full aspect-[2/3] object-cover" />
                                     </button>
-                                    <div className="catalog-poster-copy"><h3>{title}</h3><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
+                                    <div className="catalog-poster-copy"><h3>{title}</h3><ChristmasBadge item={movie} /><p>{[BoxCatalog.year(movie), ...BoxCatalog.genres(movie).slice(0, 2)].filter(Boolean).join(' · ') || 'Ficha del catálogo'}</p></div>
                                     <div className="flex flex-wrap items-center justify-center gap-1 p-2">
                                         {stream && (<button onClick={() => onTestPlayer(title, stream)} className="p-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Probar</button>)}
                                         {movie.trailerUrl && (<button onClick={() => onTestPlayer(`${title} (Tráiler)`, movie.trailerUrl)} className="p-1.5 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded-xl flex items-center gap-1 text-[11px] font-bold px-2.5 transition-colors"><Icon name="play" size={12} /> Tráiler</button>)}
