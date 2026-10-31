@@ -3843,14 +3843,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         const fileContentStr = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
                         const base64Content = utf8ToBase64(fileContentStr);
 
-                        if (base64Content.length > 1_200_000) {
-                            throw new Error(`${filename} supera el límite de 1MB de la API de GitHub. Considera dividir el archivo.`);
-                        }
-
                         const getUrl = `https://api.github.com/repos/${repo}/contents/${filename}?ref=${encodeURIComponent(branch)}`;
-                        const getRes = await fetch(getUrl, { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' } });
+                        // El formato object devuelve el SHA también para archivos de más de 1 MB.
+                        const getRes = await fetch(getUrl, { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.object+json' } });
                         let sha = null;
                         if (getRes.ok) { const fileData = await getRes.json(); sha = fileData.sha; }
+                        else if (getRes.status !== 404) {
+                            const errData = await getRes.json().catch(() => ({}));
+                            throw new Error(`Error consultando ${filename}: ${errData.message || getRes.statusText}`);
+                        }
 
                         const putUrl = `https://api.github.com/repos/${repo}/contents/${filename}`;
                         const putBody = { message: `Actualizar ${filename} vía Box Play TV Panel Pro`, content: base64Content, branch: branch };
