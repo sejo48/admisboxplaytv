@@ -177,7 +177,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 const resRaw = await fetch(rawUrl + cacheBust);
                 if (resRaw.ok) return isJson ? await resRaw.json() : await resRaw.text();
             } catch (e) {}
-            return isJson ? [] : '';
+            throw new Error('No se pudo descargar el catálogo');
         };
 
         // ============================================================
@@ -2281,7 +2281,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const addSeason = () => {
                 if (!selectedSerie) return;
-                const newSeasonNum = (selectedSerie.temporadas || []).length + 1;
+                const newSeasonNum = Math.max(0, ...(selectedSerie.temporadas || []).map(t => Number(t.numeroTemporada) || 0)) + 1;
                 const updatedSerie = { ...selectedSerie, temporadas: [...(selectedSerie.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
                 setSeries(series.map(s => s.id === selectedSerie.id ? updatedSerie : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
@@ -2299,9 +2299,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloEpisodio = formData.get('tituloEpisodio').trim();
-                const updatedTemporadas = [...selectedSerie.temporadas];
+                const updatedTemporadas = (selectedSerie.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
-                const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
+                const existingEpIndex = season.episodios.findIndex((ep, index) => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || index !== editingEpisode.epIndex));
                 if (existingEpIndex !== -1) { showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error'); return; }
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 if (editingEpisode.isNew) { season.episodios.push(epData); showToast('Episodio añadido'); }
@@ -2312,7 +2312,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
-                    const updatedTemporadas = [...selectedSerie.temporadas];
+                    const updatedTemporadas = (selectedSerie.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                     updatedTemporadas[sIdx].episodios = updatedTemporadas[sIdx].episodios.filter((_, idx) => idx !== eIdx);
                     setSeries(series.map(s => s.id === selectedSerie.id ? { ...selectedSerie, temporadas: updatedTemporadas } : s));
                     showToast('Episodio eliminado');
@@ -2389,8 +2389,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                 </div>
                                                                 <div className="flex gap-2 shrink-0 items-center">
                                                                     {ep.urlDrive && (<button onClick={() => onTestPlayer(ep.tituloEpisodio, ep.urlDrive)} className="p-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold px-2 flex items-center gap-1 transition-colors"><Icon name="play" size={11} /> Probar</button>)}
-                                                                    <button onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg" title="Editar"><Icon name="edit" size={13} /></button>
-                                                                    <button onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg" title="Eliminar"><Icon name="trash" size={13} /></button>
+                                                                    <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg" title="Editar"><Icon name="edit" size={13} /></button>
+                                                                    <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg" title="Eliminar"><Icon name="trash" size={13} /></button>
                                                                 </div>
                                                             </div>
                                                         ))
@@ -2513,7 +2513,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const addSeason = () => {
                 if (!selectedItem) return;
-                const newSeasonNum = (selectedItem.temporadas || []).length + 1;
+                const newSeasonNum = Math.max(0, ...(selectedItem.temporadas || []).map(t => Number(t.numeroTemporada) || 0)) + 1;
                 const updatedItem = { ...selectedItem, temporadas: [...(selectedItem.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
                 setAnimados(animados.map(s => s.id === selectedItem.id ? updatedItem : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
@@ -2531,9 +2531,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloEpisodio = formData.get('tituloEpisodio').trim();
-                const updatedTemporadas = [...(selectedItem.temporadas || [])];
+                const updatedTemporadas = (selectedItem.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
-                const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
+                const existingEpIndex = season.episodios.findIndex((ep, index) => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || index !== editingEpisode.epIndex));
                 if (existingEpIndex !== -1) { showToast(`El episodio "${tituloEpisodio}" ya existe.`, 'error'); return; }
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 if (editingEpisode.isNew) { season.episodios.push(epData); showToast('Episodio añadido'); }
@@ -2544,7 +2544,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
-                    const updatedTemporadas = [...selectedItem.temporadas];
+                    const updatedTemporadas = (selectedItem.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                     updatedTemporadas[sIdx].episodios = updatedTemporadas[sIdx].episodios.filter((_, idx) => idx !== eIdx);
                     setAnimados(animados.map(s => s.id === selectedItem.id ? { ...selectedItem, temporadas: updatedTemporadas } : s));
                     showToast('Episodio eliminado');
@@ -2624,8 +2624,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                 </div>
                                                                 <div className="flex gap-2 shrink-0 items-center">
                                                                     {ep.urlDrive && (<button onClick={() => onTestPlayer(ep.tituloEpisodio, ep.urlDrive)} className="p-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold px-2 flex items-center gap-1 transition-colors"><Icon name="play" size={11} /> Probar</button>)}
-                                                                    <button onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg"><Icon name="edit" size={13} /></button>
-                                                                    <button onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><Icon name="trash" size={13} /></button>
+                                                                    <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg"><Icon name="edit" size={13} /></button>
+                                                                    <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><Icon name="trash" size={13} /></button>
                                                                 </div>
                                                             </div>
                                                         ))
@@ -3343,13 +3343,18 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled
         }) => {
             const historyRef = useRef({ history: [], index: -1 });
-            const skipRef = useRef(true);
+            const skipRef = useRef(false);
             const timerRef = useRef(null);
             const [historyState, setHistoryState] = useState({ history: [], index: -1 });
 
             useEffect(() => {
                 if (!enabled) return;
                 if (skipRef.current) { skipRef.current = false; return; }
+                if (historyRef.current.index < 0) {
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
+                    historyRef.current = { history: [snapshot], index: 0 };
+                    return;
+                }
                 if (timerRef.current) clearTimeout(timerRef.current);
                 timerRef.current = setTimeout(() => {
                     const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
@@ -3368,6 +3373,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const undo = useCallback(() => {
                 const ref = historyRef.current;
                 if (ref.index <= 0) return null;
+                if (timerRef.current) clearTimeout(timerRef.current);
+                skipRef.current = true;
                 ref.index -= 1;
                 const prev = ref.history[ref.index];
                 setHistoryState({ history: ref.history, index: ref.index });
@@ -3523,6 +3530,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [radios, setRadios] = useState([]);
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
+            const loadedCatalogs = useRef(new Set());
+            const [loadError, setLoadError] = useState('');
+            const [storageError, setStorageError] = useState('');
 
             const fileInputRef = useRef(null);
 
@@ -3591,20 +3601,22 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 showToast('Backup descargado');
             };
 
-            const fetchFromCloud = async () => {
+            const fetchFromCloud = async (preserve = new Set()) => {
                 setLoading(true);
                 try {
-                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resRadios, resVideoteca] = await Promise.all([
-                        fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
-                        fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
-                        fetchSmart(SOURCE_URLS.MOVIES, RAW_URLS.MOVIES, true),
-                        fetchSmart(SOURCE_URLS.ESTRENOS2026, RAW_URLS.ESTRENOS2026, true),
-                        fetchSmart(SOURCE_URLS.TUDUM, RAW_URLS.TUDUM, true),
-                        fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
-                        fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
-                        fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
+                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'radios', 'videoteca'];
+                    const results = await Promise.allSettled([
+                        preserve.has('tv') ? null : fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
+                        preserve.has('series') ? null : fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
+                        preserve.has('movies') ? null : fetchSmart(SOURCE_URLS.MOVIES, RAW_URLS.MOVIES, true),
+                        preserve.has('estrenos') ? null : fetchSmart(SOURCE_URLS.ESTRENOS2026, RAW_URLS.ESTRENOS2026, true),
+                        preserve.has('tudum') ? null : fetchSmart(SOURCE_URLS.TUDUM, RAW_URLS.TUDUM, true),
+                        preserve.has('animados') ? null : fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
+                        preserve.has('radios') ? null : fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
+                        preserve.has('videoteca') ? null : fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
                     ]);
 
+                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resRadios, resVideoteca] = results.map(result => result.status === 'fulfilled' ? result.value : null);
                     const parsedChannels = parseM3U(resTV || '').map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
 
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
@@ -3657,18 +3669,20 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
 
-                    if (parsedChannels.length > 0) setChannels(parsedChannels);
-                    if (parsedSeries.length > 0) setSeries(parsedSeries);
-                    if (parsedMovies.length > 0) setMovies(parsedMovies);
-                    if (parsedEstrenos.length > 0) setEstrenos(parsedEstrenos);
-                    if (parsedTudum.length > 0) setTudumList(parsedTudum);
-                    if (parsedAnimados.length > 0) setAnimados(parsedAnimados);
-                    if (parsedRadios.length > 0) setRadios(parsedRadios);
-                    if (parsedVideoteca.length > 0) setVideoteca(parsedVideoteca);
-
-                    showToast("Datos descargados y actualizados correctamente");
+                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedRadios, parsedVideoteca];
+                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setRadios, setVideoteca];
+                    const failed = [];
+                    keys.forEach((key, index) => {
+                        if (preserve.has(key)) return;
+                        if (results[index].status === 'rejected') { failed.push(key); return; }
+                        setters[index](parsed[index]);
+                        loadedCatalogs.current.add(key);
+                    });
+                    setLoadError(failed.length ? `No se pudieron descargar: ${failed.join(', ')}. Se conservaron los datos disponibles. Usa Herramientas → Recargar para reintentar.` : '');
+                    showToast(failed.length ? 'Descarga incompleta. Revisa el aviso antes de publicar.' : 'Datos descargados y actualizados correctamente', failed.length ? 'error' : 'success');
                 } catch (error) {
                     console.error("Error sincronizando:", error);
+                    setLoadError("No se pudieron leer los catálogos remotos. Se conservaron los datos disponibles. Usa Herramientas → Recargar para reintentar.");
                     showToast("Error al conectar con las fuentes remotas", "error");
                 } finally {
                     setLoading(false);
@@ -3677,6 +3691,10 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             };
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
+                if (loadedCatalogs.current.size < 8) {
+                    showToast('Faltan catálogos por cargar. Recarga los datos antes de publicar para evitar sobrescribirlos con listas vacías.', 'error');
+                    return;
+                }
                 if (setStep) setStep('Validando token de GitHub...');
                 const testRes = await fetch('https://api.github.com/user', {
                     headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
@@ -3946,49 +3964,40 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 const loadData = async () => {
-                    const localMovies = localStorage.getItem('boxplay_admin_movies') || localStorage.getItem('magis_admin_movies');
-                    const localEstrenos = localStorage.getItem('boxplay_admin_estrenos') || localStorage.getItem('magis_admin_estrenos');
-                    const localTudum = localStorage.getItem('boxplay_admin_tudum') || localStorage.getItem('magis_admin_tudum');
-                    const localSeries = localStorage.getItem('boxplay_admin_series') || localStorage.getItem('magis_admin_series');
-                    const localTV = localStorage.getItem('boxplay_admin_tv') || localStorage.getItem('magis_admin_tv');
-                    const localAnimados = localStorage.getItem('boxplay_admin_animados') || localStorage.getItem('magis_admin_animados');
-                    const localRadios = localStorage.getItem('boxplay_admin_radios') || localStorage.getItem('magis_admin_radios');
-                    const localVideoteca = localStorage.getItem('boxplay_admin_videoteca') || localStorage.getItem('magis_admin_videoteca');
-
-                    if (localMovies && localEstrenos && localTudum && localSeries && localTV && localAnimados && localVideoteca && localRadios) {
+                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, tv: setChannels, animados: setAnimados, radios: setRadios, videoteca: setVideoteca };
+                    for (const [key, setter] of Object.entries(catalogs)) {
                         try {
-                            const m = JSON.parse(localMovies);
-                            const est = JSON.parse(localEstrenos);
-                            const tud = JSON.parse(localTudum);
-                            const s = JSON.parse(localSeries);
-                            const t = JSON.parse(localTV);
-                            const a = JSON.parse(localAnimados);
-                            const r = JSON.parse(localRadios);
-                            const v = JSON.parse(localVideoteca);
-
-                            setMovies(m); setEstrenos(est); setTudumList(tud); setSeries(s);
-                            setChannels(t); setAnimados(a); setRadios(r); setVideoteca(v);
-                            setLoading(false); setDataInitialized(true);
-                            showToast("Sesión local restaurada");
-                            return;
-                        } catch(e) {}
+                            const raw = localStorage.getItem('boxplay_admin_' + key) || localStorage.getItem('magis_admin_' + key);
+                            if (!raw) continue;
+                            const data = JSON.parse(raw);
+                            if (!Array.isArray(data) || data.some(item => !item || typeof item !== 'object' || Array.isArray(item))) continue;
+                            setter(data);
+                            loadedCatalogs.current.add(key);
+                        } catch (error) { /* Recover this catalog remotely without replacing other drafts. */ }
                     }
-                    await fetchFromCloud();
+                    if (loadedCatalogs.current.size === Object.keys(catalogs).length) {
+                        setLoading(false); setDataInitialized(true);
+                        showToast('Sesión local restaurada');
+                    } else {
+                        await fetchFromCloud(new Set(loadedCatalogs.current));
+                    }
                 };
                 loadData();
             }, []);
 
             useEffect(() => {
-                if (dataInitialized) {
-                    localStorage.setItem('boxplay_admin_movies', JSON.stringify(movies));
-                    localStorage.setItem('boxplay_admin_estrenos', JSON.stringify(estrenos));
-                    localStorage.setItem('boxplay_admin_tudum', JSON.stringify(tudumList));
-                    localStorage.setItem('boxplay_admin_series', JSON.stringify(series));
-                    localStorage.setItem('boxplay_admin_tv', JSON.stringify(channels));
-                    localStorage.setItem('boxplay_admin_animados', JSON.stringify(animados));
-                    localStorage.setItem('boxplay_admin_radios', JSON.stringify(radios));
-                    localStorage.setItem('boxplay_admin_videoteca', JSON.stringify(videoteca));
+                if (!dataInitialized) return;
+                const catalogs = { movies, estrenos, tudum: tudumList, series, tv: channels, animados, radios, videoteca };
+                let failed = false;
+                for (const [key, data] of Object.entries(catalogs)) {
+                    // Never cache failed initial downloads as valid empty catalogs.
+                    if (!loadedCatalogs.current.has(key) && data.length === 0) continue;
+                    try {
+                        localStorage.setItem('boxplay_admin_' + key, JSON.stringify(data));
+                        loadedCatalogs.current.add(key);
+                    } catch (error) { failed = true; }
                 }
+                setStorageError(failed ? 'No se pudieron guardar todos los cambios en este navegador. Descarga un Backup antes de cerrar o recargar la página.' : '');
             }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, dataInitialized]);
 
             if (loading) {
@@ -4055,6 +4064,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </header>
                     <main className="admin-main flex-1 w-full p-4 md:p-6 lg:p-8">
                         <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
+                        {loadError && <div role="alert" className="p-4 mb-4 rounded-xl bg-amber-100 text-amber-950">{loadError}</div>}
+                        {storageError && <div role="alert" className="p-4 mb-4 rounded-xl bg-rose-100 text-rose-950">{storageError}</div>}
                         <ErrorBoundary>
                             {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas</h3><p>Detecta enlaces de Google Drive y datos de ficha que faltan en Películas y Estrenos 2026.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
                             {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} onOpenEditor={openCatalogEditor} />}

@@ -140,3 +140,14 @@ npm run build
 Después de editar el código fuente, incluye las salidas generadas en el mismo commit. `node_modules/` se ignora. Las bibliotecas se descargan por npm con su comprobación de integridad; los archivos de fuentes e iconos web siguen usando sus proveedores originales.
 
 
+## Revisión de recuperación y edición
+
+Los borradores locales se recuperan por catálogo: un archivo ausente o ilegible no descarta los demás cambios guardados. Los fallos de descarga aparecen en un aviso persistente y no se guardan como catálogos vacíos. Una descarga correcta de una lista vacía sí reemplaza la lista anterior al recargar expresamente. GitHub Sync impide publicar mientras falte cargar algún catálogo.
+
+Si el navegador no puede guardar (por ejemplo, por falta de espacio), el panel mantiene los datos en memoria y pide descargar un Backup antes de cerrar. El historial conserva el estado inicial y permite deshacer varios cambios seguidos; las ediciones de episodios ya no modifican las copias anteriores. Series y Animados numeran las nuevas temporadas a partir del número mayor existente y permiten cambiar solo las mayúsculas del título de un episodio.
+
+Prueba con almacenamiento aislado y respuestas de red simuladas, sin modificar catálogos publicados:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/data-safety-browser.cjs
+```
