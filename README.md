@@ -140,3 +140,30 @@ npm run build
 Después de editar el código fuente, incluye las salidas generadas en el mismo commit. `node_modules/` se ignora. Las bibliotecas se descargan por npm con su comprobación de integridad; los archivos de fuentes e iconos web siguen usando sus proveedores originales.
 
 
+## Revisión de recuperación y edición
+
+Los borradores locales se recuperan por catálogo: un archivo ausente o ilegible no descarta los demás cambios guardados. Los fallos de descarga aparecen en un aviso persistente y no se guardan como catálogos vacíos. Una descarga correcta de una lista vacía sí reemplaza la lista anterior al recargar expresamente. GitHub Sync impide publicar mientras falte cargar algún catálogo.
+
+Si el navegador no puede guardar (por ejemplo, por falta de espacio), el panel mantiene los datos en memoria y pide descargar un Backup antes de cerrar. El historial conserva el estado inicial y permite deshacer varios cambios seguidos; las ediciones de episodios ya no modifican las copias anteriores. Series y Animados numeran las nuevas temporadas a partir del número mayor existente y permiten cambiar solo las mayúsculas del título de un episodio.
+
+Prueba con almacenamiento aislado y respuestas de red simuladas, sin modificar catálogos publicados:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/data-safety-browser.cjs
+```
+
+## Incorporación de películas y estrenos
+
+Los editores de Películas y Estrenos 2026 organizan la incorporación en tres pasos:
+
+1. **Buscar ficha:** consulta TMDB en el mismo editor. Al elegir «Usar ficha y continuar», se abre el siguiente paso. También permite completar la ficha manualmente.
+2. **Datos y enlaces:** reúne título, portada, enlaces de reproducción y sinopsis, con una vista previa compacta.
+3. **Opciones:** calidad, PIN, fondo y selección manual de Navidad. Los datos secundarios de la ficha se despliegan solo cuando se necesitan.
+
+Los campos conservan sus valores al cambiar de paso y los botones de cancelar/guardar permanecen en una barra fija al borde inferior mientras se recorre el formulario. Guardar sigue siendo local; GitHub Sync publica el catálogo. El acceso principal «Añadir desde TMDB» entra directamente al editor de Películas o Estrenos cuando corresponde.
+
+Validación con respuestas TMDB simuladas, en escritorio y móvil, sin escrituras remotas:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/movie-workflow-browser.cjs
+```

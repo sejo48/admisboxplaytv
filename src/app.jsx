@@ -177,7 +177,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 const resRaw = await fetch(rawUrl + cacheBust);
                 if (resRaw.ok) return isJson ? await resRaw.json() : await resRaw.text();
             } catch (e) {}
-            return isJson ? [] : '';
+            throw new Error('No se pudo descargar el catálogo');
         };
 
         // ============================================================
@@ -1171,7 +1171,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // BUSCADOR TMDB ENRIQUECIDO
         // ============================================================
-        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA' }) => {
+        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA', compact = false }) => {
             const [query, setQuery] = useState('');
             const [searchYear, setSearchYear] = useState('');
             const [category, setCategory] = useState('search');
@@ -1297,7 +1297,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const useSelected = () => {
                 if (!selected) return;
                 onUse(buildFullData(selected));
-                if (!explore) showToast('✓ Ficha completa cargada en el formulario');
+                if (!explore && !compact) showToast('✓ Ficha completa cargada en el formulario');
             };
 
             const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' } : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' } : keyStatus === 'unavailable' ? { text: 'Sin conexión con TMDB', cls: 'bg-slate-800 text-slate-300 border-slate-700' } : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
@@ -1333,7 +1333,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                     <label className="tmdb-year-field">Año de estreno (opcional)<input aria-label="Año de estreno en TMDB" type="number" min="1900" max={new Date().getFullYear()+5} value={searchYear} disabled={category !== 'search'} onChange={e => setSearchYear(e.target.value)} placeholder="Todos" /></label>
                     {results.length > 0 && !selected && (
-                        <div className="catalog-grid tmdb-results">
+                        <div className={"catalog-grid tmdb-results" + (compact ? " tmdb-results-compact" : "")}>
                             {results.map(movie => (
                                 <button type="button" key={movie.id} onClick={() => getDetails(movie)} className="text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500 rounded-xl overflow-hidden transition-all">
                                     <div className="aspect-[2/3] bg-slate-800">
@@ -1349,7 +1349,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     )}
 
                     {explore && results.length > 0 && !selected && <div className="flex gap-3 items-center text-xs"><button type="button" disabled={loading || page <= 1} onClick={() => searchMovies(page - 1)}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={loading || page >= totalPages} onClick={() => searchMovies(page + 1)}>Siguiente</button></div>}
-                    {selected && (
+                    {selected && compact && <div className="workflow-tmdb-choice">
+                        <div><strong>{selected.title}</strong><p>{selected.release_date?.slice(0,4) || 'Sin año'} · {(selected.genres || []).map(g => g.name).join(', ')}</p><p>{selected.overview || 'Sin sinopsis'}</p></div>
+                        <button type="button" disabled={loading} onClick={useSelected} className="admin-add-button">Usar ficha y continuar →</button>
+                        <button type="button" onClick={() => setSelected(null)} className="admin-outline-button">Elegir otra película</button>
+                    </div>}
+                    {selected && !compact && (
                         <div className="bg-slate-900 rounded-xl border border-cyan-800 p-3 space-y-3">
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <div className="w-24 h-36 rounded-lg overflow-hidden bg-black shrink-0">
@@ -1716,6 +1721,65 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // EDITOR: PELÍCULAS — CON TMDB ENRIQUECIDO
         // ============================================================
+        const MovieWorkflowForm = ({ item, onChange, onUse, onSave, onCancel, showToast, saveLabel }) => {
+            const [step, setStep] = useState(item.isNew && !(item.titulo || item.title) ? 0 : 1);
+            const formRef = useRef(null);
+            const [validationError, setValidationError] = useState('');
+            const changeStep = next => {
+                setStep(next);
+                requestAnimationFrame(() => {
+                    const editor = formRef.current?.closest('.admin-inline-editor');
+                    if (!editor) return;
+                    const top = (document.querySelector('.admin-header')?.getBoundingClientRect().bottom || 0) + 16;
+                    window.scrollTo({top: Math.max(0, scrollY + editor.getBoundingClientRect().top - top), behavior:'instant'});
+                    formRef.current.querySelector('[aria-selected="true"]')?.focus({preventScroll:true});
+                });
+            };
+            const update = key => event => { const value = event.target.value; setValidationError(''); onChange(current => ({...current, [key]:value, ...(key === 'titulo' ? {title:value} : key === 'imagen' ? {image:value} : key === 'descripcion' ? {sinopsis:value} : {})})); };
+            const field = (key, label, required = false, placeholder = '') => <label className="workflow-field">{label}<input name={key} value={item[key] || (key === 'titulo' ? item.title : key === 'imagen' ? item.image : '') || ''} onChange={update(key)} required={required} placeholder={placeholder} /></label>;
+            const useFicha = data => { onUse(data); changeStep(1); };
+            return <form ref={formRef} onSubmit={onSave} className="movie-workflow" onKeyDown={event => { if (event.key === 'Enter' && event.target.tagName === 'INPUT' && !event.target.name) event.preventDefault(); }} onInvalidCapture={event => {
+                event.preventDefault();
+                const input = event.target;
+                changeStep(input.closest('section')?.id === 'movie-panel-2' ? 2 : 1);
+                const details = input.closest('details');
+                if (details) details.open = true;
+                setValidationError(input.validity.valueMissing ? 'Completa el título y la portada antes de guardar.' : 'Revisa el valor del campo indicado antes de guardar.');
+                requestAnimationFrame(() => input.focus());
+            }}>
+                <div className="workflow-tabs" role="tablist" aria-label="Pasos de la película">{['Buscar ficha','Datos y enlaces','Opciones'].map((label,index) => <button key={label} id={'movie-step-'+index} aria-controls={'movie-panel-'+index} type="button" role="tab" tabIndex={step === index ? 0 : -1} aria-selected={step === index} onKeyDown={event => { if (['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) { event.preventDefault(); changeStep(event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (step + (event.key === 'ArrowRight' ? 1 : 2)) % 3); } }} onClick={() => changeStep(index)}><span>{index+1}</span>{label}</button>)}</div>
+                <section id="movie-panel-0" role="tabpanel" aria-labelledby="movie-step-0" hidden={step !== 0}>
+                    <p className="workflow-help">Busca la película y elige su ficha. También puedes completar los datos manualmente.</p>
+                    <MovieAutoSearch compact onUse={useFicha} showToast={showToast} />
+                </section>
+                <section id="movie-panel-1" role="tabpanel" aria-labelledby="movie-step-1" hidden={step !== 1}>
+                    <div className="workflow-selected"><div className="workflow-thumb">{(item.imagen || item.image) && <MediaImage src={item.imagen || item.image} alt="" className="w-full h-full object-cover" />}</div><div><strong>{item.titulo || item.title || 'Nueva película'}</strong><p>{[item.year, item.runtime, item.generosTexto].filter(Boolean).join(' · ') || 'Completa la ficha o busca sus datos en el primer paso.'}</p></div></div>
+                    <div className="workflow-fields">
+                        {field('titulo','Título *',true,'Nombre de la película')}
+                        {field('imagen','Portada *',true,'https://…')}
+                        {field('urlDrive','Enlace de Google Drive',false,'https://drive.google.com/file/d/…')}
+                        {field('urlOkRu','Enlace alternativo / OK.ru',false,'https://…')}
+                        <label className="workflow-field workflow-wide">Sinopsis<textarea name="descripcion" value={item.descripcion || item.sinopsis || ''} onChange={update('descripcion')} rows="3" /></label>
+                    </div>
+                    <p className="workflow-help">Guardar conserva la película en tu catálogo local. Publica los cambios después con GitHub Sync.</p>
+                </section>
+                <section id="movie-panel-2" role="tabpanel" aria-labelledby="movie-step-2" hidden={step !== 2}>
+                    <p className="workflow-help">Ajustes opcionales. Puedes guardar sin modificar esta sección.</p>
+                    <div className="workflow-fields">{field('tituloOriginal','Título original')}{field('backdrop','Fondo panorámico')}{field('qualityTag','Calidad',false,'HD / 4K / CAM')}{field('codigo','PIN de bloqueo',false,'Opcional')}</div>
+                    <ChristmasField item={item} onChange={onChange} />
+                    <details className="workflow-metadata"><summary>Más datos de la ficha: director, duración y reparto</summary><MediaMetadataFields item={item} onChange={onChange} /></details>
+                </section>
+                {validationError && <p role="alert" className="workflow-help">{validationError}</p>}
+                <div className="workflow-actions">
+                    <button type="button" className="admin-outline-button" onClick={onCancel}>Cancelar</button>
+                    {step === 0 ? <button type="button" className="admin-add-button" onClick={() => changeStep(1)}>Completar manualmente →</button> : <>
+                        <button type="button" className="admin-outline-button" onClick={() => changeStep(step === 1 ? 2 : 1)}>{step === 1 ? 'Opciones →' : '← Datos y enlaces'}</button>
+                        <button type="submit" className="admin-add-button">{saveLabel}</button>
+                    </>}
+                </div>
+            </form>;
+        };
+
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
@@ -1876,63 +1940,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nueva Película' : 'Editar Película'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
-                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
-                                <ChristmasField item={editingItem} onChange={setEditingItem} />
-
-                                {(editingItem.imagen || editingItem.titulo) && (
-                                    <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
-                                        {editingItem.backdrop && (<div className="absolute inset-0 opacity-20"><img src={editingItem.backdrop} alt="" className="w-full h-full object-cover" /></div>)}
-                                        <div className="relative flex flex-col sm:flex-row gap-4">
-                                            <div className="w-28 h-40 rounded-xl overflow-hidden bg-black shrink-0 border border-slate-800 shadow-lg">
-                                                {editingItem.imagen ? (<img src={editingItem.imagen} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/120x180/111/fff?text=SIN+POSTER'; }} />) : (<div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin póster</div>)}
-                                            </div>
-                                            <div className="min-w-0 flex-1 space-y-1.5">
-                                                <p className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider">👁️ Vista previa de la ficha</p>
-                                                <h3 className="text-lg font-black leading-tight">{editingItem.titulo || 'Sin título'}</h3>
-                                                {editingItem.tagline && <p className="text-[11px] italic text-slate-400">"{editingItem.tagline}"</p>}
-                                                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                                    {editingItem.year && <span className="bg-white/10 px-2 py-0.5 rounded">{editingItem.year}</span>}
-                                                    {editingItem.runtime && <span className="bg-white/10 px-2 py-0.5 rounded">⏱ {editingItem.runtime}</span>}
-                                                    {editingItem.rating && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">⭐ {editingItem.rating}</span>}
-                                                    {editingItem.clasificacion && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">{editingItem.clasificacion}</span>}
-                                                </div>
-                                                {editingItem.generosTexto && (<p className="text-[10px] text-cyan-300">{editingItem.generosTexto}</p>)}
-                                                {editingItem.descripcion && (<p className="text-[11px] text-slate-300 line-clamp-3">{editingItem.descripcion}</p>)}
-                                                {editingItem.director && (<p className="text-[10px] text-slate-400"><b>Director:</b> {editingItem.director}</p>)}
-                                                {editingItem.reparto && editingItem.reparto.length > 0 && (
-                                                    <div className="flex gap-2 pt-1 overflow-x-auto">
-                                                        {editingItem.reparto.slice(0, 6).map((a, i) => (
-                                                            <div key={i} className="text-center shrink-0 w-12">
-                                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 border border-slate-700 mx-auto">
-                                                                    {a.foto ? <img src={a.foto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600">👤</div>}
-                                                                </div>
-                                                                <p className="text-[8px] mt-0.5 text-slate-400 line-clamp-2">{a.nombre}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {editingItem.trailerUrl && (<p className="text-[10px] text-emerald-400 pt-1">🎬 Tráiler disponible</p>)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiador II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título Original</label><input name="tituloOriginal" value={editingItem.tituloOriginal || ''} onChange={e => setEditingItem({...editingItem, tituloOriginal:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiator II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Backdrop (fondo panorámico)</label><input name="backdrop" value={editingItem.backdrop || ''} onChange={e => setEditingItem({...editingItem, backdrop:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="1234" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Sinopsis del filme..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2 border-t border-blue-200">
-                                    <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Película</button>
-                                </div>
-                            </form>
+                            <MovieWorkflowForm key={editingItem.id || 'new'} item={editingItem} onChange={setEditingItem} onUse={applyAutoData} onSave={handleSave} onCancel={() => { setEditingItem(null); setAutoData(null); }} showToast={showToast} saveLabel="Guardar Película" />
                         </div>
                     )}
 
@@ -2131,63 +2139,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
-                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
-                                <ChristmasField item={editingItem} onChange={setEditingItem} />
-
-                                {(editingItem.imagen || editingItem.titulo) && (
-                                    <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
-                                        {editingItem.backdrop && (<div className="absolute inset-0 opacity-20"><img src={editingItem.backdrop} alt="" className="w-full h-full object-cover" /></div>)}
-                                        <div className="relative flex flex-col sm:flex-row gap-4">
-                                            <div className="w-28 h-40 rounded-xl overflow-hidden bg-black shrink-0 border border-slate-800 shadow-lg">
-                                                {editingItem.imagen ? (<img src={editingItem.imagen} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/120x180/111/fff?text=SIN+POSTER'; }} />) : (<div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin póster</div>)}
-                                            </div>
-                                            <div className="min-w-0 flex-1 space-y-1.5">
-                                                <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">👁️ Vista previa de la ficha</p>
-                                                <h3 className="text-lg font-black leading-tight">{editingItem.titulo || 'Sin título'}</h3>
-                                                {editingItem.tagline && <p className="text-[11px] italic text-slate-400">"{editingItem.tagline}"</p>}
-                                                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                                    {editingItem.year && <span className="bg-white/10 px-2 py-0.5 rounded">{editingItem.year}</span>}
-                                                    {editingItem.runtime && <span className="bg-white/10 px-2 py-0.5 rounded">⏱ {editingItem.runtime}</span>}
-                                                    {editingItem.rating && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">⭐ {editingItem.rating}</span>}
-                                                    {editingItem.clasificacion && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">{editingItem.clasificacion}</span>}
-                                                </div>
-                                                {editingItem.generosTexto && (<p className="text-[10px] text-amber-300">{editingItem.generosTexto}</p>)}
-                                                {editingItem.descripcion && (<p className="text-[11px] text-slate-300 line-clamp-3">{editingItem.descripcion}</p>)}
-                                                {editingItem.director && (<p className="text-[10px] text-slate-400"><b>Director:</b> {editingItem.director}</p>)}
-                                                {editingItem.reparto && editingItem.reparto.length > 0 && (
-                                                    <div className="flex gap-2 pt-1 overflow-x-auto">
-                                                        {editingItem.reparto.slice(0, 6).map((a, i) => (
-                                                            <div key={i} className="text-center shrink-0 w-12">
-                                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 border border-slate-700 mx-auto">
-                                                                    {a.foto ? <img src={a.foto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600">👤</div>}
-                                                                </div>
-                                                                <p className="text-[8px] mt-0.5 text-slate-400 line-clamp-2">{a.nombre}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {editingItem.trailerUrl && (<p className="text-[10px] text-emerald-400 pt-1">🎬 Tráiler disponible</p>)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiador II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título Original</label><input name="tituloOriginal" value={editingItem.tituloOriginal || ''} onChange={e => setEditingItem({...editingItem, tituloOriginal:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiator II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Backdrop</label><input name="backdrop" value={editingItem.backdrop || ''} onChange={e => setEditingItem({...editingItem, backdrop:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="1234" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Sinopsis del estreno..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2 border-t border-amber-200">
-                                    <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
-                                </div>
-                            </form>
+                            <MovieWorkflowForm key={editingItem.id || 'new'} item={editingItem} onChange={setEditingItem} onUse={applyAutoData} onSave={handleSave} onCancel={() => { setEditingItem(null); setAutoData(null); }} showToast={showToast} saveLabel="Guardar Estreno" />
                         </div>
                     )}
 
@@ -2281,7 +2233,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const addSeason = () => {
                 if (!selectedSerie) return;
-                const newSeasonNum = (selectedSerie.temporadas || []).length + 1;
+                const newSeasonNum = Math.max(0, ...(selectedSerie.temporadas || []).map(t => Number(t.numeroTemporada) || 0)) + 1;
                 const updatedSerie = { ...selectedSerie, temporadas: [...(selectedSerie.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
                 setSeries(series.map(s => s.id === selectedSerie.id ? updatedSerie : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
@@ -2299,9 +2251,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloEpisodio = formData.get('tituloEpisodio').trim();
-                const updatedTemporadas = [...selectedSerie.temporadas];
+                const updatedTemporadas = (selectedSerie.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
-                const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
+                const existingEpIndex = season.episodios.findIndex((ep, index) => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || index !== editingEpisode.epIndex));
                 if (existingEpIndex !== -1) { showToast(`El episodio "${tituloEpisodio}" ya existe en esta temporada.`, 'error'); return; }
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 if (editingEpisode.isNew) { season.episodios.push(epData); showToast('Episodio añadido'); }
@@ -2312,7 +2264,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
-                    const updatedTemporadas = [...selectedSerie.temporadas];
+                    const updatedTemporadas = (selectedSerie.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                     updatedTemporadas[sIdx].episodios = updatedTemporadas[sIdx].episodios.filter((_, idx) => idx !== eIdx);
                     setSeries(series.map(s => s.id === selectedSerie.id ? { ...selectedSerie, temporadas: updatedTemporadas } : s));
                     showToast('Episodio eliminado');
@@ -2389,8 +2341,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                 </div>
                                                                 <div className="flex gap-2 shrink-0 items-center">
                                                                     {ep.urlDrive && (<button onClick={() => onTestPlayer(ep.tituloEpisodio, ep.urlDrive)} className="p-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold px-2 flex items-center gap-1 transition-colors"><Icon name="play" size={11} /> Probar</button>)}
-                                                                    <button onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg" title="Editar"><Icon name="edit" size={13} /></button>
-                                                                    <button onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg" title="Eliminar"><Icon name="trash" size={13} /></button>
+                                                                    <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg" title="Editar"><Icon name="edit" size={13} /></button>
+                                                                    <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg" title="Eliminar"><Icon name="trash" size={13} /></button>
                                                                 </div>
                                                             </div>
                                                         ))
@@ -2513,7 +2465,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const addSeason = () => {
                 if (!selectedItem) return;
-                const newSeasonNum = (selectedItem.temporadas || []).length + 1;
+                const newSeasonNum = Math.max(0, ...(selectedItem.temporadas || []).map(t => Number(t.numeroTemporada) || 0)) + 1;
                 const updatedItem = { ...selectedItem, temporadas: [...(selectedItem.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
                 setAnimados(animados.map(s => s.id === selectedItem.id ? updatedItem : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
@@ -2531,9 +2483,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const tituloEpisodio = formData.get('tituloEpisodio').trim();
-                const updatedTemporadas = [...(selectedItem.temporadas || [])];
+                const updatedTemporadas = (selectedItem.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                 const season = updatedTemporadas[editingEpisode.seasonIndex];
-                const existingEpIndex = season.episodios.findIndex(ep => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || season.episodios[editingEpisode.epIndex]?.tituloEpisodio !== tituloEpisodio));
+                const existingEpIndex = season.episodios.findIndex((ep, index) => ep.tituloEpisodio.toLowerCase() === tituloEpisodio.toLowerCase() && (editingEpisode.isNew || index !== editingEpisode.epIndex));
                 if (existingEpIndex !== -1) { showToast(`El episodio "${tituloEpisodio}" ya existe.`, 'error'); return; }
                 const epData = { tituloEpisodio, urlDrive: formData.get('urlDrive') || '', id: `ep-${Date.now()}` };
                 if (editingEpisode.isNew) { season.episodios.push(epData); showToast('Episodio añadido'); }
@@ -2544,7 +2496,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             const deleteEpisode = (sIdx, eIdx) => {
                 requestConfirm('¿Eliminar este episodio?', () => {
-                    const updatedTemporadas = [...selectedItem.temporadas];
+                    const updatedTemporadas = (selectedItem.temporadas || []).map(t => ({ ...t, episodios: [...(t.episodios || [])] }));
                     updatedTemporadas[sIdx].episodios = updatedTemporadas[sIdx].episodios.filter((_, idx) => idx !== eIdx);
                     setAnimados(animados.map(s => s.id === selectedItem.id ? { ...selectedItem, temporadas: updatedTemporadas } : s));
                     showToast('Episodio eliminado');
@@ -2624,8 +2576,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                 </div>
                                                                 <div className="flex gap-2 shrink-0 items-center">
                                                                     {ep.urlDrive && (<button onClick={() => onTestPlayer(ep.tituloEpisodio, ep.urlDrive)} className="p-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold px-2 flex items-center gap-1 transition-colors"><Icon name="play" size={11} /> Probar</button>)}
-                                                                    <button onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg"><Icon name="edit" size={13} /></button>
-                                                                    <button onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><Icon name="trash" size={13} /></button>
+                                                                    <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg"><Icon name="edit" size={13} /></button>
+                                                                    <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><Icon name="trash" size={13} /></button>
                                                                 </div>
                                                             </div>
                                                         ))
@@ -3343,13 +3295,18 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled
         }) => {
             const historyRef = useRef({ history: [], index: -1 });
-            const skipRef = useRef(true);
+            const skipRef = useRef(false);
             const timerRef = useRef(null);
             const [historyState, setHistoryState] = useState({ history: [], index: -1 });
 
             useEffect(() => {
                 if (!enabled) return;
                 if (skipRef.current) { skipRef.current = false; return; }
+                if (historyRef.current.index < 0) {
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
+                    historyRef.current = { history: [snapshot], index: 0 };
+                    return;
+                }
                 if (timerRef.current) clearTimeout(timerRef.current);
                 timerRef.current = setTimeout(() => {
                     const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
@@ -3368,6 +3325,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const undo = useCallback(() => {
                 const ref = historyRef.current;
                 if (ref.index <= 0) return null;
+                if (timerRef.current) clearTimeout(timerRef.current);
+                skipRef.current = true;
                 ref.index -= 1;
                 const prev = ref.history[ref.index];
                 setHistoryState({ history: ref.history, index: ref.index });
@@ -3498,7 +3457,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [tmdbRequest,setTmdbRequest] = useState({ destination:'movies',type:'movie',key:0 });
             const selectSection = id => { setActiveTab(id); window.history.replaceState(null,'',window.location.pathname+window.location.search+'#'+(id==='homecovers'?'portadas':id==='notices'?'avisos':id)); };
             useEffect(() => { const openFromHash=()=>setActiveTab(adminSectionFromHash()); window.addEventListener('hashchange',openFromHash); return ()=>window.removeEventListener('hashchange',openFromHash); },[]);
-            const openTmdbFor = section => { const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
+            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
             const [editorRequest, setEditorRequest] = useState(null);
             useEffect(() => {
                 if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);
@@ -3523,6 +3482,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [radios, setRadios] = useState([]);
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
+            const loadedCatalogs = useRef(new Set());
+            const [loadError, setLoadError] = useState('');
+            const [storageError, setStorageError] = useState('');
 
             const fileInputRef = useRef(null);
 
@@ -3591,20 +3553,22 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 showToast('Backup descargado');
             };
 
-            const fetchFromCloud = async () => {
+            const fetchFromCloud = async (preserve = new Set()) => {
                 setLoading(true);
                 try {
-                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resRadios, resVideoteca] = await Promise.all([
-                        fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
-                        fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
-                        fetchSmart(SOURCE_URLS.MOVIES, RAW_URLS.MOVIES, true),
-                        fetchSmart(SOURCE_URLS.ESTRENOS2026, RAW_URLS.ESTRENOS2026, true),
-                        fetchSmart(SOURCE_URLS.TUDUM, RAW_URLS.TUDUM, true),
-                        fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
-                        fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
-                        fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
+                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'radios', 'videoteca'];
+                    const results = await Promise.allSettled([
+                        preserve.has('tv') ? null : fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
+                        preserve.has('series') ? null : fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
+                        preserve.has('movies') ? null : fetchSmart(SOURCE_URLS.MOVIES, RAW_URLS.MOVIES, true),
+                        preserve.has('estrenos') ? null : fetchSmart(SOURCE_URLS.ESTRENOS2026, RAW_URLS.ESTRENOS2026, true),
+                        preserve.has('tudum') ? null : fetchSmart(SOURCE_URLS.TUDUM, RAW_URLS.TUDUM, true),
+                        preserve.has('animados') ? null : fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
+                        preserve.has('radios') ? null : fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
+                        preserve.has('videoteca') ? null : fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
                     ]);
 
+                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resRadios, resVideoteca] = results.map(result => result.status === 'fulfilled' ? result.value : null);
                     const parsedChannels = parseM3U(resTV || '').map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
 
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
@@ -3657,18 +3621,20 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
 
-                    if (parsedChannels.length > 0) setChannels(parsedChannels);
-                    if (parsedSeries.length > 0) setSeries(parsedSeries);
-                    if (parsedMovies.length > 0) setMovies(parsedMovies);
-                    if (parsedEstrenos.length > 0) setEstrenos(parsedEstrenos);
-                    if (parsedTudum.length > 0) setTudumList(parsedTudum);
-                    if (parsedAnimados.length > 0) setAnimados(parsedAnimados);
-                    if (parsedRadios.length > 0) setRadios(parsedRadios);
-                    if (parsedVideoteca.length > 0) setVideoteca(parsedVideoteca);
-
-                    showToast("Datos descargados y actualizados correctamente");
+                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedRadios, parsedVideoteca];
+                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setRadios, setVideoteca];
+                    const failed = [];
+                    keys.forEach((key, index) => {
+                        if (preserve.has(key)) return;
+                        if (results[index].status === 'rejected') { failed.push(key); return; }
+                        setters[index](parsed[index]);
+                        loadedCatalogs.current.add(key);
+                    });
+                    setLoadError(failed.length ? `No se pudieron descargar: ${failed.join(', ')}. Se conservaron los datos disponibles. Usa Herramientas → Recargar para reintentar.` : '');
+                    showToast(failed.length ? 'Descarga incompleta. Revisa el aviso antes de publicar.' : 'Datos descargados y actualizados correctamente', failed.length ? 'error' : 'success');
                 } catch (error) {
                     console.error("Error sincronizando:", error);
+                    setLoadError("No se pudieron leer los catálogos remotos. Se conservaron los datos disponibles. Usa Herramientas → Recargar para reintentar.");
                     showToast("Error al conectar con las fuentes remotas", "error");
                 } finally {
                     setLoading(false);
@@ -3677,6 +3643,10 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             };
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
+                if (loadedCatalogs.current.size < 8) {
+                    showToast('Faltan catálogos por cargar. Recarga los datos antes de publicar para evitar sobrescribirlos con listas vacías.', 'error');
+                    return;
+                }
                 if (setStep) setStep('Validando token de GitHub...');
                 const testRes = await fetch('https://api.github.com/user', {
                     headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
@@ -3946,49 +3916,40 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 const loadData = async () => {
-                    const localMovies = localStorage.getItem('boxplay_admin_movies') || localStorage.getItem('magis_admin_movies');
-                    const localEstrenos = localStorage.getItem('boxplay_admin_estrenos') || localStorage.getItem('magis_admin_estrenos');
-                    const localTudum = localStorage.getItem('boxplay_admin_tudum') || localStorage.getItem('magis_admin_tudum');
-                    const localSeries = localStorage.getItem('boxplay_admin_series') || localStorage.getItem('magis_admin_series');
-                    const localTV = localStorage.getItem('boxplay_admin_tv') || localStorage.getItem('magis_admin_tv');
-                    const localAnimados = localStorage.getItem('boxplay_admin_animados') || localStorage.getItem('magis_admin_animados');
-                    const localRadios = localStorage.getItem('boxplay_admin_radios') || localStorage.getItem('magis_admin_radios');
-                    const localVideoteca = localStorage.getItem('boxplay_admin_videoteca') || localStorage.getItem('magis_admin_videoteca');
-
-                    if (localMovies && localEstrenos && localTudum && localSeries && localTV && localAnimados && localVideoteca && localRadios) {
+                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, tv: setChannels, animados: setAnimados, radios: setRadios, videoteca: setVideoteca };
+                    for (const [key, setter] of Object.entries(catalogs)) {
                         try {
-                            const m = JSON.parse(localMovies);
-                            const est = JSON.parse(localEstrenos);
-                            const tud = JSON.parse(localTudum);
-                            const s = JSON.parse(localSeries);
-                            const t = JSON.parse(localTV);
-                            const a = JSON.parse(localAnimados);
-                            const r = JSON.parse(localRadios);
-                            const v = JSON.parse(localVideoteca);
-
-                            setMovies(m); setEstrenos(est); setTudumList(tud); setSeries(s);
-                            setChannels(t); setAnimados(a); setRadios(r); setVideoteca(v);
-                            setLoading(false); setDataInitialized(true);
-                            showToast("Sesión local restaurada");
-                            return;
-                        } catch(e) {}
+                            const raw = localStorage.getItem('boxplay_admin_' + key) || localStorage.getItem('magis_admin_' + key);
+                            if (!raw) continue;
+                            const data = JSON.parse(raw);
+                            if (!Array.isArray(data) || data.some(item => !item || typeof item !== 'object' || Array.isArray(item))) continue;
+                            setter(data);
+                            loadedCatalogs.current.add(key);
+                        } catch (error) { /* Recover this catalog remotely without replacing other drafts. */ }
                     }
-                    await fetchFromCloud();
+                    if (loadedCatalogs.current.size === Object.keys(catalogs).length) {
+                        setLoading(false); setDataInitialized(true);
+                        showToast('Sesión local restaurada');
+                    } else {
+                        await fetchFromCloud(new Set(loadedCatalogs.current));
+                    }
                 };
                 loadData();
             }, []);
 
             useEffect(() => {
-                if (dataInitialized) {
-                    localStorage.setItem('boxplay_admin_movies', JSON.stringify(movies));
-                    localStorage.setItem('boxplay_admin_estrenos', JSON.stringify(estrenos));
-                    localStorage.setItem('boxplay_admin_tudum', JSON.stringify(tudumList));
-                    localStorage.setItem('boxplay_admin_series', JSON.stringify(series));
-                    localStorage.setItem('boxplay_admin_tv', JSON.stringify(channels));
-                    localStorage.setItem('boxplay_admin_animados', JSON.stringify(animados));
-                    localStorage.setItem('boxplay_admin_radios', JSON.stringify(radios));
-                    localStorage.setItem('boxplay_admin_videoteca', JSON.stringify(videoteca));
+                if (!dataInitialized) return;
+                const catalogs = { movies, estrenos, tudum: tudumList, series, tv: channels, animados, radios, videoteca };
+                let failed = false;
+                for (const [key, data] of Object.entries(catalogs)) {
+                    // Never cache failed initial downloads as valid empty catalogs.
+                    if (!loadedCatalogs.current.has(key) && data.length === 0) continue;
+                    try {
+                        localStorage.setItem('boxplay_admin_' + key, JSON.stringify(data));
+                        loadedCatalogs.current.add(key);
+                    } catch (error) { failed = true; }
                 }
+                setStorageError(failed ? 'No se pudieron guardar todos los cambios en este navegador. Descarga un Backup antes de cerrar o recargar la página.' : '');
             }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, dataInitialized]);
 
             if (loading) {
@@ -4055,6 +4016,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     </header>
                     <main className="admin-main flex-1 w-full p-4 md:p-6 lg:p-8">
                         <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
+                        {loadError && <div role="alert" className="p-4 mb-4 rounded-xl bg-amber-100 text-amber-950">{loadError}</div>}
+                        {storageError && <div role="alert" className="p-4 mb-4 rounded-xl bg-rose-100 text-rose-950">{storageError}</div>}
                         <ErrorBoundary>
                             {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas</h3><p>Detecta enlaces de Google Drive y datos de ficha que faltan en Películas y Estrenos 2026.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
                             {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} onOpenEditor={openCatalogEditor} />}
