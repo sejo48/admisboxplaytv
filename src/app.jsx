@@ -1171,7 +1171,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // BUSCADOR TMDB ENRIQUECIDO
         // ============================================================
-        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA' }) => {
+        const MovieAutoSearch = ({ onUse, showToast, apiKey: apiKeyProp, mediaType = 'movie', explore = false, actionLabel = '✓ USAR ESTA INFORMACIÓN COMPLETA', compact = false }) => {
             const [query, setQuery] = useState('');
             const [searchYear, setSearchYear] = useState('');
             const [category, setCategory] = useState('search');
@@ -1297,7 +1297,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const useSelected = () => {
                 if (!selected) return;
                 onUse(buildFullData(selected));
-                if (!explore) showToast('✓ Ficha completa cargada en el formulario');
+                if (!explore && !compact) showToast('✓ Ficha completa cargada en el formulario');
             };
 
             const keyBadge = keyStatus === 'ok' ? { text: '✓ API activa', cls: 'bg-emerald-900/60 text-emerald-300 border-emerald-700' } : keyStatus === 'bad' ? { text: '⚠ API inválida', cls: 'bg-rose-900/60 text-rose-300 border-rose-700' } : keyStatus === 'unavailable' ? { text: 'Sin conexión con TMDB', cls: 'bg-slate-800 text-slate-300 border-slate-700' } : { text: '⏳ Verificando…', cls: 'bg-slate-800 text-slate-400 border-slate-700' };
@@ -1333,7 +1333,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                     <label className="tmdb-year-field">Año de estreno (opcional)<input aria-label="Año de estreno en TMDB" type="number" min="1900" max={new Date().getFullYear()+5} value={searchYear} disabled={category !== 'search'} onChange={e => setSearchYear(e.target.value)} placeholder="Todos" /></label>
                     {results.length > 0 && !selected && (
-                        <div className="catalog-grid tmdb-results">
+                        <div className={"catalog-grid tmdb-results" + (compact ? " tmdb-results-compact" : "")}>
                             {results.map(movie => (
                                 <button type="button" key={movie.id} onClick={() => getDetails(movie)} className="text-left bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500 rounded-xl overflow-hidden transition-all">
                                     <div className="aspect-[2/3] bg-slate-800">
@@ -1349,7 +1349,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     )}
 
                     {explore && results.length > 0 && !selected && <div className="flex gap-3 items-center text-xs"><button type="button" disabled={loading || page <= 1} onClick={() => searchMovies(page - 1)}>Anterior</button><span>Página {page} de {totalPages}</span><button type="button" disabled={loading || page >= totalPages} onClick={() => searchMovies(page + 1)}>Siguiente</button></div>}
-                    {selected && (
+                    {selected && compact && <div className="workflow-tmdb-choice">
+                        <div><strong>{selected.title}</strong><p>{selected.release_date?.slice(0,4) || 'Sin año'} · {(selected.genres || []).map(g => g.name).join(', ')}</p><p>{selected.overview || 'Sin sinopsis'}</p></div>
+                        <button type="button" disabled={loading} onClick={useSelected} className="admin-add-button">Usar ficha y continuar →</button>
+                        <button type="button" onClick={() => setSelected(null)} className="admin-outline-button">Elegir otra película</button>
+                    </div>}
+                    {selected && !compact && (
                         <div className="bg-slate-900 rounded-xl border border-cyan-800 p-3 space-y-3">
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <div className="w-24 h-36 rounded-lg overflow-hidden bg-black shrink-0">
@@ -1716,6 +1721,65 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // EDITOR: PELÍCULAS — CON TMDB ENRIQUECIDO
         // ============================================================
+        const MovieWorkflowForm = ({ item, onChange, onUse, onSave, onCancel, showToast, saveLabel }) => {
+            const [step, setStep] = useState(item.isNew && !(item.titulo || item.title) ? 0 : 1);
+            const formRef = useRef(null);
+            const [validationError, setValidationError] = useState('');
+            const changeStep = next => {
+                setStep(next);
+                requestAnimationFrame(() => {
+                    const editor = formRef.current?.closest('.admin-inline-editor');
+                    if (!editor) return;
+                    const top = (document.querySelector('.admin-header')?.getBoundingClientRect().bottom || 0) + 16;
+                    window.scrollTo({top: Math.max(0, scrollY + editor.getBoundingClientRect().top - top), behavior:'instant'});
+                    formRef.current.querySelector('[aria-selected="true"]')?.focus({preventScroll:true});
+                });
+            };
+            const update = key => event => { const value = event.target.value; setValidationError(''); onChange(current => ({...current, [key]:value, ...(key === 'titulo' ? {title:value} : key === 'imagen' ? {image:value} : key === 'descripcion' ? {sinopsis:value} : {})})); };
+            const field = (key, label, required = false, placeholder = '') => <label className="workflow-field">{label}<input name={key} value={item[key] || (key === 'titulo' ? item.title : key === 'imagen' ? item.image : '') || ''} onChange={update(key)} required={required} placeholder={placeholder} /></label>;
+            const useFicha = data => { onUse(data); changeStep(1); };
+            return <form ref={formRef} onSubmit={onSave} className="movie-workflow" onKeyDown={event => { if (event.key === 'Enter' && event.target.tagName === 'INPUT' && !event.target.name) event.preventDefault(); }} onInvalidCapture={event => {
+                event.preventDefault();
+                const input = event.target;
+                changeStep(input.closest('section')?.id === 'movie-panel-2' ? 2 : 1);
+                const details = input.closest('details');
+                if (details) details.open = true;
+                setValidationError(input.validity.valueMissing ? 'Completa el título y la portada antes de guardar.' : 'Revisa el valor del campo indicado antes de guardar.');
+                requestAnimationFrame(() => input.focus());
+            }}>
+                <div className="workflow-tabs" role="tablist" aria-label="Pasos de la película">{['Buscar ficha','Datos y enlaces','Opciones'].map((label,index) => <button key={label} id={'movie-step-'+index} aria-controls={'movie-panel-'+index} type="button" role="tab" tabIndex={step === index ? 0 : -1} aria-selected={step === index} onKeyDown={event => { if (['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) { event.preventDefault(); changeStep(event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (step + (event.key === 'ArrowRight' ? 1 : 2)) % 3); } }} onClick={() => changeStep(index)}><span>{index+1}</span>{label}</button>)}</div>
+                <section id="movie-panel-0" role="tabpanel" aria-labelledby="movie-step-0" hidden={step !== 0}>
+                    <p className="workflow-help">Busca la película y elige su ficha. También puedes completar los datos manualmente.</p>
+                    <MovieAutoSearch compact onUse={useFicha} showToast={showToast} />
+                </section>
+                <section id="movie-panel-1" role="tabpanel" aria-labelledby="movie-step-1" hidden={step !== 1}>
+                    <div className="workflow-selected"><div className="workflow-thumb">{(item.imagen || item.image) && <MediaImage src={item.imagen || item.image} alt="" className="w-full h-full object-cover" />}</div><div><strong>{item.titulo || item.title || 'Nueva película'}</strong><p>{[item.year, item.runtime, item.generosTexto].filter(Boolean).join(' · ') || 'Completa la ficha o busca sus datos en el primer paso.'}</p></div></div>
+                    <div className="workflow-fields">
+                        {field('titulo','Título *',true,'Nombre de la película')}
+                        {field('imagen','Portada *',true,'https://…')}
+                        {field('urlDrive','Enlace de Google Drive',false,'https://drive.google.com/file/d/…')}
+                        {field('urlOkRu','Enlace alternativo / OK.ru',false,'https://…')}
+                        <label className="workflow-field workflow-wide">Sinopsis<textarea name="descripcion" value={item.descripcion || item.sinopsis || ''} onChange={update('descripcion')} rows="3" /></label>
+                    </div>
+                    <p className="workflow-help">Guardar conserva la película en tu catálogo local. Publica los cambios después con GitHub Sync.</p>
+                </section>
+                <section id="movie-panel-2" role="tabpanel" aria-labelledby="movie-step-2" hidden={step !== 2}>
+                    <p className="workflow-help">Ajustes opcionales. Puedes guardar sin modificar esta sección.</p>
+                    <div className="workflow-fields">{field('tituloOriginal','Título original')}{field('backdrop','Fondo panorámico')}{field('qualityTag','Calidad',false,'HD / 4K / CAM')}{field('codigo','PIN de bloqueo',false,'Opcional')}</div>
+                    <ChristmasField item={item} onChange={onChange} />
+                    <details className="workflow-metadata"><summary>Más datos de la ficha: director, duración y reparto</summary><MediaMetadataFields item={item} onChange={onChange} /></details>
+                </section>
+                {validationError && <p role="alert" className="workflow-help">{validationError}</p>}
+                <div className="workflow-actions">
+                    <button type="button" className="admin-outline-button" onClick={onCancel}>Cancelar</button>
+                    {step === 0 ? <button type="button" className="admin-add-button" onClick={() => changeStep(1)}>Completar manualmente →</button> : <>
+                        <button type="button" className="admin-outline-button" onClick={() => changeStep(step === 1 ? 2 : 1)}>{step === 1 ? 'Opciones →' : '← Datos y enlaces'}</button>
+                        <button type="submit" className="admin-add-button">{saveLabel}</button>
+                    </>}
+                </div>
+            </form>;
+        };
+
         const MoviesEditor = ({ movies, setMovies, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [editorRef, openEditor] = useInlineEditor(editingItem, setEditingItem);
@@ -1876,63 +1940,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nueva Película' : 'Editar Película'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
-                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
-                                <ChristmasField item={editingItem} onChange={setEditingItem} />
-
-                                {(editingItem.imagen || editingItem.titulo) && (
-                                    <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
-                                        {editingItem.backdrop && (<div className="absolute inset-0 opacity-20"><img src={editingItem.backdrop} alt="" className="w-full h-full object-cover" /></div>)}
-                                        <div className="relative flex flex-col sm:flex-row gap-4">
-                                            <div className="w-28 h-40 rounded-xl overflow-hidden bg-black shrink-0 border border-slate-800 shadow-lg">
-                                                {editingItem.imagen ? (<img src={editingItem.imagen} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/120x180/111/fff?text=SIN+POSTER'; }} />) : (<div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin póster</div>)}
-                                            </div>
-                                            <div className="min-w-0 flex-1 space-y-1.5">
-                                                <p className="text-[10px] text-cyan-300 font-bold uppercase tracking-wider">👁️ Vista previa de la ficha</p>
-                                                <h3 className="text-lg font-black leading-tight">{editingItem.titulo || 'Sin título'}</h3>
-                                                {editingItem.tagline && <p className="text-[11px] italic text-slate-400">"{editingItem.tagline}"</p>}
-                                                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                                    {editingItem.year && <span className="bg-white/10 px-2 py-0.5 rounded">{editingItem.year}</span>}
-                                                    {editingItem.runtime && <span className="bg-white/10 px-2 py-0.5 rounded">⏱ {editingItem.runtime}</span>}
-                                                    {editingItem.rating && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">⭐ {editingItem.rating}</span>}
-                                                    {editingItem.clasificacion && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">{editingItem.clasificacion}</span>}
-                                                </div>
-                                                {editingItem.generosTexto && (<p className="text-[10px] text-cyan-300">{editingItem.generosTexto}</p>)}
-                                                {editingItem.descripcion && (<p className="text-[11px] text-slate-300 line-clamp-3">{editingItem.descripcion}</p>)}
-                                                {editingItem.director && (<p className="text-[10px] text-slate-400"><b>Director:</b> {editingItem.director}</p>)}
-                                                {editingItem.reparto && editingItem.reparto.length > 0 && (
-                                                    <div className="flex gap-2 pt-1 overflow-x-auto">
-                                                        {editingItem.reparto.slice(0, 6).map((a, i) => (
-                                                            <div key={i} className="text-center shrink-0 w-12">
-                                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 border border-slate-700 mx-auto">
-                                                                    {a.foto ? <img src={a.foto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600">👤</div>}
-                                                                </div>
-                                                                <p className="text-[8px] mt-0.5 text-slate-400 line-clamp-2">{a.nombre}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {editingItem.trailerUrl && (<p className="text-[10px] text-emerald-400 pt-1">🎬 Tráiler disponible</p>)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiador II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título Original</label><input name="tituloOriginal" value={editingItem.tituloOriginal || ''} onChange={e => setEditingItem({...editingItem, tituloOriginal:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ej: Gladiator II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Backdrop (fondo panorámico)</label><input name="backdrop" value={editingItem.backdrop || ''} onChange={e => setEditingItem({...editingItem, backdrop:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="1234" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Sinopsis del filme..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2 border-t border-blue-200">
-                                    <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Película</button>
-                                </div>
-                            </form>
+                            <MovieWorkflowForm key={editingItem.id || 'new'} item={editingItem} onChange={setEditingItem} onUse={applyAutoData} onSave={handleSave} onCancel={() => { setEditingItem(null); setAutoData(null); }} showToast={showToast} saveLabel="Guardar Película" />
                         </div>
                     )}
 
@@ -2131,63 +2139,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 {editingItem.isNew ? 'Añadir Nuevo Estreno 2026' : 'Editar Estreno 2026'}
                                 {autoData && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">✓ Ficha TMDB cargada</span>}
                             </h3>
-                            <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={handleSave} className="admin-editor-form grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <MovieAutoSearch onUse={applyAutoData} showToast={showToast} />
-                                <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
-                                <ChristmasField item={editingItem} onChange={setEditingItem} />
-
-                                {(editingItem.imagen || editingItem.titulo) && (
-                                    <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-950 to-black rounded-2xl p-4 text-white overflow-hidden relative">
-                                        {editingItem.backdrop && (<div className="absolute inset-0 opacity-20"><img src={editingItem.backdrop} alt="" className="w-full h-full object-cover" /></div>)}
-                                        <div className="relative flex flex-col sm:flex-row gap-4">
-                                            <div className="w-28 h-40 rounded-xl overflow-hidden bg-black shrink-0 border border-slate-800 shadow-lg">
-                                                {editingItem.imagen ? (<img src={editingItem.imagen} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.src='https://placehold.co/120x180/111/fff?text=SIN+POSTER'; }} />) : (<div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">Sin póster</div>)}
-                                            </div>
-                                            <div className="min-w-0 flex-1 space-y-1.5">
-                                                <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">👁️ Vista previa de la ficha</p>
-                                                <h3 className="text-lg font-black leading-tight">{editingItem.titulo || 'Sin título'}</h3>
-                                                {editingItem.tagline && <p className="text-[11px] italic text-slate-400">"{editingItem.tagline}"</p>}
-                                                <div className="flex flex-wrap gap-1.5 text-[10px]">
-                                                    {editingItem.year && <span className="bg-white/10 px-2 py-0.5 rounded">{editingItem.year}</span>}
-                                                    {editingItem.runtime && <span className="bg-white/10 px-2 py-0.5 rounded">⏱ {editingItem.runtime}</span>}
-                                                    {editingItem.rating && <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold">⭐ {editingItem.rating}</span>}
-                                                    {editingItem.clasificacion && <span className="bg-red-500/20 text-red-300 px-2 py-0.5 rounded font-bold">{editingItem.clasificacion}</span>}
-                                                </div>
-                                                {editingItem.generosTexto && (<p className="text-[10px] text-amber-300">{editingItem.generosTexto}</p>)}
-                                                {editingItem.descripcion && (<p className="text-[11px] text-slate-300 line-clamp-3">{editingItem.descripcion}</p>)}
-                                                {editingItem.director && (<p className="text-[10px] text-slate-400"><b>Director:</b> {editingItem.director}</p>)}
-                                                {editingItem.reparto && editingItem.reparto.length > 0 && (
-                                                    <div className="flex gap-2 pt-1 overflow-x-auto">
-                                                        {editingItem.reparto.slice(0, 6).map((a, i) => (
-                                                            <div key={i} className="text-center shrink-0 w-12">
-                                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-800 border border-slate-700 mx-auto">
-                                                                    {a.foto ? <img src={a.foto} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-600">👤</div>}
-                                                                </div>
-                                                                <p className="text-[8px] mt-0.5 text-slate-400 line-clamp-2">{a.nombre}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {editingItem.trailerUrl && (<p className="text-[10px] text-emerald-400 pt-1">🎬 Tráiler disponible</p>)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" value={editingItem.titulo || editingItem.title || ''} onChange={e => setEditingItem({...editingItem, titulo:e.target.value, title:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiador II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Título Original</label><input name="tituloOriginal" value={editingItem.tituloOriginal || ''} onChange={e => setEditingItem({...editingItem, tituloOriginal:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Ej: Gladiator II" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada / Poster</label><input name="imagen" value={editingItem.imagen || editingItem.image || ''} onChange={e => setEditingItem({...editingItem, imagen:e.target.value, image:e.target.value})} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Backdrop</label><input name="backdrop" value={editingItem.backdrop || ''} onChange={e => setEditingItem({...editingItem, backdrop:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL Google Drive (Opción 1)</label><input name="urlDrive" value={editingItem.urlDrive || ''} onChange={e => setEditingItem({...editingItem, urlDrive:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">URL OK.ru / Directo (Opción 2)</label><input name="urlOkRu" value={editingItem.urlOkRu || ''} onChange={e => setEditingItem({...editingItem, urlOkRu:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white font-mono" placeholder="https://ok.ru/video/..." /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">Etiqueta de Calidad</label><input name="qualityTag" value={editingItem.qualityTag || ''} onChange={e => setEditingItem({...editingItem, qualityTag:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="HD / 4K / CAM" /></div>
-                                <div><label className="block text-xs font-bold mb-1 text-slate-700">PIN de Bloqueo (Opcional)</label><input name="codigo" value={editingItem.codigo || ''} onChange={e => setEditingItem({...editingItem, codigo:e.target.value})} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="1234" /></div>
-                                <div className="md:col-span-2"><label className="block text-xs font-bold mb-1 text-slate-700">Sinopsis / Descripción</label><textarea name="descripcion" value={editingItem.descripcion || editingItem.sinopsis || ''} onChange={e => setEditingItem({...editingItem, descripcion:e.target.value, sinopsis:e.target.value})} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 bg-white" placeholder="Sinopsis del estreno..."></textarea></div>
-                                <div className="md:col-span-2 flex justify-end gap-2.5 pt-2 border-t border-amber-200">
-                                    <button type="button" onClick={() => { setEditingItem(null); setAutoData(null); }} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-xl text-xs font-bold transition-colors">Cancelar</button>
-                                    <button type="submit" className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md transition-colors">Guardar Estreno</button>
-                                </div>
-                            </form>
+                            <MovieWorkflowForm key={editingItem.id || 'new'} item={editingItem} onChange={setEditingItem} onUse={applyAutoData} onSave={handleSave} onCancel={() => { setEditingItem(null); setAutoData(null); }} showToast={showToast} saveLabel="Guardar Estreno" />
                         </div>
                     )}
 
@@ -3505,7 +3457,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [tmdbRequest,setTmdbRequest] = useState({ destination:'movies',type:'movie',key:0 });
             const selectSection = id => { setActiveTab(id); window.history.replaceState(null,'',window.location.pathname+window.location.search+'#'+(id==='homecovers'?'portadas':id==='notices'?'avisos':id)); };
             useEffect(() => { const openFromHash=()=>setActiveTab(adminSectionFromHash()); window.addEventListener('hashchange',openFromHash); return ()=>window.removeEventListener('hashchange',openFromHash); },[]);
-            const openTmdbFor = section => { const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
+            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
             const [editorRequest, setEditorRequest] = useState(null);
             useEffect(() => {
                 if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);

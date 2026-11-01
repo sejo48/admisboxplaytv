@@ -151,3 +151,19 @@ Prueba con almacenamiento aislado y respuestas de red simuladas, sin modificar c
 ```sh
 NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/data-safety-browser.cjs
 ```
+
+## Incorporación de películas y estrenos
+
+Los editores de Películas y Estrenos 2026 organizan la incorporación en tres pasos:
+
+1. **Buscar ficha:** consulta TMDB en el mismo editor. Al elegir «Usar ficha y continuar», se abre el siguiente paso. También permite completar la ficha manualmente.
+2. **Datos y enlaces:** reúne título, portada, enlaces de reproducción y sinopsis, con una vista previa compacta.
+3. **Opciones:** calidad, PIN, fondo y selección manual de Navidad. Los datos secundarios de la ficha se despliegan solo cuando se necesitan.
+
+Los campos conservan sus valores al cambiar de paso y los botones de cancelar/guardar permanecen en una barra fija al borde inferior mientras se recorre el formulario. Guardar sigue siendo local; GitHub Sync publica el catálogo. El acceso principal «Añadir desde TMDB» entra directamente al editor de Películas o Estrenos cuando corresponde.
+
+Validación con respuestas TMDB simuladas, en escritorio y móvil, sin escrituras remotas:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/movie-workflow-browser.cjs
+```
