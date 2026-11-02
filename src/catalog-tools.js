@@ -51,6 +51,14 @@
         if (destination === 'tudum') Object.assign(result,{ synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating });
         return result;
     }
+    function moveEpisode(item, seasonIndex, from, to) {
+        const season = item.temporadas?.[seasonIndex];
+        if (!season || !Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= season.episodios.length || to >= season.episodios.length || from === to) return item;
+        const episodes = season.episodios.slice();
+        const [moved] = episodes.splice(from, 1);
+        episodes.splice(to, 0, moved);
+        return { ...item, temporadas: item.temporadas.map((entry, index) => index === seasonIndex ? { ...entry, episodeOrder: 'manual', episodios: episodes } : entry) };
+    }
     function parseMixed(items) {
         if (!Array.isArray(items)) throw Error('Se esperaba una lista de películas y series.');
         return items.map((item, i) => ({ ...item, id: item.id || `dorama-${i}`, imagen: item.imagen || item.image || '', image: item.imagen || item.image || '', tmdbType: item.temporadas?.length ? 'tv' : item.tmdbType || 'movie', temporadas: (item.temporadas || []).map((season, si) => ({ ...season, episodios: (season.episodios || []).map((ep, ei) => ({ ...ep, id: ep.id || `ep-dorama-${i}-${si}-${ei}` })) })) }));
@@ -67,6 +75,6 @@
         if (category === 'search') { params.set('query',query.trim()); if (/^\d{4}$/.test(selectedYear)) params.set(type === 'tv' ? 'first_air_date_year' : 'primary_release_year',selectedYear); }
         return `https://api.themoviedb.org/3/${endpoint}?${params}`;
     }
-    return { parseMixed, serializeMixed, fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
+    return { moveEpisode, parseMixed, serializeMixed, fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
 });
 

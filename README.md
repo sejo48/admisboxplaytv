@@ -179,3 +179,13 @@ Prueba integrada con catálogos aislados y sin escrituras remotas:
 ```sh
 NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/doramas-browser.cjs
 ```
+
+## Mover episodios con el mouse
+
+En Series, Animados o Doramas, abre un título y arrastra el asa **⠿** de un episodio sobre la posición deseada dentro de la misma temporada. También puedes enfocar el asa y usar las flechas arriba/abajo. El cambio se guarda localmente; **GitHub Sync** lo publica. El orden manual se conserva al recargar, exportar, respaldar y deshacer y tiene prioridad sobre el orden numérico automático en Boxplay TV. Los títulos y enlaces permanecen asociados a sus episodios.
+
+Validación con arrastre real de mouse, exportación y reproducción del orden publicado en PC, sin escrituras remotas:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/episode-reorder-browser.cjs
+```

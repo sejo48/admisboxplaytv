@@ -2188,6 +2188,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
 
+            const moveEpisode = (seasonIndex, from, to, identity) => {
+                const episode = selectedSerie?.temporadas?.[seasonIndex]?.episodios?.[from];
+                if (!episode || (episode.id || episode.tituloEpisodio + '|' + episode.urlDrive) !== identity) return;
+                const updated = BoxCatalog.moveEpisode(selectedSerie, seasonIndex, from, to);
+                if (updated === selectedSerie) return;
+                setSeries(series.map(item => item.id === updated.id ? updated : item));
+                showToast('Orden guardado en este navegador. Publica con GitHub Sync.');
+            };
+
             const exportData = () => {
                 const exportSeries = series.map(({ id, ...s }) => ({
                     ...tmdbMetadata(s),
@@ -2198,6 +2207,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     qualityTag: s.qualityTag || '',
                     temporadas: (s.temporadas || []).map(t => ({
                         numeroTemporada: t.numeroTemporada,
+                        ...(t.episodeOrder === 'manual' ? { episodeOrder: 'manual' } : {}),
                         episodios: (t.episodios || []).map(({ id, ...ep }) => ({ tituloEpisodio: ep.tituloEpisodio, urlDrive: ep.urlDrive }))
                     }))
                 }));
@@ -2322,6 +2332,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     </h3>
                                     <button onClick={addSeason} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all"><Icon name="plus" size={12} /> Añadir Temporada</button>
                                 </div>
+                                <p className="text-xs text-slate-500">Arrastra el asa ⠿ de un episodio para cambiar su posición dentro de la temporada. Publica el nuevo orden con GitHub Sync.</p>
                                 <div className="space-y-4">
                                     {(selectedSerie.temporadas || []).length === 0 ? (<p className="text-xs text-slate-400 py-6 text-center">No hay temporadas creadas.</p>) : (
                                         (selectedSerie.temporadas || []).map((season, sIdx) => (
@@ -2336,7 +2347,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (<p className="text-[11px] text-slate-400 p-3 text-center">Sin episodios en esta temporada.</p>) : (
                                                         season.episodios.map((ep, eIdx) => (
-                                                            <div key={ep.id || eIdx} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl text-xs transition-colors">
+                                                            <EpisodeReorderRow key={ep.id || eIdx} scope={'series' + ':' + selectedSerie.id + ':' + sIdx} index={eIdx} episode={ep} onMove={(from, to, identity) => moveEpisode(sIdx, from, to, identity)}>
                                                                 <div className="min-w-0 pr-3">
                                                                     <p className="font-bold text-slate-900 truncate flex items-center gap-2"><span className="text-purple-600 font-mono w-5">{eIdx + 1}.</span><span>{ep.tituloEpisodio}</span></p>
                                                                     <p className="text-[10px] text-slate-400 font-mono truncate pl-7 mt-0.5">{ep.urlDrive}</p>
@@ -2346,7 +2357,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                     <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg" title="Editar"><Icon name="edit" size={13} /></button>
                                                                     <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg" title="Eliminar"><Icon name="trash" size={13} /></button>
                                                                 </div>
-                                                            </div>
+                                                            </EpisodeReorderRow>
                                                         ))
                                                     )}
                                                 </div>
@@ -2416,6 +2427,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const selectedItem = animados.find(s => s.id === selectedItemId);
             useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setSelectedItemId(initialEdit.id || null); setTmdbType(initialEdit.tmdbType || 'tv'); } }, [initialEdit]);
 
+            const moveEpisode = (seasonIndex, from, to, identity) => {
+                const episode = selectedItem?.temporadas?.[seasonIndex]?.episodios?.[from];
+                if (!episode || (episode.id || episode.tituloEpisodio + '|' + episode.urlDrive) !== identity) return;
+                const updated = BoxCatalog.moveEpisode(selectedItem, seasonIndex, from, to);
+                if (updated === selectedItem) return;
+                setAnimados(animados.map(item => item.id === updated.id ? updated : item));
+                showToast('Orden guardado en este navegador. Publica con GitHub Sync.');
+            };
+
             const exportData = () => {
                 const exportArray = animados.map(({ id, ...s }) => {
                     const out = {
@@ -2430,6 +2450,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     if (s.temporadas && s.temporadas.length > 0) {
                         out.temporadas = s.temporadas.map(t => ({
                             numeroTemporada: t.numeroTemporada,
+                        ...(t.episodeOrder === 'manual' ? { episodeOrder: 'manual' } : {}),
                             episodios: (t.episodios || []).map(({ id, ...ep }) => ({ tituloEpisodio: ep.tituloEpisodio, urlDrive: ep.urlDrive }))
                         }));
                     }
@@ -2560,6 +2581,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     </h3>
                                     <button onClick={addSeason} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all"><Icon name="plus" size={12} /> Añadir Temporada</button>
                                 </div>
+                                <p className="text-xs text-slate-500">Arrastra el asa ⠿ de un episodio para cambiar su posición dentro de la temporada. Publica el nuevo orden con GitHub Sync.</p>
                                 <div className="space-y-4">
                                     {(selectedItem.temporadas || []).length === 0 ? (
                                         <div className="p-5 border border-dashed border-slate-300 rounded-2xl text-center text-xs text-slate-500">
@@ -2578,7 +2600,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                 <div className="p-2 space-y-1.5">
                                                     {(season.episodios || []).length === 0 ? (<p className="text-[11px] text-slate-400 p-3 text-center">Sin episodios.</p>) : (
                                                         season.episodios.map((ep, eIdx) => (
-                                                            <div key={ep.id || eIdx} className="flex items-center justify-between p-2.5 hover:bg-slate-50 rounded-xl text-xs transition-colors">
+                                                            <EpisodeReorderRow key={ep.id || eIdx} scope={collection + ':' + selectedItem.id + ':' + sIdx} index={eIdx} episode={ep} onMove={(from, to, identity) => moveEpisode(sIdx, from, to, identity)}>
                                                                 <div className="min-w-0 pr-3">
                                                                     <p className="font-bold text-slate-900 truncate flex items-center gap-2"><span className="text-orange-600 font-mono w-5">{eIdx + 1}.</span><span>{ep.tituloEpisodio}</span></p>
                                                                     <p className="text-[10px] text-slate-400 font-mono truncate pl-7 mt-0.5">{ep.urlDrive}</p>
@@ -2588,7 +2610,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                                                     <button aria-label="Editar episodio" onClick={() => setEditingEpisode({ seasonIndex: sIdx, epIndex: eIdx, epData: ep, isNew: false })} className="p-1.5 text-cyan-600 hover:bg-cyan-50 rounded-lg"><Icon name="edit" size={13} /></button>
                                                                     <button aria-label="Eliminar episodio" onClick={() => deleteEpisode(sIdx, eIdx)} className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"><Icon name="trash" size={13} /></button>
                                                                 </div>
-                                                            </div>
+                                                            </EpisodeReorderRow>
                                                         ))
                                                     )}
                                                 </div>
@@ -3547,6 +3569,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         qualityTag: s.qualityTag,
                         temporadas: (s.temporadas || []).map(t => ({
                             numeroTemporada: t.numeroTemporada,
+                        ...(t.episodeOrder === 'manual' ? { episodeOrder: 'manual' } : {}),
                             episodios: (t.episodios || []).map(({ id, ...ep }) => ep)
                         }))
                     })),
@@ -3760,6 +3783,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         qualityTag: s.qualityTag || '',
                         temporadas: (s.temporadas || []).map(t => ({
                             numeroTemporada: t.numeroTemporada,
+                        ...(t.episodeOrder === 'manual' ? { episodeOrder: 'manual' } : {}),
                             episodios: (t.episodios || []).map(({ id, ...ep }) => ({
                                 tituloEpisodio: ep.tituloEpisodio,
                                 urlDrive: ep.urlDrive
@@ -3779,6 +3803,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         if (s.temporadas && s.temporadas.length > 0) {
                             out.temporadas = s.temporadas.map(t => ({
                                 numeroTemporada: t.numeroTemporada,
+                        ...(t.episodeOrder === 'manual' ? { episodeOrder: 'manual' } : {}),
                                 episodios: (t.episodios || []).map(({ id, ...ep }) => ({
                                     tituloEpisodio: ep.tituloEpisodio,
                                     urlDrive: ep.urlDrive

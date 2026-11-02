@@ -23,10 +23,12 @@ test('Exportar y GitHub Sync conservan Navidad y los enlaces en ambos catálogos
  const app=fs.readFileSync(path.join(__dirname,'../src/app.jsx'),'utf8');
  const sample=[{...item,navidad:true,urlDrive:'https://drive.google.com/file/d/prueba/view'}, {...item,id:'two',titulo:'El Grinch',navidad:false}, {...item,id:'three',titulo:'Automático'}];
  const metadata=item=>Object.fromEntries(['tmdbId','tmdbType'].filter(k=>item[k]!==undefined).map(k=>[k,item[k]]));
- const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[],animados:[],doramas:[],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
+ const show={tituloSerie:'Serie',temporadas:[{numeroTemporada:1,episodeOrder:'manual',episodios:[{tituloEpisodio:'Episodio 2',urlDrive:'https://example.test/2'},{tituloEpisodio:'Episodio 1',urlDrive:'https://example.test/1'}]}]};
+ const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[show],animados:[show],doramas:[show],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
  const start=app.indexOf('const datasets = ')+17;
  const end=app.indexOf(';\n\n                try {',start);
  const datasets=vm.runInNewContext('('+app.slice(start,end)+')',context);
+ for(const file of ['playlist.json','animados.json','doramas.json']) { assert.equal(datasets[file][0].temporadas[0].episodeOrder,'manual');assert.equal(datasets[file][0].temporadas[0].episodios[0].tituloEpisodio,'Episodio 2'); }
  const outputs=[datasets['peliculas.json'],datasets['peliculas2.json']];
  for(const variable of ['exportMovies','exportEstrenos']) {
   const begin=app.indexOf('const '+variable+' = ')+('const '+variable+' = ').length;

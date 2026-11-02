@@ -159,3 +159,25 @@ const adminSectionFromHash = () => {
     return ADMIN_GROUPS.some(group=>group.ids.includes(section))?section:'overview';
 };
 
+
+// A handle starts the drag; only rows in the same season accept it.
+const EpisodeReorderRow = ({ scope, index, episode, onMove, children }) => {
+    const [over, setOver] = React.useState(false);
+    const mime = 'application/x-boxplay-episode';
+    const identity = episode.id || episode.tituloEpisodio + '|' + episode.urlDrive;
+    return <div data-episode-row={identity} onDragOver={event => {
+        if (!Array.from(event.dataTransfer.types).includes(mime)) return;
+        event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setOver(true);
+    }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOver(false); }} onDrop={event => {
+        event.preventDefault(); setOver(false);
+        try { const source = JSON.parse(event.dataTransfer.getData(mime)); if (source.scope === scope) onMove(source.index, index, source.identity); } catch (_) {}
+    }} className={'flex items-center justify-between gap-2 p-2.5 rounded-xl text-xs transition-colors ' + (over ? 'bg-cyan-100 ring-2 ring-cyan-500' : 'hover:bg-slate-50')}>
+        <span role="button" tabIndex={0} draggable={true} aria-label={'Mover ' + episode.tituloEpisodio} title="Arrastra para cambiar de posición. También puedes usar las flechas arriba y abajo." className="shrink-0 px-2 py-2 rounded-lg text-slate-500 hover:bg-cyan-100 cursor-grab active:cursor-grabbing select-none" onDragStart={event => {
+            event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData(mime, JSON.stringify({ scope, index, identity }));
+        }} onDragEnd={() => setOver(false)} onKeyDown={event => {
+            if (!['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+            event.preventDefault(); onMove(index, index + (event.key === 'ArrowUp' ? -1 : 1), identity);
+        }}><span aria-hidden="true">⠿</span></span>
+        {children}
+    </div>;
+};

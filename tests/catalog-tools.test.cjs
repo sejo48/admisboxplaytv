@@ -81,3 +81,13 @@ test('Doramas conserva metadatos, enlaces, PIN y episodios al importar y exporta
  const draft=tools.draft({titulo:'Serie actualizada',tmdbType:'tv',tmdbId:50},parsed[1],'doramas');assert.deepEqual(draft.temporadas,parsed[1].temporadas);
  assert.throws(()=>tools.parseMixed({}),/lista/);
 });
+
+test('Mover episodios conserva sus enlaces y marca únicamente la temporada editada', () => {
+ const item={id:'show',temporadas:[{numeroTemporada:1,episodios:[{id:'a',tituloEpisodio:'Episodio 1',urlDrive:'https://example.test/1'},{id:'b',tituloEpisodio:'Episodio 2',urlDrive:'https://example.test/2'},{id:'c',tituloEpisodio:'Episodio 3',urlDrive:'https://example.test/3'}]},{numeroTemporada:2,episodios:[]}]};
+ const changed=tools.moveEpisode(item,0,0,2);
+ assert.deepEqual(changed.temporadas[0].episodios.map(e=>e.id),['b','c','a']);
+ assert.equal(changed.temporadas[0].episodeOrder,'manual');assert.equal(changed.temporadas[0].episodios[2].urlDrive,'https://example.test/1');assert.equal(changed.temporadas[1],item.temporadas[1]);
+ assert.deepEqual(item.temporadas[0].episodios.map(e=>e.id),['a','b','c']);
+ assert.equal(tools.moveEpisode(item,0,0,0),item);assert.equal(tools.moveEpisode(item,0,0,-1),item);assert.equal(tools.moveEpisode(item,0,0,3),item);
+ assert.equal(tools.serializeMixed([changed])[0].temporadas[0].episodeOrder,'manual');
+});
