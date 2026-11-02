@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', args: ['--no-sandbox'] });
     const origin = 'http://127.0.0.1:' + server.address().port;
-    const keys = ['movies','estrenos','tudum','series','tv','animados','radios','videoteca'];
+    const keys = ['movies','estrenos','tudum','series','tv','animados','doramas','radios','videoteca'];
     const errors = [];
     async function open(seed, hash = 'overview', quota = false) {
         const page = await browser.newPage();

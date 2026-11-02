@@ -23,7 +23,7 @@ const server = http.createServer((req, res) => {
             if (localStorage.getItem('review_fixture_ready')) return;
             localStorage.setItem('review_fixture_ready','1');
             const complete = {titulo:'Ficha completa',year:'2026',descripcion:'Sinopsis',imagen:'https://images.test/poster.jpg',director:'Directora',runtimeMin:90,genres:['Drama'],urlDrive:'https://drive.google.com/file/d/test/view'};
-            for (const name of ['movies','estrenos','tudum','series','tv','animados','radios','videoteca']) localStorage.setItem('boxplay_admin_'+name, '[]');
+            for (const name of ['movies','estrenos','tudum','series','tv','animados','doramas','radios','videoteca']) localStorage.setItem('boxplay_admin_'+name, '[]');
             localStorage.setItem('boxplay_admin_movies', JSON.stringify([
                 {...complete,id:'missing-drive',titulo:'Sin Drive',urlDrive:'  ',urlOkRu:'https://ok.ru/video/123'},
                 {...complete,id:'missing-director',titulo:'Sin director',director:''},

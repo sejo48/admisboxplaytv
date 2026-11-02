@@ -23,7 +23,7 @@ test('Exportar y GitHub Sync conservan Navidad y los enlaces en ambos catálogos
  const app=fs.readFileSync(path.join(__dirname,'../src/app.jsx'),'utf8');
  const sample=[{...item,navidad:true,urlDrive:'https://drive.google.com/file/d/prueba/view'}, {...item,id:'two',titulo:'El Grinch',navidad:false}, {...item,id:'three',titulo:'Automático'}];
  const metadata=item=>Object.fromEntries(['tmdbId','tmdbType'].filter(k=>item[k]!==undefined).map(k=>[k,item[k]]));
- const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[],animados:[],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
+ const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[],animados:[],doramas:[],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
  const start=app.indexOf('const datasets = ')+17;
  const end=app.indexOf(';\n\n                try {',start);
  const datasets=vm.runInNewContext('('+app.slice(start,end)+')',context);

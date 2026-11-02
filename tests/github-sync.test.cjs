@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../src/app.jsx'),'utf8');
-const loop=source.slice(source.indexOf('                    for (const [filename, content] of Object.entries(datasets))'),source.indexOf("                    showToast('¡Los 8 archivos"));
+const loop=source.slice(source.indexOf('                    for (const [filename, content] of Object.entries(datasets))'),source.indexOf("                    showToast('¡Los 9 archivos"));
 const run=new (Object.getPrototypeOf(async()=>{}).constructor)('datasets','fetch','utf8ToBase64',`const repo='owner/repo',branch='feature/catalog',token='test';let count=0;const total=Object.keys(datasets).length,setStep=null;${loop}`);
 const encode=text=>Buffer.from(text).toString('base64');
 

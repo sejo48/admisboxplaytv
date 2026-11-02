@@ -47,9 +47,16 @@
     }
     function draft(data, existing, destination) {
         const result = { ...(existing || { urlDrive: '', qualityTag: '', codigo: null }), ...data, title: data.titulo, image: data.imagen, id: existing?.id, isNew: !existing };
-        if (destination === 'series' || destination === 'animados') { result.tituloSerie = data.titulo; result.temporadas = existing?.temporadas || []; }
+        if (destination === 'series' || destination === 'animados' || destination === 'doramas') { result.tituloSerie = data.titulo; result.temporadas = existing?.temporadas || []; }
         if (destination === 'tudum') Object.assign(result,{ synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating });
         return result;
+    }
+    function parseMixed(items) {
+        if (!Array.isArray(items)) throw Error('Se esperaba una lista de películas y series.');
+        return items.map((item, i) => ({ ...item, id: item.id || `dorama-${i}`, imagen: item.imagen || item.image || '', image: item.imagen || item.image || '', tmdbType: item.temporadas?.length ? 'tv' : item.tmdbType || 'movie', temporadas: (item.temporadas || []).map((season, si) => ({ ...season, episodios: (season.episodios || []).map((ep, ei) => ({ ...ep, id: ep.id || `ep-dorama-${i}-${si}-${ei}` })) })) }));
+    }
+    function serializeMixed(items) {
+        return items.map(({ id, isNew, __formRevision, ...item }) => ({ ...item, tmdbType: item.temporadas?.length ? 'tv' : item.tmdbType || 'movie', temporadas: (item.temporadas || []).map(({ id, ...season }) => ({ ...season, episodios: (season.episodios || []).map(({ id, ...ep }) => ep) })) }));
     }
     function searchURL({ key, mediaType = 'movie', category = 'search', query = '', page = 1, year: selectedYear = '' }) {
         const type = mediaType === 'tv' ? 'tv' : 'movie';
@@ -60,6 +67,6 @@
         if (category === 'search') { params.set('query',query.trim()); if (/^\d{4}$/.test(selectedYear)) params.set(type === 'tv' ? 'first_air_date_year' : 'primary_release_year',selectedYear); }
         return `https://api.themoviedb.org/3/${endpoint}?${params}`;
     }
-    return { fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
+    return { parseMixed, serializeMixed, fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
 });
 

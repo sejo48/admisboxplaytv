@@ -27,7 +27,7 @@ const server = http.createServer((req, res) => {
                 return route.fulfill({json:url.includes('/search/')?{results:[movie],total_pages:1}:url.includes('/configuration')?{}:movie});
             });
             await page.addInitScript(()=>{
-                for(const key of ['movies','estrenos','series','tudum','tv','animados','radios','videoteca']) localStorage.setItem('boxplay_admin_'+key,'[]');
+                for(const key of ['movies','estrenos','series','tudum','tv','animados','doramas','radios','videoteca']) localStorage.setItem('boxplay_admin_'+key,'[]');
             });
             for(const [section,key,saveLabel] of [['movies','movies','Guardar Película'],['estrenos2026','estrenos','Guardar Estreno']]) {
                 await page.goto(origin+'/#'+section);

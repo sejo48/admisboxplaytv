@@ -21,7 +21,7 @@ const server = http.createServer((req, res) => {
         await page.route('https://**/*', route => route.abort());
         await page.addInitScript(() => {
             const items = Array.from({length:40}, (_, i) => ({id:'test-'+i, titulo:'Prueba '+i, title:'Prueba '+i, year:'2026', descripcion:'Descripción '+i}));
-            for (const name of ['movies','estrenos','tudum','series','tv','animados','radios','videoteca']) localStorage.setItem('boxplay_admin_'+name, JSON.stringify(['movies','estrenos','tudum'].includes(name) ? items : []));
+            for (const name of ['movies','estrenos','tudum','series','tv','animados','doramas','radios','videoteca']) localStorage.setItem('boxplay_admin_'+name, JSON.stringify(['movies','estrenos','tudum'].includes(name) ? items : []));
         });
         const origin = 'http://127.0.0.1:'+server.address().port;
         for (const width of [1920, 1366, 390]) {

@@ -71,3 +71,13 @@ test('La revisión respeta los alias de ficha y rechaza datos vacíos',()=>{
  assert(!tools.missingInfo({...complete,runtimeMin:0,runtime:'1h 30min'}).some(field=>field.id==='duration'));
 });
 
+
+test('Doramas conserva metadatos, enlaces, PIN y episodios al importar y exportar', () => {
+ const source=[{titulo:'Película',tmdbType:'movie',urlDrive:'https://example.test/movie',urlOkRu:'https://ok.ru/video/123',codigo:'1234',tmdbId:42},{titulo:'Serie',tmdbType:'tv',temporadas:[{numeroTemporada:2,episodios:[{tituloEpisodio:'Inicio',urlDrive:'https://example.test/episode'}]}]}];
+ const parsed=tools.parseMixed(source),exported=tools.serializeMixed(parsed);
+ assert.equal(exported[0].urlOkRu,source[0].urlOkRu);assert.equal(exported[0].codigo,'1234');assert.equal(exported[0].tmdbId,42);
+ assert.equal(exported[1].temporadas[0].episodios[0].urlDrive,source[1].temporadas[0].episodios[0].urlDrive);
+ assert(!('id' in exported[1].temporadas[0].episodios[0]));
+ const draft=tools.draft({titulo:'Serie actualizada',tmdbType:'tv',tmdbId:50},parsed[1],'doramas');assert.deepEqual(draft.temporadas,parsed[1].temporadas);
+ assert.throws(()=>tools.parseMixed({}),/lista/);
+});

@@ -148,7 +148,7 @@ const ThemeToggle = () => {
 };
 
 const ADMIN_GROUPS = [
-    {label:'Catálogo',ids:['overview','movies','estrenos2026','series','animados','tudum','review']},
+    {label:'Catálogo',ids:['overview','movies','estrenos2026','series','animados','doramas','tudum','review']},
     {label:'Descubrir',ids:['tmdb','trending']},
     {label:'Publicar',ids:['homecovers','notices']},
     {label:'En vivo y música',ids:['tv','radios','videoteca']}

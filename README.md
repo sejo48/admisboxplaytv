@@ -167,3 +167,15 @@ Validación con respuestas TMDB simuladas, en escritorio y móvil, sin escritura
 ```sh
 NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/movie-workflow-browser.cjs
 ```
+
+## Doramas
+
+Abre **Catálogo → Doramas** o https://sejo48.github.io/admisboxplaytv/#doramas. Pulsa **Nuevo**, elige **Serie** o **Película**, busca la ficha en TMDB o completa los datos manualmente y guarda. Para una serie, añade sus temporadas y episodios con sus enlaces. Para una película, completa el enlace del video.
+
+Los cambios se conservan en el navegador. **GitHub Sync** publica `doramas.json` junto con los otros ocho catálogos en StreamTube-V20. También se incluye en importaciones, exportaciones, respaldo completo y Deshacer. La sección pública empieza vacía; no se agregaron películas ni series de ejemplo al catálogo publicado. Doramas está disponible en la aplicación principal y en Smart TV y conserva el control de acceso y PIN existentes.
+
+Prueba integrada con catálogos aislados y sin escrituras remotas:
+
+```sh
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/doramas-browser.cjs
+```

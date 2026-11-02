@@ -6,6 +6,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             MOVIES: './peliculas.json',
             ESTRENOS2026: './peliculas2.json',
             ANIMADOS: './animados.json',
+            DORAMAS: './doramas.json',
             RADIOS: './radios.json',
             VIDEOTECA: './videoteca.json',
             TUDUM: './tudum.json'
@@ -17,6 +18,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             MOVIES: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/peliculas.json',
             ESTRENOS2026: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/peliculas2.json',
             ANIMADOS: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/animados.json',
+            DORAMAS: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/doramas.json',
             RADIOS: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/radios.json',
             VIDEOTECA: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/videoteca.json',
             TUDUM: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/tudum.json'
@@ -2401,7 +2403,11 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // EDITOR: ANIMADOS
         // ============================================================
-        const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+        const AnimadosEditor = ({ animados, setAnimados, showToast, requestConfirm, onTestPlayer, initialEdit, collection = 'animados' }) => {
+            const isDorama = collection === 'doramas';
+            const collectionLabel = isDorama ? 'Doramas' : 'Animados';
+            const itemLabel = isDorama ? 'Dorama' : 'Animado';
+            const editItem = item => { setTmdbType(item.tmdbType || (item.temporadas?.length ? 'tv' : item.isNew ? 'tv' : 'movie')); setEditingItem(item); };
             const [selectedItemId, setSelectedItemId] = useState(initialEdit?.id || null);
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
@@ -2429,8 +2435,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     }
                     return out;
                 });
-                downloadFile(JSON.stringify(exportArray, null, 2), 'animados.json', 'application/json');
-                showToast('Archivo animados.json generado');
+                downloadFile(JSON.stringify(isDorama ? BoxCatalog.serializeMixed(animados) : exportArray, null, 2), collection + '.json', 'application/json');
+                showToast('Archivo ' + collection + '.json generado');
             };
 
             const saveItemBase = (e) => {
@@ -2438,10 +2444,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 const formData = new FormData(e.target);
                 const titulo = formData.get('titulo').trim();
                 const existingIndex = animados.findIndex(a => (a.titulo || a.tituloSerie || '').toLowerCase() === titulo.toLowerCase() && (!editingItem || a.id !== editingItem.id));
-                if (existingIndex !== -1) { showToast(`El animado "${titulo}" ya existe.`, 'error'); return; }
+                if (existingIndex !== -1) { showToast(`El título "${titulo}" ya existe.`, 'error'); return; }
                 const rawImage = formData.get('imagen') || '';
                 const normalizedImage = normalizeImageUrl(rawImage);
+                if (isDorama && tmdbType === 'movie' && editingItem.temporadas?.length) { showToast('Elimina las temporadas antes de cambiar a película.', 'error'); return; }
                 const newData = {
+                    ...(isDorama ? editingItem : {}),
                     ...tmdbMetadata(editingItem),
                     titulo, tituloSerie: titulo,
                     descripcion: formData.get('descripcion') || '',
@@ -2451,14 +2459,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     qualityTag: formData.get('qualityTag') || ''
                 };
                 newData.tmdbType = tmdbType;
+                delete newData.isNew; delete newData.__formRevision;
                 if (editingItem.isNew) {
-                    const newItem = { ...newData, id: `anim-${Date.now()}`, temporadas: [] };
+                    const newItem = { ...newData, id: `${collection}-${Date.now()}`, temporadas: [] };
                     setAnimados([newItem, ...animados]);
                     setSelectedItemId(newItem.id);
-                    showToast('Animado creado');
+                    showToast(itemLabel + ' creado');
                 } else {
                     setAnimados(animados.map(s => s.id === editingItem.id ? { ...s, ...newData } : s));
-                    showToast('Animado actualizado');
+                    showToast(itemLabel + ' actualizado');
                 }
                 setEditingItem(null);
             };
@@ -2466,7 +2475,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const addSeason = () => {
                 if (!selectedItem) return;
                 const newSeasonNum = Math.max(0, ...(selectedItem.temporadas || []).map(t => Number(t.numeroTemporada) || 0)) + 1;
-                const updatedItem = { ...selectedItem, temporadas: [...(selectedItem.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
+                const updatedItem = { ...selectedItem, ...(isDorama ? { tmdbType: 'tv' } : {}), temporadas: [...(selectedItem.temporadas || []), { numeroTemporada: newSeasonNum, episodios: [] }] };
                 setAnimados(animados.map(s => s.id === selectedItem.id ? updatedItem : s));
                 showToast(`Temporada ${newSeasonNum} añadida`);
             };
@@ -2511,19 +2520,19 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <div className="w-full border-b border-slate-200 bg-slate-50">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
-                                <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="smile" className="text-orange-500" size={16} /> Animados</h2>
+                                <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="smile" className="text-orange-500" size={16} /> {collectionLabel}</h2>
                                 <span className="text-[10px] text-slate-500 font-bold">({animados.length} contenidos)</span>
                             </div>
                             <div className="flex gap-1.5">
-                                <button onClick={() => setEditingItem({ isNew: true })} className="bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1"><Icon name="plus" size={12} /> Nuevo</button>
+                                <button onClick={() => editItem({ isNew: true })} className="bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1"><Icon name="plus" size={12} /> Nuevo</button>
                                 <button onClick={exportData} className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1"><Icon name="download" size={12} /> Exportar</button>
                             </div>
                         </div>
                         <div className="p-3 bg-white border-b border-slate-200">
-                            <input type="text" placeholder="Buscar animados..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none text-xs" />
+                            <input type="text" placeholder={isDorama ? "Buscar doramas..." : "Buscar animados..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full p-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none text-xs" />
                         </div>
                         <div className="p-4"><CatalogToolbar {...catalog.props} />
-                            <div className="catalog-grid">{filteredAnimados.map(item => <CatalogPoster key={item.id} item={item} selected={selectedItem?.id === item.id} onSelect={() => { setSelectedItemId(item.id); requestAnimationFrame(()=>document.getElementById('animados-detail')?.scrollIntoView({block:'start',behavior:'smooth'})); }} onEdit={() => setEditingItem(item)} caption={item.tmdbType === 'tv' || item.temporadas?.length ? `${item.temporadas?.length || 0} temporadas` : 'Película animada'} />)}</div>
+                            <div className="catalog-grid">{filteredAnimados.map(item => <CatalogPoster key={item.id} item={item} selected={selectedItem?.id === item.id} onSelect={() => { setSelectedItemId(item.id); requestAnimationFrame(()=>document.getElementById('animados-detail')?.scrollIntoView({block:'start',behavior:'smooth'})); }} onEdit={() => editItem(item)} caption={item.tmdbType === 'tv' || item.temporadas?.length ? `${item.temporadas?.length || 0} temporadas` : (isDorama ? 'Película' : 'Película animada')} />)}</div>
                             {filteredAnimados.length === 0 && <p className="catalog-empty">No hay títulos que coincidan con estos filtros.</p>}
                         </div>
                     </div>
@@ -2532,21 +2541,21 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         {!selectedItem ? (
                             <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16">
                                 <Icon name="smile" size={48} className="mb-3 opacity-20 text-orange-500"/>
-                                <p className="text-sm font-bold text-slate-600">Ningún animado seleccionado</p>
-                                <p className="text-xs text-slate-400 mt-1">Selecciona un animado para administrar su contenido.</p>
+                                <p className="text-sm font-bold text-slate-600">{isDorama ? "Ningún dorama seleccionado" : "Ningún animado seleccionado"}</p>
+                                <p className="text-xs text-slate-400 mt-1">{isDorama ? "Añade o selecciona una película o serie asiática para administrar su contenido." : "Selecciona un animado para administrar su contenido."}</p>
                             </div>
                         ) : (
                             <div className="animate-fade-in space-y-6">
                                 <div className="flex flex-col gap-4 border-b border-slate-100 pb-5">
                                     <div className="w-full min-w-0"><MediaProfile item={selectedItem} kind="movie" /></div>
                                     <div className="flex gap-2 w-full sm:w-auto justify-end shrink-0">
-                                        <button onClick={() => setEditingItem(selectedItem)} className="px-3.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">Editar Info</button>
+                                        <button onClick={() => editItem(selectedItem)} className="px-3.5 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors">Editar Info</button>
                                         <button onClick={() => requestConfirm(`¿Borrar "${selectedItem.titulo || selectedItem.tituloSerie}"?`, () => { setAnimados(animados.filter(s => s.id !== selectedItem.id)); setSelectedItemId(null); })} className="px-3.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors">Borrar</button>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                                        <span>Temporadas (Si es serie animada)</span>
+                                        <span>{isDorama ? "Temporadas y episodios" : "Temporadas (Si es serie animada)"}</span>
                                         <span className="text-[11px] font-mono bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-bold">{selectedItem.temporadas?.length || 0}</span>
                                     </h3>
                                     <button onClick={addSeason} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all"><Icon name="plus" size={12} /> Añadir Temporada</button>
@@ -2554,7 +2563,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                 <div className="space-y-4">
                                     {(selectedItem.temporadas || []).length === 0 ? (
                                         <div className="p-5 border border-dashed border-slate-300 rounded-2xl text-center text-xs text-slate-500">
-                                            Este animado está configurado como película individual. Si deseas convertirlo en serie por episodios, haz clic en "Añadir Temporada".
+                                            {isDorama ? (selectedItem.tmdbType === "tv" ? "Añade la primera temporada y sus episodios." : "Película individual. Para convertirla en serie, añade una temporada.") : 'Este animado está configurado como película individual. Si deseas convertirlo en serie por episodios, haz clic en "Añadir Temporada".'}
                                         </div>
                                     ) : (
                                         (selectedItem.temporadas || []).map((season, sIdx) => (
@@ -2593,11 +2602,11 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     {editingItem && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="admin-editor-dialog bg-white p-6 sm:p-7 rounded-3xl shadow-2xl border border-slate-100 w-full max-h-[90vh] overflow-y-auto space-y-4">
-                                <h3 className="font-extrabold text-base text-slate-900">{editingItem.isNew ? 'Nuevo Animado' : 'Editar Información del Animado'}</h3>
+                                <h3 className="font-extrabold text-base text-slate-900">{(editingItem.isNew ? 'Nuevo ' : 'Editar ') + itemLabel}</h3>
                                 <form key={`${editingItem.tmdbId || editingItem.id || "manual"}:${editingItem.__formRevision || 0}`} onSubmit={saveItemBase} className="space-y-3.5">
-                                    <label className="text-xs">Tipo en TMDB <select value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
+                                    <label className="text-xs">{isDorama ? "Tipo de contenido" : "Tipo en TMDB"} <select aria-label="Tipo de contenido" value={tmdbType} onChange={e => setTmdbType(e.target.value)}><option value="tv">Serie</option><option value="movie">Película</option></select></label><MovieAutoSearch mediaType={tmdbType} showToast={showToast} onUse={data => setEditingItem(current => ({ ...current, ...tmdbMetadata(data), __formRevision: Date.now(), titulo: data.titulo, descripcion: data.descripcion, imagen: data.imagen }))} />
                                     <MediaMetadataFields item={editingItem} onChange={setEditingItem} />
-                                    <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Ej: Los Simpson" /></div>
+                                    <div><label className="block text-xs font-bold mb-1 text-slate-700">Título</label><input name="titulo" defaultValue={editingItem.titulo || editingItem.tituloSerie || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder={isDorama ? "Título del dorama" : "Ej: Los Simpson"} /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL de Portada</label><input name="imagen" defaultValue={editingItem.imagen || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://..." /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Video (Opcional)</label><input name="urlDrive" defaultValue={editingItem.urlDrive || ''} className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://drive.google.com/file/d/..." /></div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -2607,7 +2616,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Descripción</label><textarea name="descripcion" defaultValue={editingItem.descripcion || ''} rows="3" className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Sinopsis..."></textarea></div>
                                     <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                                         <button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold">Cancelar</button>
-                                        <button type="submit" className="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-xs shadow-md">Guardar Animado</button>
+                                        <button type="submit" className="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold text-xs shadow-md">Guardar {itemLabel}</button>
                                     </div>
                                 </form>
                             </div>
@@ -2616,7 +2625,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4">
-                                <h3 className="font-extrabold text-base text-slate-900">{editingEpisode.isNew ? 'Añadir Episodio Animado' : 'Editar Episodio'}</h3>
+                                <h3 className="font-extrabold text-base text-slate-900">{editingEpisode.isNew ? (isDorama ? 'Añadir Episodio' : 'Añadir Episodio Animado') : 'Editar Episodio'}</h3>
                                 <form onSubmit={saveEpisode} className="space-y-3.5">
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">Título del Episodio</label><input name="tituloEpisodio" defaultValue={editingEpisode.epData?.tituloEpisodio || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" placeholder="Episodio 1" /></div>
                                     <div><label className="block text-xs font-bold mb-1 text-slate-700">URL del Video</label><input name="urlDrive" defaultValue={editingEpisode.epData?.urlDrive || ''} required className="w-full p-2.5 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500 font-mono" placeholder="https://..." /></div>
@@ -3292,7 +3301,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // HOOK: HISTORIAL CENTRALIZADO
         // ============================================================
         const useHistoryTracker = ({
-            movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled
+            movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, enabled
         }) => {
             const historyRef = useRef({ history: [], index: -1 });
             const skipRef = useRef(false);
@@ -3303,13 +3312,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 if (!enabled) return;
                 if (skipRef.current) { skipRef.current = false; return; }
                 if (historyRef.current.index < 0) {
-                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, doramas, radios, videoteca };
                     historyRef.current = { history: [snapshot], index: 0 };
                     return;
                 }
                 if (timerRef.current) clearTimeout(timerRef.current);
                 timerRef.current = setTimeout(() => {
-                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, radios, videoteca };
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, doramas, radios, videoteca };
                     const ref = historyRef.current;
                     const baseIdx = ref.index < 0 ? 0 : ref.index;
                     const sliced = ref.history.slice(0, baseIdx + 1);
@@ -3320,7 +3329,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     setHistoryState({ history: sliced, index: ref.index });
                 }, 400);
                 return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-            }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, enabled]);
+            }, [movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, enabled]);
 
             const undo = useCallback(() => {
                 const ref = historyRef.current;
@@ -3357,8 +3366,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <h2 className="text-2xl font-black">Explorar TMDB</h2>
                     <p className="text-sm text-slate-600">1. Busca la película o serie. 2. Elige su catálogo. 3. Revisa la ficha y añade el enlace de reproducción en su editor. TMDB aporta portadas y datos, no los videos.</p>
                     <div className="tmdb-destination-bar">
-                        <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(e.target.value === 'tv' ? 'series' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
-                        <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <option value="series">Series</option>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option></select></label>
+                        <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(['doramas','animados','tudum'].includes(destination) ? destination : e.target.value === 'tv' ? 'series' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
+                        <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <option value="series">Series</option>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option><option value="doramas">Doramas</option></select></label>
                         <label>Aplicar a <select aria-label="Título que quieres editar" value={targetId} onChange={e => setTargetId(e.target.value)} className="p-2 rounded-lg ml-2 max-w-full"><option value="">Crear nuevo (o abrir el existente si coincide)</option>{items.map(item => <option key={item.id} value={String(item.id)}>{titleOf(item)}</option>)}</select></label>
                     </div>
                     {targetId && <p className="text-sm text-slate-600">Se actualizará la ficha del título elegido. Sus enlaces, PIN y temporadas se conservarán.</p>}
@@ -3440,7 +3449,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <label className="block text-sm font-bold">Título<input aria-label="Título del aviso" value={title} onChange={event => { candidateId.current = crypto.randomUUID(); setTitle(event.target.value); }} maxLength={120} required disabled={busy} className="mt-1 w-full p-3 border rounded-xl"/></label>
                     <label className="block text-sm font-bold">Mensaje<textarea aria-label="Mensaje del aviso" value={message} onChange={event => { candidateId.current = crypto.randomUUID(); setMessage(event.target.value); }} maxLength={1000} required disabled={busy} rows={4} className="mt-1 w-full p-3 border rounded-xl"/></label>
                     <div className="grid sm:grid-cols-2 gap-3">
-                        <label className="block text-sm font-bold">Abrir sección<select aria-label="Sección del aviso" value={target} onChange={event => { candidateId.current = crypto.randomUUID(); setTarget(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[['home','Inicio'],['movies','Películas'],['movies2','Estrenos'],['series','Series'],['animados','Animados'],['tv','TV'],['radio','Radio'],['payments','Acceso por 30 días']].map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+                        <label className="block text-sm font-bold">Abrir sección<select aria-label="Sección del aviso" value={target} onChange={event => { candidateId.current = crypto.randomUUID(); setTarget(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[['home','Inicio'],['movies','Películas'],['movies2','Estrenos'],['series','Series'],['animados','Animados'],['doramas','Doramas'],['tv','TV'],['radio','Radio'],['payments','Acceso por 30 días']].map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
                         <label className="block text-sm font-bold">Mostrar durante<select aria-label="Duración del aviso" value={duration} onChange={event => { candidateId.current = crypto.randomUUID(); setDuration(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[1,3,7,30].map(days => <option key={days} value={days}>{days} días</option>)}</select></label>
                     </div>
                     <div className="bg-slate-950 text-white rounded-2xl p-5"><p className="text-xs text-cyan-300 mb-2">VISTA PREVIA</p><h3 className="font-bold">{title || 'Título del aviso'}</h3><p className="text-sm text-slate-300 mt-2 whitespace-pre-wrap break-words">{message || 'Aquí aparecerá tu mensaje.'}</p></div>
@@ -3457,7 +3466,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [tmdbRequest,setTmdbRequest] = useState({ destination:'movies',type:'movie',key:0 });
             const selectSection = id => { setActiveTab(id); window.history.replaceState(null,'',window.location.pathname+window.location.search+'#'+(id==='homecovers'?'portadas':id==='notices'?'avisos':id)); };
             useEffect(() => { const openFromHash=()=>setActiveTab(adminSectionFromHash()); window.addEventListener('hashchange',openFromHash); return ()=>window.removeEventListener('hashchange',openFromHash); },[]);
-            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:section==='series'?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
+            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','doramas','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:['series','doramas'].includes(section)?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
             const [editorRequest, setEditorRequest] = useState(null);
             useEffect(() => {
                 if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);
@@ -3479,6 +3488,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [series, setSeries] = useState([]);
             const [channels, setChannels] = useState([]);
             const [animados, setAnimados] = useState([]);
+            const [doramas, setDoramas] = useState([]);
             const [radios, setRadios] = useState([]);
             const [videoteca, setVideoteca] = useState([]);
             const [dataInitialized, setDataInitialized] = useState(false);
@@ -3502,7 +3512,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }, [showToast]);
 
             const { historyState, undo } = useHistoryTracker({
-                movies, estrenos, tudumList, series, channels, animados, radios, videoteca,
+                movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca,
                 enabled: dataInitialized
             });
 
@@ -3515,6 +3525,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 setSeries(prev.series);
                 setChannels(prev.channels);
                 setAnimados(prev.animados);
+                setDoramas(prev.doramas);
                 setRadios(prev.radios);
                 setVideoteca(prev.videoteca);
                 showToast('Cambio deshecho');
@@ -3540,6 +3551,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         }))
                     })),
                     animados: animados.map(({ id, ...r }) => r),
+                    doramas: BoxCatalog.serializeMixed(doramas),
                     radios: radios.map(({ id, ...r }) => r),
                     videoteca: videoteca.map(({ id, pistas, tracks, ...v }) => ({
                         artist: v.artist, album: v.album, year: v.year, genre: v.genre,
@@ -3556,7 +3568,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const fetchFromCloud = async (preserve = new Set()) => {
                 setLoading(true);
                 try {
-                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'radios', 'videoteca'];
+                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'doramas', 'radios', 'videoteca'];
                     const results = await Promise.allSettled([
                         preserve.has('tv') ? null : fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
                         preserve.has('series') ? null : fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
@@ -3564,11 +3576,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         preserve.has('estrenos') ? null : fetchSmart(SOURCE_URLS.ESTRENOS2026, RAW_URLS.ESTRENOS2026, true),
                         preserve.has('tudum') ? null : fetchSmart(SOURCE_URLS.TUDUM, RAW_URLS.TUDUM, true),
                         preserve.has('animados') ? null : fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
+                        preserve.has('doramas') ? null : fetchSmart(SOURCE_URLS.DORAMAS, RAW_URLS.DORAMAS, true),
                         preserve.has('radios') ? null : fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
                         preserve.has('videoteca') ? null : fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
                     ]);
 
-                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resRadios, resVideoteca] = results.map(result => result.status === 'fulfilled' ? result.value : null);
+                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resDoramas, resRadios, resVideoteca] = results.map(result => result.status === 'fulfilled' ? result.value : null);
                     const parsedChannels = parseM3U(resTV || '').map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
 
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
@@ -3607,6 +3620,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         }))
                     }));
 
+                    const parsedDoramas = BoxCatalog.parseMixed(Array.isArray(resDoramas) ? resDoramas : (resDoramas?.doramas || []));
+
                     const parsedRadios = (Array.isArray(resRadios) ? resRadios : (resRadios?.radios || [])).map((r, i) => ({
                         ...r, id: r.id || `cr-${i}`,
                         logo: normalizeImageUrl(r.logo || r.imagen || ''),
@@ -3621,8 +3636,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
 
-                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedRadios, parsedVideoteca];
-                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setRadios, setVideoteca];
+                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedDoramas, parsedRadios, parsedVideoteca];
+                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setDoramas, setRadios, setVideoteca];
                     const failed = [];
                     keys.forEach((key, index) => {
                         if (preserve.has(key)) return;
@@ -3643,7 +3658,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             };
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
-                if (loadedCatalogs.current.size < 8) {
+                if (loadedCatalogs.current.size < 9) {
                     showToast('Faltan catálogos por cargar. Recarga los datos antes de publicar para evitar sobrescribirlos con listas vacías.', 'error');
                     return;
                 }
@@ -3654,6 +3669,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 if (!testRes.ok) { showToast('Token de GitHub inválido o expirado', 'error'); return; }
 
                 const datasets = {
+                    'doramas.json': BoxCatalog.serializeMixed(doramas),
                     'peliculas.json': movies.map(({ id, ...rest }) => ({
                         titulo: rest.titulo || rest.title,
                         tituloOriginal: rest.tituloOriginal || '',
@@ -3837,7 +3853,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             throw new Error(`Error actualizando ${filename}: ${errData.message || putRes.statusText}`);
                         }
                     }
-                    showToast('¡Los 8 archivos se actualizaron en GitHub! Espera ~1 min a que se propague.');
+                    showToast('¡Los 9 archivos se actualizaron en GitHub! Espera ~1 min a que se propague.');
                 } catch (err) {
                     console.error(err);
                     showToast(`Error al sincronizar: ${err.message}`, 'error');
@@ -3863,11 +3879,17 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             if (parsed.estrenos2026) setEstrenos(parsed.estrenos2026.map((m, i) => ({ ...m, id: `est-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') })));
                             if (parsed.tudum) setTudumList(parsed.tudum.map((t, i) => ({ ...t, id: `tudum-${i}`, image: normalizeImageUrl(t.image || t.imagen || ''), imagen: normalizeImageUrl(t.image || t.imagen || '') })));
                             if (parsed.series) setSeries(parsed.series.map((s, i) => ({ ...s, id: `serie-${i}`, imagen: normalizeImageUrl(s.imagen || s.image || ''), image: normalizeImageUrl(s.imagen || s.image || '') })));
+                            if (parsed.doramas) setDoramas(BoxCatalog.parseMixed(parsed.doramas));
                             if (parsed.animados) setAnimados(parsed.animados.map((a, i) => ({ ...a, id: `anim-${i}`, imagen: normalizeImageUrl(a.imagen || a.image || ''), image: normalizeImageUrl(a.imagen || a.image || '') })));
                             if (parsed.radios) setRadios(parsed.radios.map((r, i) => ({ ...r, id: `cr-${i}`, logo: normalizeImageUrl(r.logo || r.imagen || ''), imagen: normalizeImageUrl(r.logo || r.imagen || '') })));
                             if (parsed.videoteca) setVideoteca(parsed.videoteca.map((v, i) => ({ ...v, id: `vid-${i}`, cover: normalizeImageUrl(v.cover || v.imagen || v.image || ''), imagen: normalizeImageUrl(v.cover || v.imagen || v.image || ''), image: normalizeImageUrl(v.cover || v.imagen || v.image || '') })));
                             if (parsed.tvM3U) setChannels(parseM3U(parsed.tvM3U).map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') })));
                             showToast('¡Backup completo restaurado!');
+                        } else if (filename.includes('doramas')) {
+                            const parsed = JSON.parse(content);
+                            const list = BoxCatalog.parseMixed(Array.isArray(parsed) ? parsed : parsed.doramas);
+                            setDoramas(list);
+                            showToast(`Importados ${list.length} doramas`);
                         } else if (filename.includes('peliculas2')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.peliculas2 || parsed.peliculas || [])).map((m, i) => ({ ...m, id: `est-${Date.now()}-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') }));
@@ -3916,7 +3938,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 const loadData = async () => {
-                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, tv: setChannels, animados: setAnimados, radios: setRadios, videoteca: setVideoteca };
+                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, tv: setChannels, animados: setAnimados, doramas: setDoramas, radios: setRadios, videoteca: setVideoteca };
                     for (const [key, setter] of Object.entries(catalogs)) {
                         try {
                             const raw = localStorage.getItem('boxplay_admin_' + key) || localStorage.getItem('magis_admin_' + key);
@@ -3939,7 +3961,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 if (!dataInitialized) return;
-                const catalogs = { movies, estrenos, tudum: tudumList, series, tv: channels, animados, radios, videoteca };
+                const catalogs = { movies, estrenos, tudum: tudumList, series, tv: channels, animados, doramas, radios, videoteca };
                 let failed = false;
                 for (const [key, data] of Object.entries(catalogs)) {
                     // Never cache failed initial downloads as valid empty catalogs.
@@ -3950,7 +3972,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     } catch (error) { failed = true; }
                 }
                 setStorageError(failed ? 'No se pudieron guardar todos los cambios en este navegador. Descarga un Backup antes de cerrar o recargar la página.' : '');
-            }, [movies, estrenos, tudumList, series, channels, animados, radios, videoteca, dataInitialized]);
+            }, [movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, dataInitialized]);
 
             if (loading) {
                 return (
@@ -3973,6 +3995,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 { id: 'estrenos2026', label: 'Estrenos 2026', icon: 'sparkles', count: estrenos.length, color: 'text-amber-500' },
                 { id: 'tudum', label: 'Netflix Tudum', icon: 'flame', count: tudumList.length, color: 'text-rose-500' },
                 { id: 'series', label: 'Series', icon: 'film', count: series.length, color: 'text-purple-500' },
+                { id: 'doramas', label: 'Doramas', icon: 'film', count: doramas.length, color: 'text-pink-500' },
                 { id: 'animados', label: 'Animados', icon: 'smile', count: animados.length, color: 'text-orange-500' },
                 { id: 'videoteca', label: 'BoxPlayMusic', icon: 'disc', count: videoteca.length, color: 'text-yellow-600' },
                 { id: 'tv', label: 'TV en Vivo', icon: 'tv', count: channels.length, color: 'text-cyan-500' },
@@ -4015,20 +4038,21 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <nav className="admin-navigation" aria-label="Secciones del administrador"><label className="admin-mobile-section">Sección<select aria-label="Elegir sección" value={activeTab} onChange={e=>selectSection(e.target.value)}>{ADMIN_GROUPS.map(group=><optgroup label={group.label} key={group.label}>{group.ids.map(id=><option key={id} value={id}>{tabs.find(tab=>tab.id===id)?.label}</option>)}</optgroup>)}</select></label>{ADMIN_GROUPS.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p><div>{group.ids.map(id => { const tab=tabs.find(t=>t.id===id);return <button key={id} type="button" aria-current={activeTab===id?'page':undefined} onClick={() => selectSection(id)}><Icon name={tab.icon} size={14}/><span>{tab.label}</span>{tab.count>0&&<small>{tab.count}</small>}</button>;})}</div></div>)}</nav>
                     </header>
                     <main className="admin-main flex-1 w-full p-4 md:p-6 lg:p-8">
-                        <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
+                        <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','doramas','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
                         {loadError && <div role="alert" className="p-4 mb-4 rounded-xl bg-amber-100 text-amber-950">{loadError}</div>}
                         {storageError && <div role="alert" className="p-4 mb-4 rounded-xl bg-rose-100 text-rose-950">{storageError}</div>}
                         <ErrorBoundary>
-                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas</h3><p>Detecta enlaces de Google Drive y datos de ficha que faltan en Películas y Estrenos 2026.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
+                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','doramas','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas</h3><p>Detecta enlaces de Google Drive y datos de ficha que faltan en Películas y Estrenos 2026.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series, doramas y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
                             {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} onOpenEditor={openCatalogEditor} />}
                             {activeTab === 'homecovers' && <HomeCoversEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'notices' && <NoticesEditor showToast={showToast} requestConfirm={requestConfirm} />}
-                            {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados] }} showToast={showToast} />}
+                            {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados], doramas: [doramas, setDoramas] }} showToast={showToast} />}
                             {activeTab === 'movies' && (<MoviesEditor initialEdit={editorRequest?.section === 'movies' ? editorRequest.item : null} movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
                             {activeTab === 'estrenos2026' && (<Estrenos2026Editor initialEdit={editorRequest?.section === 'estrenos2026' ? editorRequest.item : null} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'tudum' && (<TudumEditor initialEdit={editorRequest?.section === 'tudum' ? editorRequest.item : null} tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'series' && (<SeriesEditor initialEdit={editorRequest?.section === 'series' ? editorRequest.item : null} series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'doramas' && (<AnimadosEditor collection="doramas" initialEdit={editorRequest?.section === 'doramas' ? editorRequest.item : null} animados={doramas} setAnimados={setDoramas} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'animados' && (<AnimadosEditor initialEdit={editorRequest?.section === 'animados' ? editorRequest.item : null} animados={animados} setAnimados={setAnimados} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'videoteca' && (<VideotecaEditor videoteca={videoteca} setVideoteca={setVideoteca} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'tv' && (<TvEditor channels={channels} setChannels={setChannels} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
