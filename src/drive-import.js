@@ -20,12 +20,14 @@
   const ref=folder(value);if(!String(key||'').trim())throw Error('Configura primero la clave de Google Drive API.');
   async function get(path,params){
    const url=new URL('https://www.googleapis.com/drive/v3/'+path);url.search=new URLSearchParams({...params,key:key.trim()});
-   const response=await request(url.href,{signal,headers:ref.resourceKey?{'X-Goog-Drive-Resource-Keys':ref.id+'/'+ref.resourceKey}:{}});
+   let response;
+   try{response=await request(url.href,{signal,headers:ref.resourceKey?{'X-Goog-Drive-Resource-Keys':ref.id+'/'+ref.resourceKey}:{}});}
+   catch(error){if(signal?.aborted||error.name==='AbortError')throw error;throw Error('No se pudo conectar a Google Drive. Intenta de nuevo y comprueba que el navegador no esté bloqueando la conexión.');}
    const data=await response.json().catch(()=>({}));
    if(!response.ok){if(response.status===404)throw Error('No se encontró la carpeta o no está compartida públicamente.');if(response.status===400||response.status===403)throw Error('Google no permitió leer la carpeta. Revisa la clave, activa Google Drive API y comprueba que la carpeta esté compartida con cualquier persona con el enlace.');throw Error('No se pudo consultar Google Drive. Intenta de nuevo.');}
    return data;
   }
-  const info=await get(encodeURIComponent(ref.id),{fields:'id,name,mimeType',supportsAllDrives:'true'});
+  const info=await get('files/'+encodeURIComponent(ref.id),{fields:'id,name,mimeType',supportsAllDrives:'true'});
   if(info.mimeType!=='application/vnd.google-apps.folder')throw Error('El enlace debe corresponder a una carpeta, no a un archivo.');
   let token='',ignored=0;const files=[],seen=new Set();
   do{

@@ -4,10 +4,11 @@ test('Lee carpeta, resourcekey y rechaza enlaces de otros sitios',()=>{assert.de
 test('Lee todas las páginas y ordena naturalmente, filtrando imágenes y subcarpetas',async()=>{
  const calls=[];const result=await D.listFolder('https://drive.google.com/drive/folders/folder_123456?resourcekey=public-key','fake-api-key',{fetch:async(url,options)=>{
   const u=new URL(url);calls.push(u);assert.equal(options.headers['X-Goog-Drive-Resource-Keys'],'folder_123456/public-key');
-  if(u.pathname.endsWith('/folder_123456'))return {ok:true,json:async()=>({name:'Temporada 1',mimeType:'application/vnd.google-apps.folder'})};
+  if(u.pathname==='/drive/v3/files/folder_123456')return {ok:true,json:async()=>({name:'Temporada 1',mimeType:'application/vnd.google-apps.folder'})};
+  assert.equal(u.pathname,'/drive/v3/files','Folder and list requests must use the official files endpoint');
   assert.match(u.searchParams.get('q'),/trashed = false/);
   return {ok:true,json:async()=>u.searchParams.get('pageToken')?{files:[{id:'one',name:'Episodio 1.mp4',mimeType:'video/mp4'},{id:'two',name:'Episodio 2.mkv',mimeType:'application/octet-stream'}]}:{nextPageToken:'next',files:[{id:'ten',name:'Episodio 10.mp4',mimeType:'video/mp4'},{id:'image',name:'Portada.jpg',mimeType:'image/jpeg'},{id:'subfolder',name:'Otro',mimeType:'application/vnd.google-apps.folder'}]}};
- }});assert.deepEqual(result.files.map(x=>x.title),['Episodio 1','Episodio 2','Episodio 10']);assert.equal(calls.length,3);assert.equal(result.ignored,2);
+ }});assert.deepEqual(result.files.map(x=>x.title),['Episodio 1','Episodio 2','Episodio 10']);assert.equal(calls.length,3);assert.equal(calls[0].pathname,'/drive/v3/files/folder_123456');assert.equal(result.ignored,2);
 });
 test('Una página fallida no devuelve una importación parcial',async()=>{let calls=0;await assert.rejects(D.listFolder('folder_123456','key',{fetch:async()=>({ok:++calls<3,status:403,json:async()=>calls===1?{mimeType:'application/vnd.google-apps.folder'}:calls===2?{nextPageToken:'next',files:[{id:'one',name:'E01.mp4',mimeType:'video/mp4'}]}:{}})}),/Google no permitió/);});
 test('Conserva metadatos y episodios, evita duplicados por ID y título, y permite temporada nueva',()=>{
@@ -16,3 +17,5 @@ test('Conserva metadatos y episodios, evita duplicados por ID y título, y permi
  assert.equal(D.append(result.serie,1,files).added,0);const next=D.append(serie,2,[files[2]]);assert.equal(next.serie.temporadas.length,2);assert.equal(next.serie.temporadas[1].numeroTemporada,2);
 });
 test('Los accesos directos conservan el ID real y la clave de recurso',()=>{const item=D.normalize({id:'shortcut',name:'Capitulo.mp4',mimeType:'application/vnd.google-apps.shortcut',shortcutDetails:{targetId:'target',targetMimeType:'video/mp4',targetResourceKey:'resource'}});assert.equal(item.fileId,'target');assert.match(item.url,/resourcekey=resource/);});
+
+test('Un fallo de conexión ofrece un mensaje claro y cancelar conserva AbortError',async()=>{await assert.rejects(D.listFolder('folder_123456','key',{fetch:async()=>{throw new TypeError('Failed to fetch');}}),/No se pudo conectar a Google Drive/);const controller=new AbortController();controller.abort();await assert.rejects(D.listFolder('folder_123456','key',{signal:controller.signal,fetch:async()=>{throw new DOMException('Cancelled','AbortError');}}),{name:'AbortError'});});
