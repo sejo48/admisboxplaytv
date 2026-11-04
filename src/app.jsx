@@ -2184,6 +2184,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [selectedSerieId, setSelectedSerieId] = useState(initialEdit?.id || null);
             const [editingSerie, setEditingSerie] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
+            const [driveImportOpen, setDriveImportOpen] = useState(false);
             useEffect(() => { if (initialEdit) { setEditingSerie(initialEdit); setSelectedSerieId(initialEdit.id || null); } }, [initialEdit]);
             const [searchTerm, setSearchTerm] = useState('');
             const selectedSerie = series.find(s => s.id === selectedSerieId);
@@ -2241,6 +2242,11 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     showToast('Serie actualizada');
                 }
                 setEditingSerie(null);
+            };
+
+            const importDriveEpisodes = (number, files) => {
+                setSeries(current => current.map(item => item.id === selectedSerieId ? BoxDriveImport.append(item, number, files).serie : item));
+                showToast('Episodios de Drive añadidos. Revisa la temporada y publica con GitHub Sync.');
             };
 
             const addSeason = () => {
@@ -2325,11 +2331,12 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                         <button onClick={() => requestConfirm(`¿Borrar la serie "${selectedSerie.tituloSerie}"?`, () => { setSeries(series.filter(s => s.id !== selectedSerie.id)); setSelectedSerieId(null); })} className="px-3.5 py-1.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl text-xs font-bold transition-colors">Borrar</button>
                                     </div>
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-wrap gap-3 justify-between items-center">
                                     <h3 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
                                         <span>Temporadas y Capítulos</span>
                                         <span className="text-[11px] font-mono bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-bold">{selectedSerie.temporadas?.length || 0}</span>
                                     </h3>
+                                    <button type="button" onClick={() => setDriveImportOpen(true)} className="admin-outline-button">Importar episodios de Google Drive</button>
                                     <button onClick={addSeason} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all"><Icon name="plus" size={12} /> Añadir Temporada</button>
                                 </div>
                                 <p className="text-xs text-slate-500">Arrastra el asa ⠿ de un episodio para cambiar su posición dentro de la temporada. Publica el nuevo orden con GitHub Sync.</p>
@@ -2392,6 +2399,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         </div>
                     )}
 
+                    {driveImportOpen && selectedSerie && <DriveImportDialog serie={selectedSerie} onClose={() => setDriveImportOpen(false)} onImport={importDriveEpisodes} />}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4">
