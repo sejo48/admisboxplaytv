@@ -1,0 +1,18 @@
+const test=require('node:test'),assert=require('node:assert/strict'),D=require('../src/drive-import.js');
+const serie={id:'series',tituloSerie:'Mi serie',imagen:'poster',codigo:'1234',temporadas:[{numeroTemporada:1,episodios:[{id:'existing',tituloEpisodio:'Piloto',urlDrive:'https://drive.google.com/file/d/known-file/view'}]}]};
+test('Lee carpeta, resourcekey y rechaza enlaces de otros sitios',()=>{assert.deepEqual(D.folder('https://drive.google.com/drive/u/0/folders/folder_123456?resourcekey=test'),{id:'folder_123456',resourceKey:'test'});assert.throws(()=>D.folder('https://example.com/folders/folder_123456'));});
+test('Lee todas las páginas y ordena naturalmente, filtrando imágenes y subcarpetas',async()=>{
+ const calls=[];const result=await D.listFolder('https://drive.google.com/drive/folders/folder_123456?resourcekey=public-key','fake-api-key',{fetch:async(url,options)=>{
+  const u=new URL(url);calls.push(u);assert.equal(options.headers['X-Goog-Drive-Resource-Keys'],'folder_123456/public-key');
+  if(u.pathname.endsWith('/folder_123456'))return {ok:true,json:async()=>({name:'Temporada 1',mimeType:'application/vnd.google-apps.folder'})};
+  assert.match(u.searchParams.get('q'),/trashed = false/);
+  return {ok:true,json:async()=>u.searchParams.get('pageToken')?{files:[{id:'one',name:'Episodio 1.mp4',mimeType:'video/mp4'},{id:'two',name:'Episodio 2.mkv',mimeType:'application/octet-stream'}]}:{nextPageToken:'next',files:[{id:'ten',name:'Episodio 10.mp4',mimeType:'video/mp4'},{id:'image',name:'Portada.jpg',mimeType:'image/jpeg'},{id:'subfolder',name:'Otro',mimeType:'application/vnd.google-apps.folder'}]}};
+ }});assert.deepEqual(result.files.map(x=>x.title),['Episodio 1','Episodio 2','Episodio 10']);assert.equal(calls.length,3);assert.equal(result.ignored,2);
+});
+test('Una página fallida no devuelve una importación parcial',async()=>{let calls=0;await assert.rejects(D.listFolder('folder_123456','key',{fetch:async()=>({ok:++calls<3,status:403,json:async()=>calls===1?{mimeType:'application/vnd.google-apps.folder'}:calls===2?{nextPageToken:'next',files:[{id:'one',name:'E01.mp4',mimeType:'video/mp4'}]}:{}})}),/Google no permitió/);});
+test('Conserva metadatos y episodios, evita duplicados por ID y título, y permite temporada nueva',()=>{
+ const before=JSON.stringify(serie),files=[{fileId:'known-file',title:'Piloto renombrado',url:'https://drive.google.com/file/d/known-file/preview'},{fileId:'different',title:'PILOTO',url:'https://drive.google.com/file/d/different/view'},{fileId:'new-file',title:'Episodio 2',url:'https://drive.google.com/file/d/new-file/view'}];
+ const result=D.append(serie,1,files);assert.equal(result.added,1);assert.equal(result.skipped,2);assert.equal(result.serie.codigo,'1234');assert.equal(result.serie.imagen,'poster');assert.equal(result.serie.temporadas[0].episodios.length,2);assert.equal(JSON.stringify(serie),before);
+ assert.equal(D.append(result.serie,1,files).added,0);const next=D.append(serie,2,[files[2]]);assert.equal(next.serie.temporadas.length,2);assert.equal(next.serie.temporadas[1].numeroTemporada,2);
+});
+test('Los accesos directos conservan el ID real y la clave de recurso',()=>{const item=D.normalize({id:'shortcut',name:'Capitulo.mp4',mimeType:'application/vnd.google-apps.shortcut',shortcutDetails:{targetId:'target',targetMimeType:'video/mp4',targetResourceKey:'resource'}});assert.equal(item.fileId,'target');assert.match(item.url,/resourcekey=resource/);});

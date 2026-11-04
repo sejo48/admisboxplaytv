@@ -189,3 +189,24 @@ Validación con arrastre real de mouse, exportación y reproducción del orden p
 ```sh
 NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/episode-reorder-browser.cjs
 ```
+
+## Importar una temporada desde una carpeta pública de Google Drive
+
+En **Series**, guarda primero la portada y los datos de la serie, abre su ficha y pulsa **Importar episodios de Google Drive**, junto a Añadir Temporada.
+
+La primera vez, abre **Configuración de Google Drive**. En un proyecto de Google Cloud, activa **Google Drive API** y crea una clave de API. Restringe esa clave a Google Drive API y al referente `https://sejo48.github.io/*`. Pégala en el campo protegido y pulsa **Guardar configuración en este navegador**. Es una configuración del navegador del administrador; no se publica en el catálogo. La carpeta debe estar compartida con **Cualquier persona con el enlace**. Sin esa clave configurada, Google no permite enumerar los archivos desde esta página estática.
+
+1. Pega el enlace de la carpeta y escribe el número de temporada (existente o nueva).
+2. Pulsa **Leer carpeta y revisar**. Se leen todas las páginas de resultados y los videos directamente contenidos en esa carpeta; no se recorren subcarpetas. Usa una carpeta por temporada.
+3. Revisa el orden natural de los nombres (1, 2, 10), corrige títulos, excluye archivos o usa las flechas para cambiar el orden. Las imágenes y documentos se omiten.
+4. Pulsa **Añadir episodios**. Se conservan la portada, el PIN, los metadatos y los episodios anteriores. Se omiten archivos ya presentes en la serie y títulos repetidos dentro de la temporada elegida.
+5. Revisa la temporada y publica con **GitHub Sync**. Los enlaces aparecerán en BOXPLAYTV y Smart TV tras la publicación.
+
+Se importan títulos y enlaces, no se suben ni descargan los videos. No se cambian los permisos de Drive; los archivos deben permitir el acceso de los espectadores. Cancelar o fallar una consulta no añade episodios ni produce una importación parcial.
+
+Pruebas con Drive simulado y almacenamiento aislado:
+
+```sh
+node --test tests/drive-import.test.cjs
+NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/drive-import-browser.cjs
+```
