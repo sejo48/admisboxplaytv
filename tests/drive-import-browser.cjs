@@ -23,7 +23,7 @@ const server = http.createServer((req, res) => {
    assert.equal(u.searchParams.get('key'),'fake-key');
    if(u.pathname==='/drive/v3/files/folder_123456')return route.fulfill({json:{id:'folder_123456',name:'Temporada de prueba',mimeType:'application/vnd.google-apps.folder'}});
    if(u.pathname!=='/drive/v3/files')return route.fulfill({status:404,body:'Not found'});
-   if(fail&&u.searchParams.has('pageToken'))return route.fulfill({status:403,json:{error:{message:'Denied'}}});
+   if(fail&&u.searchParams.has('pageToken'))return route.fulfill({status:403,json:{error:{message:'Referrer blocked',details:[{reason:'API_KEY_HTTP_REFERRER_BLOCKED'}]}}});
    return route.fulfill({json:u.searchParams.has('pageToken')?{files:[{id:'one',name:'E01.mp4',mimeType:'video/mp4'},{id:'two',name:'E02.mp4',mimeType:'video/mp4'}]}:{nextPageToken:'next',files:[{id:'ten',name:'E10.mp4',mimeType:'video/mp4'},{id:'known',name:'Piloto.mp4',mimeType:'video/mp4'},{id:'poster',name:'Portada.jpg',mimeType:'image/jpeg'}]}});
   });
   await page.addInitScript(()=>{
@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
   // Failure on the second page must leave the series unchanged.
   const before=JSON.stringify(saved);fail=true;await open.click();dialog=page.getByRole('dialog',{name:'Importar episodios de Google Drive'});
   await dialog.getByLabel('Enlace de la carpeta pública').fill('https://drive.google.com/drive/folders/folder_123456');
-  await dialog.getByRole('button',{name:'Leer carpeta y revisar'}).click();await dialog.getByRole('alert').waitFor();
+  await dialog.getByRole('button',{name:'Leer carpeta y revisar'}).click();await dialog.getByRole('alert').waitFor();assert.match(await dialog.getByRole('alert').textContent(),/API_KEY_HTTP_REFERRER_BLOCKED/);
   assert.equal(await dialog.locator('.drive-import-list li').count(),0);
   await dialog.getByRole('button',{name:'Cancelar',exact:true}).click();assert.equal(JSON.stringify(await read()),before);
   await page.setViewportSize({width:390,height:844});await open.click();

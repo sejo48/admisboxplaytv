@@ -16,6 +16,23 @@
   if(!id||/^application\/vnd\.google-apps\./.test(mime)||!/^video\//.test(mime)&&!video.test(file.name||''))return null;
   return {fileId:id,title:String(file.name||'Episodio').replace(video,'').replace(/_/g,' ').trim(),filename:file.name||'Episodio',url:'https://drive.google.com/file/d/'+encodeURIComponent(id)+'/view'+(key?'?resourcekey='+encodeURIComponent(key):'')};
  }
+ function apiError(data,status,key,phase){
+  const error=data?.error||{},details=Array.isArray(error.details)?error.details:[],legacy=Array.isArray(error.errors)?error.errors:[];
+  const reason=details.find(item=>item.reason)?.reason||legacy[0]?.reason||error.status||'UNKNOWN';
+  const redact=value=>String(value||'').split(String(key||'').trim()||'__no_key__').join('[clave oculta]').replace(/AIza[\w-]{20,}/g,'[clave oculta]').slice(0,500);
+  const help={
+   API_KEY_HTTP_REFERRER_BLOCKED:'Google bloqueó el sitio del administrador. Comprueba que la clave permita https://sejo48.github.io/* y guarda los cambios.',
+   API_KEY_SERVICE_BLOCKED:'La clave no permite Google Drive API. Selecciona Google Drive API en sus restricciones y guarda.',
+   SERVICE_DISABLED:'Google Drive API no está activada en el proyecto de esta clave. Actívala en ese mismo proyecto.',
+   accessNotConfigured:'Google Drive API no está activada en el proyecto de esta clave.',
+   API_KEY_INVALID:'La clave guardada no es válida. Vuelve a copiarla desde Google Cloud y guárdala en el administrador.',
+   rateLimitExceeded:'Se alcanzó el límite temporal de consultas. Espera y vuelve a intentar.',
+   dailyLimitExceeded:'Se alcanzó la cuota diaria de Google Drive API.',
+   PERMISSION_DENIED:'Comprueba el acceso general de esta carpeta: debe indicar Cualquier persona con el enlace.',
+   forbidden:'Comprueba el acceso general de esta carpeta: debe indicar Cualquier persona con el enlace.'
+  };
+  return 'Google no permitió '+phase+' (HTTP '+status+' · '+redact(reason)+'). '+(help[reason]||(status===404?'No se encontró la carpeta o no es pública.':'Google rechazó la solicitud.'))+(error.message?' Detalle de Google: '+redact(error.message):'');
+ }
  async function listFolder(value,key,{fetch:request=globalThis.fetch,signal}={}){
   const ref=folder(value);if(!String(key||'').trim())throw Error('Configura primero la clave de Google Drive API.');
   async function get(path,params){
@@ -24,7 +41,7 @@
    try{response=await request(url.href,{signal,headers:ref.resourceKey?{'X-Goog-Drive-Resource-Keys':ref.id+'/'+ref.resourceKey}:{}});}
    catch(error){if(signal?.aborted||error.name==='AbortError')throw error;throw Error('No se pudo conectar a Google Drive. Intenta de nuevo y comprueba que el navegador no esté bloqueando la conexión.');}
    const data=await response.json().catch(()=>({}));
-   if(!response.ok){if(response.status===404)throw Error('No se encontró la carpeta o no está compartida públicamente.');if(response.status===400||response.status===403)throw Error('Google no permitió leer la carpeta. Revisa la clave, activa Google Drive API y comprueba que la carpeta esté compartida con cualquier persona con el enlace.');throw Error('No se pudo consultar Google Drive. Intenta de nuevo.');}
+   if(!response.ok)throw Error(apiError(data,response.status,key,path==='files'?'listar los episodios':'consultar la carpeta'));
    return data;
   }
   const info=await get('files/'+encodeURIComponent(ref.id),{fields:'id,name,mimeType',supportsAllDrives:'true'});
@@ -53,5 +70,5 @@
   const seasons=serie.temporadas||[],found=seasons.some(s=>Number(s.numeroTemporada)===number);
   return {serie:{...serie,temporadas:found?seasons.map(s=>Number(s.numeroTemporada)===number?{...s,episodios:[...(s.episodios||[]),...episodes]}:s):[...seasons,{numeroTemporada:number,episodios:episodes}]},added:episodes.length,skipped:files.length-episodes.length};
  }
- return {folder,fileId,normalize,listFolder,plan,append};
+ return {folder,fileId,normalize,listFolder,plan,append,apiError};
 });
