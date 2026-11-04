@@ -21,7 +21,8 @@ const server = http.createServer((req, res) => {
   await page.route('https://www.googleapis.com/drive/v3/**',route=>{
    const u=new URL(route.request().url());
    assert.equal(u.searchParams.get('key'),'fake-key');
-   if(u.pathname.endsWith('/folder_123456'))return route.fulfill({json:{id:'folder_123456',name:'Temporada de prueba',mimeType:'application/vnd.google-apps.folder'}});
+   if(u.pathname==='/drive/v3/files/folder_123456')return route.fulfill({json:{id:'folder_123456',name:'Temporada de prueba',mimeType:'application/vnd.google-apps.folder'}});
+   if(u.pathname!=='/drive/v3/files')return route.fulfill({status:404,body:'Not found'});
    if(fail&&u.searchParams.has('pageToken'))return route.fulfill({status:403,json:{error:{message:'Denied'}}});
    return route.fulfill({json:u.searchParams.has('pageToken')?{files:[{id:'one',name:'E01.mp4',mimeType:'video/mp4'},{id:'two',name:'E02.mp4',mimeType:'video/mp4'}]}:{nextPageToken:'next',files:[{id:'ten',name:'E10.mp4',mimeType:'video/mp4'},{id:'known',name:'Piloto.mp4',mimeType:'video/mp4'},{id:'poster',name:'Portada.jpg',mimeType:'image/jpeg'}]}});
   });
