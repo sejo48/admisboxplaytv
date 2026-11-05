@@ -2430,6 +2430,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [selectedItemId, setSelectedItemId] = useState(initialEdit?.id || null);
             const [editingItem, setEditingItem] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
+            const [driveImportOpen, setDriveImportOpen] = useState(false);
             const [searchTerm, setSearchTerm] = useState('');
             const [tmdbType, setTmdbType] = useState(initialEdit?.tmdbType || 'tv');
             const selectedItem = animados.find(s => s.id === selectedItemId);
@@ -2499,6 +2500,15 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     showToast(itemLabel + ' actualizado');
                 }
                 setEditingItem(null);
+            };
+
+            const importDriveEpisodes = (number, files) => {
+                setAnimados(current => current.map(item => {
+                    if (item.id !== selectedItemId) return item;
+                    const result = BoxDriveImport.append(item, number, files);
+                    return result.added ? { ...result.serie, ...(isDorama ? { tmdbType: 'tv' } : {}) } : item;
+                }));
+                showToast('Episodios de Drive añadidos. Revisa la temporada y publica con GitHub Sync.');
             };
 
             const addSeason = () => {
@@ -2587,7 +2597,10 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                                         <span>{isDorama ? "Temporadas y episodios" : "Temporadas (Si es serie animada)"}</span>
                                         <span className="text-[11px] font-mono bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-bold">{selectedItem.temporadas?.length || 0}</span>
                                     </h3>
+                                    <div className="flex flex-wrap justify-end gap-2">
+                                        {isDorama && <button type="button" onClick={() => setDriveImportOpen(true)} className="admin-outline-button">Importar episodios de Google Drive</button>}
                                     <button onClick={addSeason} className="text-xs bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold shadow-sm transition-all"><Icon name="plus" size={12} /> Añadir Temporada</button>
+                                    </div>
                                 </div>
                                 <p className="text-xs text-slate-500">Arrastra el asa ⠿ de un episodio para cambiar su posición dentro de la temporada. Publica el nuevo orden con GitHub Sync.</p>
                                 <div className="space-y-4">
@@ -2652,6 +2665,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             </div>
                         </div>
                     )}
+                    {driveImportOpen && selectedItem && <DriveImportDialog serie={selectedItem} onClose={() => setDriveImportOpen(false)} onImport={importDriveEpisodes} />}
                     {editingEpisode && (
                         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
                             <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 w-full max-w-sm space-y-4">
@@ -4105,5 +4119,6 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
 
 
