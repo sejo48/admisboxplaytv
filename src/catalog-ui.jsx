@@ -105,39 +105,38 @@ const CatalogPoster = ({ item,selected=false,onSelect,onEdit,onDelete,caption })
     </article>;
 };
 
-const CatalogReview = ({ movies, estrenos, onOpenEditor }) => {
+const CatalogReview = ({ movies, estrenos, series, animados, doramas, onOpenEditor }) => {
     const [search, setSearch] = React.useState('');
     const [field, setField] = React.useState('drive');
     const [section, setSection] = React.useState('all');
     const [limit, setLimit] = React.useState(30);
-    const rows = React.useMemo(() => [
-        ...movies.map((item, index) => ({ item, index, section: 'movies', catalog: 'Películas' })),
-        ...estrenos.map((item, index) => ({ item, index, section: 'estrenos2026', catalog: 'Estrenos 2026' }))
-    ].map(row => ({ ...row, missing: BoxCatalog.missingInfo(row.item) })), [movies, estrenos]);
-    const pending = rows.filter(row => row.missing.length);
-    const noDrive = rows.filter(row => row.missing.some(issue => issue.id === 'drive')).length;
-    const visible = pending.filter(row => (section === 'all' || row.section === section) &&
+    const rows = React.useMemo(() => BoxCatalog.reviewRows({ movies, estrenos, series, animados, doramas }), [movies, estrenos, series, animados, doramas]);
+    const scoped = rows.filter(row => section === 'all' || (section === 'navidad' ? BoxCatalog.isChristmas(row.item) : row.section === section));
+    const pending = scoped.filter(row => row.missing.length);
+    const noDrive = scoped.filter(row => row.missing.some(issue => issue.id === 'drive')).length;
+    const visible = pending.filter(row =>
         (!field || row.missing.some(issue => issue.id === field)) &&
         BoxCatalog.fold(BoxCatalog.title(row.item)).includes(BoxCatalog.fold(search)));
     const change = setter => event => { setter(event.target.value); setLimit(30); };
     return <section className="catalog-review" aria-label="Revisión de información">
         <div className="admin-workflow">
             <h3>Encuentra las fichas incompletas</h3>
-            <p>Revisa Películas y Estrenos 2026. Abre una ficha, completa sus datos y guarda; la revisión se actualiza automáticamente.</p>
+            <p>Revisa Estrenos 2026, Películas, Series, Animados, Doramas y Navidad. Abre una ficha, completa sus datos y guarda; la revisión se actualiza automáticamente.</p>
+            <p>En las series se revisan los enlaces de cada episodio. Navidad reúne las fichas marcadas manualmente, sin duplicarlas.</p>
             <p>Se comprueba si los campos tienen información. Los enlaces no se abren ni se comprueba su acceso o reproducción.</p>
-            <div className="review-summary" aria-live="polite"><span><strong>{rows.length}</strong> películas revisadas</span><span><strong>{noDrive}</strong> sin enlace de Google Drive</span><span><strong>{pending.length}</strong> con datos por completar</span></div>
+            <div className="review-summary" aria-live="polite"><span><strong>{scoped.length}</strong> {scoped.length === 1 ? 'ficha revisada' : 'fichas revisadas'}</span><span><strong>{noDrive}</strong> con enlaces de Google Drive por completar</span><span><strong>{pending.length}</strong> con datos por completar</span></div>
         </div>
         <div className="review-filters">
-            <label>Buscar película<input aria-label="Buscar película para revisar" value={search} onChange={change(setSearch)} placeholder="Título de la película" /></label>
-            <label>Catálogo<select aria-label="Catálogo a revisar" value={section} onChange={change(setSection)}><option value="all">Ambos catálogos</option><option value="movies">Películas</option><option value="estrenos2026">Estrenos 2026</option></select></label>
+            <label>Buscar título<input aria-label="Buscar título para revisar" value={search} onChange={change(setSearch)} placeholder="Título de la película o serie" /></label>
+            <label>Catálogo<select aria-label="Catálogo a revisar" value={section} onChange={change(setSection)}><option value="all">Todos los catálogos</option>{BoxCatalog.reviewCatalogs.map(catalog => <option key={catalog.id} value={catalog.id}>{catalog.label}</option>)}<option value="navidad">🎄 Navidad</option></select></label>
             <label>Información que falta<select aria-label="Información que falta" value={field} onChange={change(setField)}><option value="">Cualquier dato de la ficha</option>{BoxCatalog.reviewFields.map(entry => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</select></label>
         </div>
-        <p className="text-sm" role="status">{visible.length} películas coinciden con esta revisión.</p>
-        {!rows.length ? <p className="catalog-empty">Los catálogos están vacíos. Añade o carga películas para revisarlas.</p> : !visible.length ? <p className="catalog-empty">No hay películas con datos faltantes para estos filtros.</p> : <ul className="review-list">{visible.slice(0, limit).map(row => <li key={row.section + ':' + row.index}>
-            <div><p className="review-catalog">{row.catalog} · {BoxCatalog.year(row.item) || 'Sin año'}</p><h3>{BoxCatalog.title(row.item)}</h3><p className="review-missing">Falta: {row.missing.map(issue => issue.label).join(' · ')}</p></div>
+        <p className="text-sm" role="status">{visible.length} {visible.length === 1 ? 'ficha coincide' : 'fichas coinciden'} con esta revisión.</p>
+        {!rows.length ? <p className="catalog-empty">Los catálogos están vacíos. Añade o carga películas y series para revisarlas.</p> : !scoped.length ? <p className="catalog-empty">{section === 'navidad' ? 'No hay fichas marcadas para Navidad.' : 'Este catálogo está vacío.'}</p> : !visible.length ? <p className="catalog-empty">No hay fichas con datos faltantes para estos filtros.</p> : <ul className="review-list">{visible.slice(0, limit).map(row => <li key={row.section + ':' + row.index}>
+            <div><p className="review-catalog">{row.catalog} · {BoxCatalog.year(row.item) || 'Sin año'}{BoxCatalog.isChristmas(row.item) && ' · 🎄 Navidad'}</p><h3>{BoxCatalog.title(row.item)}</h3><p className="review-missing">Falta: {row.missing.map(issue => issue.label).join(' · ')}</p></div>
             <button type="button" className="admin-outline-button" aria-label={'Completar ' + BoxCatalog.title(row.item)} onClick={() => onOpenEditor(row.section, row.item)}>Completar ficha →</button>
         </li>)}</ul>}
-        {visible.length > limit && <button type="button" className="admin-outline-button" onClick={() => setLimit(value => value + 30)}>Mostrar más películas ({visible.length - limit} pendientes)</button>}
+        {visible.length > limit && <button type="button" className="admin-outline-button" onClick={() => setLimit(value => value + 30)}>Mostrar más fichas ({visible.length - limit} pendientes)</button>}
     </section>;
 };
 
@@ -181,3 +180,4 @@ const EpisodeReorderRow = ({ scope, index, episode, onMove, children }) => {
         {children}
     </div>;
 };
+

@@ -28,9 +28,9 @@ NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/media-grid-browser.cjs
 
 ## Revisar fichas
 
-Abre **Catálogo → Revisar fichas** o el acceso del Resumen. La revisión comprueba Películas y Estrenos 2026 y empieza mostrando las que no tienen `urlDrive`. Un enlace alternativo OK.ru no sustituye el enlace de Google Drive en esta comprobación. También puedes filtrar por título, sinopsis, portada, año, género, director o duración faltantes, y elegir cualquiera de los dos catálogos.
+Abre **Catálogo → Revisar fichas** o el acceso del Resumen. La revisión comprueba Estrenos 2026, Películas, Series, Animados, Doramas y Navidad. Empieza mostrando las fichas con enlaces de Google Drive pendientes. En las series se comprueba cada episodio: una temporada vacía o un episodio sin `urlDrive` mantiene la ficha pendiente, aunque exista un enlace general. Un enlace alternativo OK.ru no sustituye el enlace de Google Drive en esta comprobación. También puedes filtrar por título, sinopsis, portada, año, género, director o duración faltantes, y elegir un catálogo o todos. Navidad filtra las fichas marcadas manualmente con `navidad: true`, conserva su catálogo de origen para editarlas y no las cuenta dos veces en el total. Los contadores se ajustan al catálogo seleccionado.
 
-Pulsa **Completar ficha** para abrir la película en su editor. Al guardar, la revisión se actualiza con la información local; publica tus cambios de catálogo con GitHub Sync cuando estén listos. Esta función detecta campos vacíos, sin abrir enlaces ni comprobar permisos o reproducción. No añade datos automáticamente.
+Pulsa **Completar ficha** para abrir la película o serie en su editor de origen. En las series puedes cerrar la información general para completar las temporadas y episodios seleccionados. Al guardar, la revisión se actualiza con la información local; publica tus cambios de catálogo con GitHub Sync cuando estén listos. Esta función detecta campos vacíos, sin abrir enlaces ni comprobar permisos o reproducción. No añade datos automáticamente.
 
 Prueba de revisión con datos de ejemplo y sin escrituras remotas:
 
@@ -210,3 +210,4 @@ Pruebas con Drive simulado y almacenamiento aislado:
 node --test tests/drive-import.test.cjs
 NODE_PATH=/opt/codex/cua_node/lib/node_modules node tests/drive-import-browser.cjs
 ```
+

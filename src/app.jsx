@@ -2432,9 +2432,9 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [editingEpisode, setEditingEpisode] = useState(null);
             const [driveImportOpen, setDriveImportOpen] = useState(false);
             const [searchTerm, setSearchTerm] = useState('');
-            const [tmdbType, setTmdbType] = useState(initialEdit?.tmdbType || 'tv');
+            const [tmdbType, setTmdbType] = useState(initialEdit?.tmdbType || (initialEdit && !initialEdit.isNew && !initialEdit.temporadas?.length ? 'movie' : 'tv'));
             const selectedItem = animados.find(s => s.id === selectedItemId);
-            useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setSelectedItemId(initialEdit.id || null); setTmdbType(initialEdit.tmdbType || 'tv'); } }, [initialEdit]);
+            useEffect(() => { if (initialEdit) { setEditingItem(initialEdit); setSelectedItemId(initialEdit.id || null); setTmdbType(initialEdit.tmdbType || (initialEdit.temporadas?.length ? 'tv' : initialEdit.isNew ? 'tv' : 'movie')); } }, [initialEdit]);
 
             const moveEpisode = (seasonIndex, from, to, identity) => {
                 const episode = selectedItem?.temporadas?.[seasonIndex]?.episodios?.[from];
@@ -4032,7 +4032,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }
 
             const tabs = [
-                { id: 'review', label: 'Revisar fichas', icon: 'search', count: [...movies, ...estrenos].filter(item => BoxCatalog.missingInfo(item).length > 0).length, color: 'text-amber-500' },
+                { id: 'review', label: 'Revisar fichas', icon: 'search', count: BoxCatalog.reviewRows({ movies, estrenos, series, animados, doramas }).filter(row => row.missing.length > 0).length, color: 'text-amber-500' },
                 { id: 'overview', label: 'Resumen', icon: 'grip', count: 0, color: 'text-cyan-500' },
                 { id: 'homecovers', label: 'Portadas', icon: 'film', count: 5, color: 'text-cyan-500' },
                 { id: 'notices', label: 'Avisos', icon: 'chat', count: 0, color: 'text-cyan-500' },
@@ -4089,8 +4089,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         {loadError && <div role="alert" className="p-4 mb-4 rounded-xl bg-amber-100 text-amber-950">{loadError}</div>}
                         {storageError && <div role="alert" className="p-4 mb-4 rounded-xl bg-rose-100 text-rose-950">{storageError}</div>}
                         <ErrorBoundary>
-                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','doramas','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas</h3><p>Detecta enlaces de Google Drive y datos de ficha que faltan en Películas y Estrenos 2026.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series, doramas y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
-                            {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} onOpenEditor={openCatalogEditor} />}
+                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','doramas','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas y series</h3><p>Detecta enlaces de Google Drive y datos que faltan en Estrenos 2026, Películas, Series, Animados, Doramas y Navidad.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series, doramas y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
+                            {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} series={series} animados={animados} doramas={doramas} onOpenEditor={openCatalogEditor} />}
                             {activeTab === 'homecovers' && <HomeCoversEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'notices' && <NoticesEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados], doramas: [doramas, setDoramas] }} showToast={showToast} />}
@@ -4119,6 +4119,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
+
 
 
 

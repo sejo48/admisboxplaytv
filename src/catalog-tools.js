@@ -26,9 +26,11 @@
     const christmasMetadata = item => typeof item.navidad === 'boolean' ? { navidad: item.navidad } : {};
     const hasText = value => typeof value === 'string' && value.trim().length > 0;
     const anyText = (...values) => values.some(hasText);
+    const isSeries = (item, options = {}) => options.series || item.tmdbType === 'tv' || item.mediaType === 'tv' || item.temporadas?.length > 0;
+    const hasEpisodeLinks = item => item.temporadas?.length > 0 && item.temporadas.every(season => season.episodios?.length > 0 && season.episodios.every(episode => hasText(episode.urlDrive)));
     const reviewFields = [
-        { id: 'drive', label: 'Enlace de Google Drive', present: item => hasText(item.urlDrive) },
-        { id: 'title', label: 'Título', present: item => anyText(item.titulo, item.title, item.name) },
+        { id: 'drive', label: 'Enlace de Google Drive', present: (item, options) => isSeries(item, options) ? hasEpisodeLinks(item) : hasText(item.urlDrive) },
+        { id: 'title', label: 'Título', present: item => anyText(item.tituloSerie, item.titulo, item.title, item.name) },
         { id: 'synopsis', label: 'Sinopsis', present: item => anyText(item.descripcion, item.sinopsis, item.synopsis) },
         { id: 'poster', label: 'Portada', present: item => anyText(item.imagen, item.image) },
         { id: 'year', label: 'Año', present: item => !!year(item) },
@@ -36,7 +38,15 @@
         { id: 'director', label: 'Director', present: item => hasText(item.director) },
         { id: 'duration', label: 'Duración', present: item => Number(item.runtimeMin) > 0 || (hasText(item.runtime) && /[1-9]/.test(item.runtime)) }
     ];
-    const missingInfo = item => reviewFields.filter(field => !field.present(item)).map(({ id, label }) => ({ id, label }));
+    const missingInfo = (item, options = {}) => reviewFields.filter(field => !field.present(item, options)).map(({ id, label }) => ({ id, label: id === 'drive' && isSeries(item, options) ? 'Temporadas y episodios con enlace de Google Drive' : label }));
+    const reviewCatalogs = [
+        { id: 'estrenos2026', key: 'estrenos', label: 'Estrenos 2026' },
+        { id: 'movies', key: 'movies', label: 'Películas' },
+        { id: 'series', key: 'series', label: 'Series' },
+        { id: 'animados', key: 'animados', label: 'Animados' },
+        { id: 'doramas', key: 'doramas', label: 'Doramas' }
+    ];
+    const reviewRows = (catalogs = {}) => reviewCatalogs.flatMap(({ id, key, label }) => (catalogs[key] || []).map((item, index) => ({ item, index, section: id, catalog: label, missing: missingInfo(item, { series: id === 'series' }) })));
     function findMatch(items, data, mediaType = data.tmdbType || 'movie') {
         const typed = item => (item.tmdbType || item.mediaType || (item.tituloSerie ? 'tv' : 'movie')) === mediaType;
         if (data.tmdbId) {
@@ -75,6 +85,7 @@
         if (category === 'search') { params.set('query',query.trim()); if (/^\d{4}$/.test(selectedYear)) params.set(type === 'tv' ? 'first_air_date_year' : 'primary_release_year',selectedYear); }
         return `https://api.themoviedb.org/3/${endpoint}?${params}`;
     }
-    return { moveEpisode, parseMixed, serializeMixed, fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, isChristmas, christmasMetadata };
+    return { moveEpisode, parseMixed, serializeMixed, fold, title, year, genres, filter, findMatch, draft, searchURL, reviewFields, missingInfo, reviewCatalogs, reviewRows, isChristmas, christmasMetadata };
 });
+
 

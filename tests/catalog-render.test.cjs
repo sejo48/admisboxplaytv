@@ -3,10 +3,29 @@ const React=require('react'),{renderToStaticMarkup}=require('react-dom/server'),
 const storage={getItem:()=>null,setItem:()=>{}};
 const sandbox={React,ReactDOM:{createRoot:()=>({render:()=>{}})},BoxCatalog:require('../src/catalog-tools.js'),BoxNotices:require('../notices.js'),BoxHomeCovers:require('../home-covers.js'),localStorage:storage,window:{location:{hash:'',pathname:'/',search:''}},document:{getElementById:()=>({}),documentElement:{dataset:{adminTheme:'dark'}}},URL,URLSearchParams,setTimeout,clearTimeout,console};
 const source=['src/catalog-ui.jsx','src/home-covers.jsx','src/app.jsx'].map(p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8')).join('\n');
-const compiled=Babel.transform(source,{presets:['react']}).code+';globalThis.editors={App,MoviesEditor,Estrenos2026Editor,SeriesEditor,AnimadosEditor,TudumEditor,TmdbExplorer,ThemeToggle,TvEditor,RadiosEditor,VideotecaEditor};';
+const compiled=Babel.transform(source,{presets:['react']}).code+';globalThis.editors={App,CatalogReview,MoviesEditor,Estrenos2026Editor,SeriesEditor,AnimadosEditor,TudumEditor,TmdbExplorer,ThemeToggle,TvEditor,RadiosEditor,VideotecaEditor};';
 vm.runInNewContext(compiled,sandbox);
 const item={id:'sample',titulo:'Película de prueba',tituloSerie:'Serie de prueba',image:'https://example.com/poster.jpg',imagen:'https://example.com/poster.jpg',year:'2020',temporadas:[]};
 const no=()=>{};
+test('Revisar fichas incluye todos los catálogos, Navidad y series con episodios pendientes',()=>{
+ const complete={year:'2026',descripcion:'Sinopsis',imagen:'poster',director:'Directora',runtimeMin:45,genres:['Drama']};
+ const props={movies:[{...complete,id:'movie',titulo:'Película sin Drive',navidad:true}],estrenos:[{...complete,id:'premiere',titulo:'Estreno sin Drive'}],series:[{...complete,id:'show',tituloSerie:'Serie con episodio pendiente',temporadas:[{numeroTemporada:1,episodios:[{tituloEpisodio:'Inicio',urlDrive:''}]}]},{...complete,id:'done',tituloSerie:'Serie enlazada',temporadas:[{numeroTemporada:1,episodios:[{urlDrive:'https://drive.google.com/episode'}]}]}],animados:[{...complete,id:'animation',titulo:'Animado sin Drive'}],doramas:[{...complete,id:'dorama',titulo:'Dorama sin Drive'}],onOpenEditor:no};
+ const html=renderToStaticMarkup(React.createElement(sandbox.editors.CatalogReview,props));
+ for(const label of ['Estreno sin Drive','Película sin Drive','Serie con episodio pendiente','Animado sin Drive','Dorama sin Drive']) assert(html.includes('<h3>'+label+'</h3>'));
+ assert(!html.includes('<h3>Serie enlazada</h3>'));
+ for(const section of ['estrenos2026','movies','series','animados','doramas','navidad']) assert(html.includes('<option value="'+section+'">'));
+ assert(html.includes('Todos los catálogos'));assert(html.includes('🎄 Navidad'));assert(html.includes('<strong>6</strong> fichas revisadas'));
+ assert.equal((html.match(/Completar ficha →/g)||[]).length,5);
+});
+test('Abrir una ficha antigua de Animados o Doramas respeta su tipo de contenido',()=>{
+ for(const collection of ['animados','doramas']) {
+  for(const temporadas of [[],[{numeroTemporada:1,episodios:[]}]]) {
+   const draft={...item,titulo:'Ficha antigua',temporadas};
+   const html=renderToStaticMarkup(React.createElement(sandbox.editors.AnimadosEditor,{animados:[draft],setAnimados:no,initialEdit:draft,collection,showToast:no,requestConfirm:no,onTestPlayer:no}));
+   assert(html.includes('<option value="'+(temporadas.length?'tv':'movie')+'" selected="">'));
+  }
+ }
+});
 test('Películas y Estrenos ofrecen una casilla Navidad que respeta las decisiones guardadas',()=>{
  for(const [name,list,set] of [['MoviesEditor','movies','setMovies'],['Estrenos2026Editor','estrenos','setEstrenos']]) {
   for(const navidad of [undefined,true,false]) {
@@ -73,4 +92,5 @@ test('TV, radios y música muestran colecciones de tarjetas compactas',()=>{
  const cases=[['TvEditor',{channels:[{id:'tv',title:'Canal',url:'https://example.com/live.m3u8'}],setChannels:no}],['RadiosEditor',{radios:[{id:'radio',title:'Radio'}],setRadios:no}],['VideotecaEditor',{videoteca:[{id:'album',album:'Disco',tracks:[]}],setVideoteca:no}]];
  for(const [name,props] of cases){const html=renderToStaticMarkup(React.createElement(sandbox.editors[name],{...props,showToast:no,requestConfirm:no,onTestPlayer:no}));assert(html.includes('media-grid'),name);assert(html.includes('data-media-card='),name);assert(!html.includes('max-h-[60vh]'),name);}
 });
+
 

@@ -40,9 +40,9 @@ const server = http.createServer((req, res) => {
         assert.equal(await page.locator('.review-list li').count(),1);
         await page.getByLabel('Información que falta',{exact:true}).selectOption('');
         assert.equal(await page.locator('.review-list li').count(),3);
-        await page.getByLabel('Buscar película para revisar').fill('director');
+        await page.getByLabel('Buscar título para revisar').fill('director');
         assert.equal(await page.locator('.review-list li').count(),1);
-        await page.getByLabel('Buscar película para revisar').fill('');
+        await page.getByLabel('Buscar título para revisar').fill('');
         await page.getByLabel('Catálogo a revisar').selectOption('estrenos2026');
         assert.equal(await page.locator('.review-list li').count(),1);
         await page.getByLabel('Catálogo a revisar').selectOption('all');
@@ -62,12 +62,13 @@ const server = http.createServer((req, res) => {
         await page.reload();
         await page.getByRole('button',{name:'Completar Estreno sin Drive',exact:true}).waitFor();
         assert.equal(await page.locator('.review-list li').count(),1,'Saved result survives reload');
-        await page.getByLabel('Buscar película para revisar').fill('no existe');
-        await page.getByText('No hay películas con datos faltantes para estos filtros.').waitFor();
-        await page.getByLabel('Buscar película para revisar').fill('');
+        await page.getByLabel('Buscar título para revisar').fill('no existe');
+        await page.getByText('No hay fichas con datos faltantes para estos filtros.').waitFor();
+        await page.getByLabel('Buscar título para revisar').fill('');
         await page.setViewportSize({width:390,height:844});
         assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile layout has no overflow');
         assert.deepEqual(errors, []);
         console.log('Passed: missing Drive vs alternative playback, filters, editor navigation, save, refreshed review, persistence and mobile layout.');
     } finally { await browser.close(); server.close(); }
 })().catch(error => { console.error(error); server.close(); process.exitCode = 1; });
+

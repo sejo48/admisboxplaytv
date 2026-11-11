@@ -71,6 +71,36 @@ test('La revisión respeta los alias de ficha y rechaza datos vacíos',()=>{
  assert(!tools.missingInfo({...complete,runtimeMin:0,runtime:'1h 30min'}).some(field=>field.id==='duration'));
 });
 
+test('La revisión de series comprueba todos los episodios y acepta tituloSerie',()=>{
+ const base={tituloSerie:'Serie completa',descripcion:'Sinopsis',imagen:'poster',year:'2026',genres:['Drama'],director:'Directora',runtimeMin:45};
+ const linked={tituloEpisodio:'Inicio',urlDrive:'https://drive.google.com/file/d/episodio/view'};
+ const complete={...base,tmdbType:'tv',temporadas:[{numeroTemporada:1,episodios:[linked]},{numeroTemporada:2,episodios:[linked]}]};
+ assert.deepEqual(tools.missingInfo(complete),[],'Una serie no necesita un enlace general si todos sus episodios tienen Drive');
+ const incomplete={...complete,urlDrive:'https://drive.google.com/general',temporadas:[complete.temporadas[0],{numeroTemporada:2,episodios:[linked,{tituloEpisodio:'Sin enlace',urlDrive:'  ',urlOkRu:'https://ok.ru/video/123'}]}]};
+ assert.deepEqual(tools.missingInfo(incomplete).map(field=>field.id),['drive'],'El enlace general no oculta un episodio sin Drive');
+ for(const temporadas of [[],[{numeroTemporada:1,episodios:[]}],[complete.temporadas[0],{numeroTemporada:2}]]) {
+  assert(tools.missingInfo({...base,temporadas},{series:true}).some(field=>field.id==='drive'),'Detecta series sin episodios o con temporadas vacías');
+ }
+ assert.deepEqual(tools.missingInfo({...base,tmdbType:'movie',temporadas:[],urlDrive:linked.urlDrive}),[],'Una película de catálogo mixto usa su enlace general');
+});
+
+test('La revisión reúne todos los catálogos y conserva el origen de las fichas navideñas sin duplicarlas',()=>{
+ const movie=Object.freeze({id:'movie',titulo:'Navidad en casa',navidad:true});
+ const animation=Object.freeze({id:'animation',titulo:'Invierno',navidad:false});
+ const catalogs={movies:[movie],estrenos:[{id:'premiere',titulo:'Estreno'}],series:[{id:'series',tituloSerie:'Serie'}],animados:[animation],doramas:[{id:'dorama',titulo:'Dorama',navidad:true}]};
+ const rows=tools.reviewRows(catalogs);
+ assert.equal(rows.length,5);
+ assert.deepEqual(rows.map(row=>row.section),['estrenos2026','movies','series','animados','doramas']);
+ const christmas=rows.filter(row=>tools.isChristmas(row.item));
+ assert.equal(christmas.length,2);
+ assert.equal(christmas[0].item,movie);
+ assert.equal(christmas[0].section,'movies');
+ assert.equal(christmas[1].section,'doramas');
+ assert.equal(rows.find(row=>row.section==='series').missing.some(field=>field.id==='title'),false);
+ assert.equal(movie.navidad,true);assert.equal(animation.navidad,false);
+ assert.deepEqual(tools.reviewRows(),[]);
+});
+
 
 test('Doramas conserva metadatos, enlaces, PIN y episodios al importar y exportar', () => {
  const source=[{titulo:'Película',tmdbType:'movie',urlDrive:'https://example.test/movie',urlOkRu:'https://ok.ru/video/123',codigo:'1234',tmdbId:42},{titulo:'Serie',tmdbType:'tv',temporadas:[{numeroTemporada:2,episodios:[{tituloEpisodio:'Inicio',urlDrive:'https://example.test/episode'}]}]}];
@@ -91,3 +121,4 @@ test('Mover episodios conserva sus enlaces y marca únicamente la temporada edit
  assert.equal(tools.moveEpisode(item,0,0,0),item);assert.equal(tools.moveEpisode(item,0,0,-1),item);assert.equal(tools.moveEpisode(item,0,0,3),item);
  assert.equal(tools.serializeMixed([changed])[0].temporadas[0].episodeOrder,'manual');
 });
+
