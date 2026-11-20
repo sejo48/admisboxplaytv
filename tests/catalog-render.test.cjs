@@ -43,11 +43,14 @@ test('Exportar y GitHub Sync conservan Navidad y los enlaces en ambos catálogos
  const sample=[{...item,navidad:true,urlDrive:'https://drive.google.com/file/d/prueba/view'}, {...item,id:'two',titulo:'El Grinch',navidad:false}, {...item,id:'three',titulo:'Automático'}];
  const metadata=item=>Object.fromEntries(['tmdbId','tmdbType'].filter(k=>item[k]!==undefined).map(k=>[k,item[k]]));
  const show={tituloSerie:'Serie',temporadas:[{numeroTemporada:1,episodeOrder:'manual',episodios:[{tituloEpisodio:'Episodio 2',urlDrive:'https://example.test/2'},{tituloEpisodio:'Episodio 1',urlDrive:'https://example.test/1'}]}]};
- const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[show],animados:[show],doramas:[show],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
+ const context={BoxCatalog:sandbox.BoxCatalog,movies:sample,estrenos:sample,tudumList:[],series:[show],seriesNew:[{...show,tituloSerie:"Serie nueva independiente"}],animados:[show],doramas:[show],radios:[],videoteca:[],channels:[],generateM3U:()=>'',tmdbMetadata:metadata};
  const start=app.indexOf('const datasets = ')+17;
  const end=app.indexOf(';\n\n                try {',start);
  const datasets=vm.runInNewContext('('+app.slice(start,end)+')',context);
- for(const file of ['playlist.json','animados.json','doramas.json']) { assert.equal(datasets[file][0].temporadas[0].episodeOrder,'manual');assert.equal(datasets[file][0].temporadas[0].episodios[0].tituloEpisodio,'Episodio 2'); }
+ for(const file of ['playlist.json','series.json','animados.json','doramas.json']) { assert.equal(datasets[file][0].temporadas[0].episodeOrder,'manual');assert.equal(datasets[file][0].temporadas[0].episodios[0].tituloEpisodio,'Episodio 2'); }
+ assert.equal(datasets['series.json'][0].tituloSerie, 'Serie nueva independiente');
+ assert.equal(datasets['playlist.json'][0].tituloSerie, 'Serie');
+ assert.equal(datasets['series.json'][0].tmdbType, 'tv');
  const outputs=[datasets['peliculas.json'],datasets['peliculas2.json']];
  for(const variable of ['exportMovies','exportEstrenos']) {
   const begin=app.indexOf('const '+variable+' = ')+('const '+variable+' = ').length;
@@ -70,7 +73,7 @@ test('El buscador distingue series y el destino contextual',()=>{
  const catalogs={movies:[[],no],estrenos:[[],no],series:[[],no],animados:[[],no],tudum:[[],no]};
  const result=renderToStaticMarkup(React.createElement(sandbox.editors.TmdbExplorer,{catalogs,showToast:no,onOpenEditor:no,initialDestination:'series',initialType:'tv'}));
  assert(result.includes('aria-label="Buscar series en TMDB"'));
- assert(result.includes('<option value="series" selected="">Series</option>'));
+ assert(result.includes('<option value="series" selected="">Series retro</option>'));
  assert(result.includes('Año de estreno en TMDB'));
 });
 test('El control de tema arranca en modo oscuro',()=>{

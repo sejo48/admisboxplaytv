@@ -3,6 +3,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         const SOURCE_URLS = {
             TV: './listaoficial.m3u',
             SERIES: './playlist.json',
+            SERIES_NEW: './series.json',
             MOVIES: './peliculas.json',
             ESTRENOS2026: './peliculas2.json',
             ANIMADOS: './animados.json',
@@ -15,6 +16,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         const RAW_URLS = {
             TV: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/listaoficial.m3u',
             SERIES: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/playlist.json',
+            SERIES_NEW: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/series.json',
             MOVIES: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/peliculas.json',
             ESTRENOS2026: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/peliculas2.json',
             ANIMADOS: 'https://raw.githubusercontent.com/sejo48/StreamTube-V20/main/animados.json',
@@ -2180,7 +2182,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // ============================================================
         // EDITOR: SERIES
         // ============================================================
-        const SeriesEditor = ({ series, setSeries, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
+        const SeriesEditor = ({ catalogLabel = 'Series retro', exportFilename = 'playlist.json', series, setSeries, showToast, requestConfirm, onTestPlayer, initialEdit }) => {
             const [selectedSerieId, setSelectedSerieId] = useState(initialEdit?.id || null);
             const [editingSerie, setEditingSerie] = useState(initialEdit || null);
             const [editingEpisode, setEditingEpisode] = useState(null);
@@ -2212,7 +2214,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         episodios: (t.episodios || []).map(({ id, ...ep }) => ({ tituloEpisodio: ep.tituloEpisodio, urlDrive: ep.urlDrive }))
                     }))
                 }));
-                downloadFile(JSON.stringify(exportSeries, null, 2), 'playlist.json', 'application/json');
+                downloadFile(JSON.stringify(exportSeries, null, 2), exportFilename, 'application/json');
                 showToast('Archivo playlist.json generado');
             };
 
@@ -2297,7 +2299,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <div className="w-full border-b border-slate-200 bg-slate-50">
                         <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
                             <div>
-                                <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="film" className="text-purple-600" size={16} /> Series</h2>
+                                <h2 className="text-base font-black text-slate-900 flex items-center gap-2"><Icon name="film" className="text-purple-600" size={16} /> {catalogLabel}</h2>
                                 <span className="text-[10px] text-slate-500 font-bold">({series.length} series registradas)</span>
                             </div>
                             <div className="flex gap-1.5">
@@ -3345,7 +3347,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
         // HOOK: HISTORIAL CENTRALIZADO
         // ============================================================
         const useHistoryTracker = ({
-            movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, enabled
+            movies, estrenos, tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca, enabled
         }) => {
             const historyRef = useRef({ history: [], index: -1 });
             const skipRef = useRef(false);
@@ -3356,13 +3358,13 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 if (!enabled) return;
                 if (skipRef.current) { skipRef.current = false; return; }
                 if (historyRef.current.index < 0) {
-                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, doramas, radios, videoteca };
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca };
                     historyRef.current = { history: [snapshot], index: 0 };
                     return;
                 }
                 if (timerRef.current) clearTimeout(timerRef.current);
                 timerRef.current = setTimeout(() => {
-                    const snapshot = { movies, estrenos, tudum: tudumList, series, channels, animados, doramas, radios, videoteca };
+                    const snapshot = { movies, estrenos, tudum: tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca };
                     const ref = historyRef.current;
                     const baseIdx = ref.index < 0 ? 0 : ref.index;
                     const sliced = ref.history.slice(0, baseIdx + 1);
@@ -3373,7 +3375,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     setHistoryState({ history: sliced, index: ref.index });
                 }, 400);
                 return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-            }, [movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, enabled]);
+            }, [movies, estrenos, tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca, enabled]);
 
             const undo = useCallback(() => {
                 const ref = historyRef.current;
@@ -3410,8 +3412,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <h2 className="text-2xl font-black">Explorar TMDB</h2>
                     <p className="text-sm text-slate-600">1. Busca la película o serie. 2. Elige su catálogo. 3. Revisa la ficha y añade el enlace de reproducción en su editor. TMDB aporta portadas y datos, no los videos.</p>
                     <div className="tmdb-destination-bar">
-                        <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(['doramas','animados','tudum'].includes(destination) ? destination : e.target.value === 'tv' ? 'series' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
-                        <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <option value="series">Series</option>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option><option value="doramas">Doramas</option></select></label>
+                        <label>Tipo <select aria-label="Tipo de contenido TMDB" value={mediaType} onChange={e => { setMediaType(e.target.value); setDestination(['doramas','animados','tudum'].includes(destination) ? destination : e.target.value === 'tv' ? 'seriesNew' : 'movies'); setTargetId(''); }} className="p-2 rounded-lg ml-2"><option value="movie">Películas</option><option value="tv">Series</option></select></label>
+                        <label>Catálogo <select aria-label="Catálogo de destino" value={destination} onChange={e => { setDestination(e.target.value); setTargetId(''); }} className="p-2 rounded-lg ml-2">{mediaType === 'movie' ? <><option value="movies">Películas</option><option value="estrenos">Estrenos 2026</option></> : <><option value="seriesNew">Series</option><option value="series">Series retro</option></>}<option value="tudum">Netflix Tudum</option><option value="animados">Animados</option><option value="doramas">Doramas</option></select></label>
                         <label>Aplicar a <select aria-label="Título que quieres editar" value={targetId} onChange={e => setTargetId(e.target.value)} className="p-2 rounded-lg ml-2 max-w-full"><option value="">Crear nuevo (o abrir el existente si coincide)</option>{items.map(item => <option key={item.id} value={String(item.id)}>{titleOf(item)}</option>)}</select></label>
                     </div>
                     {targetId && <p className="text-sm text-slate-600">Se actualizará la ficha del título elegido. Sus enlaces, PIN y temporadas se conservarán.</p>}
@@ -3493,7 +3495,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <label className="block text-sm font-bold">Título<input aria-label="Título del aviso" value={title} onChange={event => { candidateId.current = crypto.randomUUID(); setTitle(event.target.value); }} maxLength={120} required disabled={busy} className="mt-1 w-full p-3 border rounded-xl"/></label>
                     <label className="block text-sm font-bold">Mensaje<textarea aria-label="Mensaje del aviso" value={message} onChange={event => { candidateId.current = crypto.randomUUID(); setMessage(event.target.value); }} maxLength={1000} required disabled={busy} rows={4} className="mt-1 w-full p-3 border rounded-xl"/></label>
                     <div className="grid sm:grid-cols-2 gap-3">
-                        <label className="block text-sm font-bold">Abrir sección<select aria-label="Sección del aviso" value={target} onChange={event => { candidateId.current = crypto.randomUUID(); setTarget(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[['home','Inicio'],['movies','Películas'],['movies2','Estrenos'],['series','Series'],['animados','Animados'],['doramas','Doramas'],['tv','TV'],['radio','Radio'],['payments','Acceso por 30 días']].map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+                        <label className="block text-sm font-bold">Abrir sección<select aria-label="Sección del aviso" value={target} onChange={event => { candidateId.current = crypto.randomUUID(); setTarget(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[['home','Inicio'],['movies','Películas'],['movies2','Estrenos'],['seriesNew','Series'],['series','Series retro'],['animados','Animados'],['doramas','Doramas'],['tv','TV'],['radio','Radio'],['payments','Acceso por 30 días']].map(([id,label]) => <option key={id} value={id}>{label}</option>)}</select></label>
                         <label className="block text-sm font-bold">Mostrar durante<select aria-label="Duración del aviso" value={duration} onChange={event => { candidateId.current = crypto.randomUUID(); setDuration(event.target.value); }} disabled={busy} className="mt-1 w-full p-3 border rounded-xl">{[1,3,7,30].map(days => <option key={days} value={days}>{days} días</option>)}</select></label>
                     </div>
                     <div className="bg-slate-950 text-white rounded-2xl p-5"><p className="text-xs text-cyan-300 mb-2">VISTA PREVIA</p><h3 className="font-bold">{title || 'Título del aviso'}</h3><p className="text-sm text-slate-300 mt-2 whitespace-pre-wrap break-words">{message || 'Aquí aparecerá tu mensaje.'}</p></div>
@@ -3510,7 +3512,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [tmdbRequest,setTmdbRequest] = useState({ destination:'movies',type:'movie',key:0 });
             const selectSection = id => { setActiveTab(id); window.history.replaceState(null,'',window.location.pathname+window.location.search+'#'+(id==='homecovers'?'portadas':id==='notices'?'avisos':id)); };
             useEffect(() => { const openFromHash=()=>setActiveTab(adminSectionFromHash()); window.addEventListener('hashchange',openFromHash); return ()=>window.removeEventListener('hashchange',openFromHash); },[]);
-            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','animados','doramas','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:['series','doramas'].includes(section)?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
+            const openTmdbFor = section => { if (['movies','estrenos2026','overview'].includes(section)) { const target = section === 'estrenos2026' ? section : 'movies'; setEditorRequest({section:target,item:{isNew:true}}); selectSection(target); return; } const destination=section==='estrenos2026'?'estrenos':['movies','series','seriesNew','animados','doramas','tudum'].includes(section)?section:'movies'; setTmdbRequest({destination,type:['series','seriesNew','doramas'].includes(section)?'tv':'movie',key:Date.now()}); selectSection('tmdb'); window.scrollTo({top:0,behavior:'instant'}); };
             const [editorRequest, setEditorRequest] = useState(null);
             useEffect(() => {
                 if (editorRequest && activeTab === editorRequest.section) setEditorRequest(null);
@@ -3530,6 +3532,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const [estrenos, setEstrenos] = useState([]);
             const [tudumList, setTudumList] = useState([]);
             const [series, setSeries] = useState([]);
+            const [seriesNew, setSeriesNew] = useState([]);
             const [channels, setChannels] = useState([]);
             const [animados, setAnimados] = useState([]);
             const [doramas, setDoramas] = useState([]);
@@ -3556,7 +3559,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }, [showToast]);
 
             const { historyState, undo } = useHistoryTracker({
-                movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca,
+                movies, estrenos, tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca,
                 enabled: dataInitialized
             });
 
@@ -3567,6 +3570,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 setEstrenos(prev.estrenos);
                 setTudumList(prev.tudum);
                 setSeries(prev.series);
+                setSeriesNew(prev.seriesNew || []);
                 setChannels(prev.channels);
                 setAnimados(prev.animados);
                 setDoramas(prev.doramas);
@@ -3582,6 +3586,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     movies: movies.map(({ id, ...r }) => r),
                     estrenos2026: estrenos.map(({ id, ...r }) => r),
                     tudum: tudumList.map(({ id, ...r }) => r),
+                    seriesNew: BoxCatalog.serializeMixed(seriesNew.map(item => ({ ...item, tmdbType: 'tv' }))),
                     series: series.map(({ id, ...s }) => ({
                         ...tmdbMetadata(s),
                         tituloSerie: s.tituloSerie,
@@ -3613,7 +3618,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const fetchFromCloud = async (preserve = new Set()) => {
                 setLoading(true);
                 try {
-                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'doramas', 'radios', 'videoteca'];
+                    const keys = ['tv', 'series', 'movies', 'estrenos', 'tudum', 'animados', 'doramas', 'radios', 'videoteca', 'seriesNew'];
                     const results = await Promise.allSettled([
                         preserve.has('tv') ? null : fetchSmart(SOURCE_URLS.TV, RAW_URLS.TV, false),
                         preserve.has('series') ? null : fetchSmart(SOURCE_URLS.SERIES, RAW_URLS.SERIES, true),
@@ -3623,10 +3628,11 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         preserve.has('animados') ? null : fetchSmart(SOURCE_URLS.ANIMADOS, RAW_URLS.ANIMADOS, true),
                         preserve.has('doramas') ? null : fetchSmart(SOURCE_URLS.DORAMAS, RAW_URLS.DORAMAS, true),
                         preserve.has('radios') ? null : fetchSmart(SOURCE_URLS.RADIOS, RAW_URLS.RADIOS, true),
-                        preserve.has('videoteca') ? null : fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true)
+                        preserve.has('videoteca') ? null : fetchSmart(SOURCE_URLS.VIDEOTECA, RAW_URLS.VIDEOTECA, true),
+                        preserve.has('seriesNew') ? null : fetchSmart(SOURCE_URLS.SERIES_NEW, RAW_URLS.SERIES_NEW, true)
                     ]);
 
-                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resDoramas, resRadios, resVideoteca] = results.map(result => result.status === 'fulfilled' ? result.value : null);
+                    const [resTV, resSeries, resMovies, resEstrenos, resTudum, resAnimados, resDoramas, resRadios, resVideoteca, resSeriesNew] = results.map(result => result.status === 'fulfilled' ? result.value : null);
                     const parsedChannels = parseM3U(resTV || '').map(c => ({ ...c, logo: normalizeImageUrl(c.logo || '') }));
 
                     const parsedSeries = (Array.isArray(resSeries) ? resSeries : (resSeries?.series || [])).map((s, i) => ({
@@ -3681,8 +3687,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         tracks: (v.tracks || v.pistas || []).map((p, pi) => ({ ...p, id: `pista-${i}-${pi}` }))
                     }));
 
-                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedDoramas, parsedRadios, parsedVideoteca];
-                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setDoramas, setRadios, setVideoteca];
+                    const parsed = [parsedChannels, parsedSeries, parsedMovies, parsedEstrenos, parsedTudum, parsedAnimados, parsedDoramas, parsedRadios, parsedVideoteca, BoxCatalog.parseMixed(resSeriesNew || [])];
+                    const setters = [setChannels, setSeries, setMovies, setEstrenos, setTudumList, setAnimados, setDoramas, setRadios, setVideoteca, setSeriesNew];
                     const failed = [];
                     keys.forEach((key, index) => {
                         if (preserve.has(key)) return;
@@ -3703,7 +3709,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             };
 
             const syncToGithub = async (token, repo, branch = 'main', setStep) => {
-                if (loadedCatalogs.current.size < 9) {
+                if (loadedCatalogs.current.size < 10) {
                     showToast('Faltan catálogos por cargar. Recarga los datos antes de publicar para evitar sobrescribirlos con listas vacías.', 'error');
                     return;
                 }
@@ -3715,6 +3721,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
                 const datasets = {
                     'doramas.json': BoxCatalog.serializeMixed(doramas),
+                    'series.json': BoxCatalog.serializeMixed(seriesNew.map(item => ({ ...item, tmdbType: 'tv' }))),
                     'peliculas.json': movies.map(({ id, ...rest }) => ({
                         titulo: rest.titulo || rest.title,
                         tituloOriginal: rest.tituloOriginal || '',
@@ -3900,7 +3907,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             throw new Error(`Error actualizando ${filename}: ${errData.message || putRes.statusText}`);
                         }
                     }
-                    showToast('¡Los 9 archivos se actualizaron en GitHub! Espera ~1 min a que se propague.');
+                    showToast(`¡Los ${total} archivos se actualizaron en GitHub! Espera ~1 min a que se propague.`);
                 } catch (err) {
                     console.error(err);
                     showToast(`Error al sincronizar: ${err.message}`, 'error');
@@ -3925,6 +3932,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             if (parsed.movies) setMovies(parsed.movies.map((m, i) => ({ ...m, id: `mov-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') })));
                             if (parsed.estrenos2026) setEstrenos(parsed.estrenos2026.map((m, i) => ({ ...m, id: `est-${i}`, imagen: normalizeImageUrl(m.imagen || m.image || ''), image: normalizeImageUrl(m.imagen || m.image || '') })));
                             if (parsed.tudum) setTudumList(parsed.tudum.map((t, i) => ({ ...t, id: `tudum-${i}`, image: normalizeImageUrl(t.image || t.imagen || ''), imagen: normalizeImageUrl(t.image || t.imagen || '') })));
+                            if (parsed.seriesNew) setSeriesNew(BoxCatalog.parseMixed(parsed.seriesNew));
                             if (parsed.series) setSeries(parsed.series.map((s, i) => ({ ...s, id: `serie-${i}`, imagen: normalizeImageUrl(s.imagen || s.image || ''), image: normalizeImageUrl(s.imagen || s.image || '') })));
                             if (parsed.doramas) setDoramas(BoxCatalog.parseMixed(parsed.doramas));
                             if (parsed.animados) setAnimados(parsed.animados.map((a, i) => ({ ...a, id: `anim-${i}`, imagen: normalizeImageUrl(a.imagen || a.image || ''), image: normalizeImageUrl(a.imagen || a.image || '') })));
@@ -3957,6 +3965,10 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                             const list = (Array.isArray(parsed) ? parsed : (parsed.radios || [])).map((r, i) => ({ ...r, id: r.id || `cr-${Date.now()}-${i}`, logo: normalizeImageUrl(r.logo || r.imagen || ''), imagen: normalizeImageUrl(r.logo || r.imagen || '') }));
                             setRadios(list);
                             showToast(`Importadas ${list.length} emisoras`);
+                        } else if (filename === 'series.json') {
+                            const parsed = JSON.parse(content);
+                            const list = BoxCatalog.parseMixed(Array.isArray(parsed) ? parsed : parsed.series || []);
+                            setSeriesNew(list); showToast(`Importadas ${list.length} series nuevas`);
                         } else if (filename.includes('playlist') || filename.includes('series')) {
                             const parsed = JSON.parse(content);
                             const list = (Array.isArray(parsed) ? parsed : (parsed.series || [])).map((s, i) => ({ ...s, id: `serie-${Date.now()}-${i}`, imagen: normalizeImageUrl(s.imagen || s.image || ''), image: normalizeImageUrl(s.imagen || s.image || '') }));
@@ -3985,7 +3997,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 const loadData = async () => {
-                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, tv: setChannels, animados: setAnimados, doramas: setDoramas, radios: setRadios, videoteca: setVideoteca };
+                    const catalogs = { movies: setMovies, estrenos: setEstrenos, tudum: setTudumList, series: setSeries, seriesNew: setSeriesNew, tv: setChannels, animados: setAnimados, doramas: setDoramas, radios: setRadios, videoteca: setVideoteca };
                     for (const [key, setter] of Object.entries(catalogs)) {
                         try {
                             const raw = localStorage.getItem('boxplay_admin_' + key) || localStorage.getItem('magis_admin_' + key);
@@ -4008,7 +4020,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
 
             useEffect(() => {
                 if (!dataInitialized) return;
-                const catalogs = { movies, estrenos, tudum: tudumList, series, tv: channels, animados, doramas, radios, videoteca };
+                const catalogs = { movies, estrenos, tudum: tudumList, series, seriesNew, tv: channels, animados, doramas, radios, videoteca };
                 let failed = false;
                 for (const [key, data] of Object.entries(catalogs)) {
                     // Never cache failed initial downloads as valid empty catalogs.
@@ -4019,7 +4031,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     } catch (error) { failed = true; }
                 }
                 setStorageError(failed ? 'No se pudieron guardar todos los cambios en este navegador. Descarga un Backup antes de cerrar o recargar la página.' : '');
-            }, [movies, estrenos, tudumList, series, channels, animados, doramas, radios, videoteca, dataInitialized]);
+            }, [movies, estrenos, tudumList, series, seriesNew, channels, animados, doramas, radios, videoteca, dataInitialized]);
 
             if (loading) {
                 return (
@@ -4032,7 +4044,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             }
 
             const tabs = [
-                { id: 'review', label: 'Revisar fichas', icon: 'search', count: BoxCatalog.reviewRows({ movies, estrenos, series, animados, doramas }).filter(row => row.missing.length > 0).length, color: 'text-amber-500' },
+                { id: 'review', label: 'Revisar fichas', icon: 'search', count: BoxCatalog.reviewRows({ movies, estrenos, series, seriesNew, animados, doramas }).filter(row => row.missing.length > 0).length, color: 'text-amber-500' },
                 { id: 'overview', label: 'Resumen', icon: 'grip', count: 0, color: 'text-cyan-500' },
                 { id: 'homecovers', label: 'Portadas', icon: 'film', count: 5, color: 'text-cyan-500' },
                 { id: 'notices', label: 'Avisos', icon: 'chat', count: 0, color: 'text-cyan-500' },
@@ -4041,7 +4053,8 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                 { id: 'trending', label: 'Tendencias', icon: 'flame', count: 0, color: 'text-rose-400' },
                 { id: 'estrenos2026', label: 'Estrenos 2026', icon: 'sparkles', count: estrenos.length, color: 'text-amber-500' },
                 { id: 'tudum', label: 'Netflix Tudum', icon: 'flame', count: tudumList.length, color: 'text-rose-500' },
-                { id: 'series', label: 'Series', icon: 'film', count: series.length, color: 'text-purple-500' },
+                { id: 'seriesNew', label: 'Series', icon: 'film', count: seriesNew.length, color: 'text-purple-500' },
+                { id: 'series', label: 'Series retro', icon: 'film', count: series.length, color: 'text-purple-500' },
                 { id: 'doramas', label: 'Doramas', icon: 'film', count: doramas.length, color: 'text-pink-500' },
                 { id: 'animados', label: 'Animados', icon: 'smile', count: animados.length, color: 'text-orange-500' },
                 { id: 'videoteca', label: 'BoxPlayMusic', icon: 'disc', count: videoteca.length, color: 'text-yellow-600' },
@@ -4085,20 +4098,21 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                         <nav className="admin-navigation" aria-label="Secciones del administrador"><label className="admin-mobile-section">Sección<select aria-label="Elegir sección" value={activeTab} onChange={e=>selectSection(e.target.value)}>{ADMIN_GROUPS.map(group=><optgroup label={group.label} key={group.label}>{group.ids.map(id=><option key={id} value={id}>{tabs.find(tab=>tab.id===id)?.label}</option>)}</optgroup>)}</select></label>{ADMIN_GROUPS.map(group => <div className="admin-nav-group" key={group.label}><p>{group.label}</p><div>{group.ids.map(id => { const tab=tabs.find(t=>t.id===id);return <button key={id} type="button" aria-current={activeTab===id?'page':undefined} onClick={() => selectSection(id)}><Icon name={tab.icon} size={14}/><span>{tab.label}</span>{tab.count>0&&<small>{tab.count}</small>}</button>;})}</div></div>)}</nav>
                     </header>
                     <main className="admin-main flex-1 w-full p-4 md:p-6 lg:p-8">
-                        <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','animados','doramas','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
+                        <div className="admin-section-heading"><div><p>BOXPLAYTV / {ADMIN_GROUPS.find(group=>group.ids.includes(activeTab))?.label}</p><h2>{tabs.find(tab=>tab.id===activeTab)?.label || 'Catálogo'}</h2></div>{['movies','estrenos2026','series','seriesNew','animados','doramas','tudum'].includes(activeTab)&&<button className="admin-outline-button" onClick={() => openTmdbFor(activeTab)}>Buscar ficha en TMDB →</button>}</div>
                         {loadError && <div role="alert" className="p-4 mb-4 rounded-xl bg-amber-100 text-amber-950">{loadError}</div>}
                         {storageError && <div role="alert" className="p-4 mb-4 rounded-xl bg-rose-100 text-rose-950">{storageError}</div>}
                         <ErrorBoundary>
-                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','animados','doramas','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas y series</h3><p>Detecta enlaces de Google Drive y datos que faltan en Estrenos 2026, Películas, Series, Animados, Doramas y Navidad.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series, doramas y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
-                            {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} series={series} animados={animados} doramas={doramas} onOpenEditor={openCatalogEditor} />}
+                            {activeTab === 'overview' && <div className="admin-overview"><section className="admin-welcome"><p>Tu catálogo, en orden</p><h2>Prepara la próxima historia.</h2><p>Busca una ficha en TMDB, revisa sus datos y guárdala en su sección.</p><button className="admin-add-button" onClick={() => openTmdbFor('movies')}>Buscar películas y series →</button></section><div className="admin-overview-grid">{tabs.filter(t=>['movies','estrenos2026','series','seriesNew','animados','doramas','tudum'].includes(t.id)).map(tab=><button key={tab.id} onClick={()=>selectSection(tab.id)}><Icon name={tab.icon} size={22}/><strong>{tab.count}</strong><span>{tab.label}</span><small>Abrir cuadrícula →</small></button>)}</div><section className="admin-workflow"><h3>Revisa la información de tus películas y series</h3><p>Detecta enlaces de Google Drive y datos que faltan en Estrenos 2026, Películas, Series, Series retro, Animados, Doramas y Navidad.</p><button type="button" className="admin-outline-button" onClick={() => selectSection('review')}>Revisar fichas →</button></section><section className="admin-workflow"><h3>Un paso para cada tarea</h3><p><strong>1 · Descubrir.</strong> TMDB y Tendencias para encontrar fichas.</p><p><strong>2 · Organizar.</strong> Películas, estrenos, series, doramas y animados en sus catálogos.</p><p><strong>3 · Publicar.</strong> Revisa los cambios y utiliza GitHub Sync; las fichas no se publican al seleccionarlas.</p></section></div>}
+                            {activeTab === 'review' && <CatalogReview movies={movies} estrenos={estrenos} series={series} seriesNew={seriesNew} animados={animados} doramas={doramas} onOpenEditor={openCatalogEditor} />}
                             {activeTab === 'homecovers' && <HomeCoversEditor showToast={showToast} requestConfirm={requestConfirm} />}
                             {activeTab === 'notices' && <NoticesEditor showToast={showToast} requestConfirm={requestConfirm} />}
-                            {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], animados: [animados, setAnimados], doramas: [doramas, setDoramas] }} showToast={showToast} />}
+                            {activeTab === 'tmdb' && <TmdbExplorer key={tmdbRequest.key} initialDestination={tmdbRequest.destination} initialType={tmdbRequest.type} onOpenEditor={openCatalogEditor} catalogs={{ movies: [movies, setMovies], estrenos: [estrenos, setEstrenos], tudum: [tudumList, setTudumList], series: [series, setSeries], seriesNew: [seriesNew, setSeriesNew], animados: [animados, setAnimados], doramas: [doramas, setDoramas] }} showToast={showToast} />}
                             {activeTab === 'movies' && (<MoviesEditor initialEdit={editorRequest?.section === 'movies' ? editorRequest.item : null} movies={movies} setMovies={setMovies} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'trending' && (<TrendingImporter movies={movies} setMovies={setMovies} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} />)}
                             {activeTab === 'estrenos2026' && (<Estrenos2026Editor initialEdit={editorRequest?.section === 'estrenos2026' ? editorRequest.item : null} estrenos={estrenos} setEstrenos={setEstrenos} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'tudum' && (<TudumEditor initialEdit={editorRequest?.section === 'tudum' ? editorRequest.item : null} tudumList={tudumList} setTudumList={setTudumList} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
-                            {activeTab === 'series' && (<SeriesEditor initialEdit={editorRequest?.section === 'series' ? editorRequest.item : null} series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'seriesNew' && (<SeriesEditor key="seriesNew" catalogLabel="Series" exportFilename="series.json" initialEdit={editorRequest?.section === 'seriesNew' ? editorRequest.item : null} series={seriesNew} setSeries={setSeriesNew} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
+                            {activeTab === 'series' && (<SeriesEditor key="series" initialEdit={editorRequest?.section === 'series' ? editorRequest.item : null} series={series} setSeries={setSeries} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'doramas' && (<AnimadosEditor collection="doramas" initialEdit={editorRequest?.section === 'doramas' ? editorRequest.item : null} animados={doramas} setAnimados={setDoramas} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'animados' && (<AnimadosEditor initialEdit={editorRequest?.section === 'animados' ? editorRequest.item : null} animados={animados} setAnimados={setAnimados} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}
                             {activeTab === 'videoteca' && (<VideotecaEditor videoteca={videoteca} setVideoteca={setVideoteca} showToast={showToast} requestConfirm={requestConfirm} onTestPlayer={openTestPlayer} />)}

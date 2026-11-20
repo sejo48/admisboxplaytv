@@ -122,3 +122,15 @@ test('Mover episodios conserva sus enlaces y marca únicamente la temporada edit
  assert.equal(tools.serializeMixed([changed])[0].temporadas[0].episodeOrder,'manual');
 });
 
+
+test('Series y Series retro mantienen destinos y temporadas independientes',()=>{
+ const retro={tituloSerie:'Clásico',temporadas:[{numeroTemporada:1,episodios:[{tituloEpisodio:'Uno',urlDrive:'https://example.test/retro'}]}]};
+ const modern=tools.draft({titulo:'Nueva historia',tmdbType:'tv'},null,'seriesNew');
+ assert.deepEqual(modern.temporadas,[]);
+ assert.equal(modern.tituloSerie,'Nueva historia');
+ const rows=tools.reviewRows({series:[retro],seriesNew:[modern]});
+ assert.equal(rows.find(r=>r.section==='series').catalog,'Series retro');
+ assert.equal(rows.find(r=>r.section==='seriesNew').catalog,'Series');
+ assert(rows.find(r=>r.section==='seriesNew').missing.some(f=>f.id==='drive'));
+ assert.equal(retro.temporadas[0].episodios[0].urlDrive,'https://example.test/retro');
+});

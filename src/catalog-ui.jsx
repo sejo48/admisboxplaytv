@@ -105,12 +105,12 @@ const CatalogPoster = ({ item,selected=false,onSelect,onEdit,onDelete,caption })
     </article>;
 };
 
-const CatalogReview = ({ movies, estrenos, series, animados, doramas, onOpenEditor }) => {
+const CatalogReview = ({ movies, estrenos, series, seriesNew, animados, doramas, onOpenEditor }) => {
     const [search, setSearch] = React.useState('');
     const [field, setField] = React.useState('drive');
     const [section, setSection] = React.useState('all');
     const [limit, setLimit] = React.useState(30);
-    const rows = React.useMemo(() => BoxCatalog.reviewRows({ movies, estrenos, series, animados, doramas }), [movies, estrenos, series, animados, doramas]);
+    const rows = React.useMemo(() => BoxCatalog.reviewRows({ movies, estrenos, series, seriesNew, animados, doramas }), [movies, estrenos, series, seriesNew, animados, doramas]);
     const scoped = rows.filter(row => section === 'all' || (section === 'navidad' ? BoxCatalog.isChristmas(row.item) : row.section === section));
     const pending = scoped.filter(row => row.missing.length);
     const noDrive = scoped.filter(row => row.missing.some(issue => issue.id === 'drive')).length;
@@ -147,7 +147,7 @@ const ThemeToggle = () => {
 };
 
 const ADMIN_GROUPS = [
-    {label:'Catálogo',ids:['overview','movies','estrenos2026','series','animados','doramas','tudum','review']},
+    {label:'Catálogo',ids:['overview','movies','estrenos2026','seriesNew','series','animados','doramas','tudum','review']},
     {label:'Descubrir',ids:['tmdb','trending']},
     {label:'Publicar',ids:['homecovers','notices']},
     {label:'En vivo y música',ids:['tv','radios','videoteca']}

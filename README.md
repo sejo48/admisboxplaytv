@@ -1,3 +1,9 @@
+## Series y Series retro
+
+La colección existente permanece en **Series retro**, con sus temporadas, episodios y enlaces. **Series** es una colección independiente que comienza vacía. En el administrador, elige Catálogo → Series o Series retro para añadir títulos, importar temporadas de Google Drive, exportar o editar. Guarda y publica con GitHub Sync. Ambas secciones están disponibles en móvil, PC y Smart TV.
+
+El catálogo retro conserva `playlist.json` y sus identificadores; el nuevo usa `series.json`. Los borradores locales, respaldos y Deshacer se mantienen por separado.
+
 # Administrador Box Play TV
 
 Panel principal: https://sejo48.github.io/admisboxplaytv/

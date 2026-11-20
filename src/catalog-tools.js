@@ -42,11 +42,12 @@
     const reviewCatalogs = [
         { id: 'estrenos2026', key: 'estrenos', label: 'Estrenos 2026' },
         { id: 'movies', key: 'movies', label: 'Películas' },
-        { id: 'series', key: 'series', label: 'Series' },
+        { id: 'series', key: 'series', label: 'Series retro' },
+        { id: 'seriesNew', key: 'seriesNew', label: 'Series' },
         { id: 'animados', key: 'animados', label: 'Animados' },
         { id: 'doramas', key: 'doramas', label: 'Doramas' }
     ];
-    const reviewRows = (catalogs = {}) => reviewCatalogs.flatMap(({ id, key, label }) => (catalogs[key] || []).map((item, index) => ({ item, index, section: id, catalog: label, missing: missingInfo(item, { series: id === 'series' }) })));
+    const reviewRows = (catalogs = {}) => reviewCatalogs.flatMap(({ id, key, label }) => (catalogs[key] || []).map((item, index) => ({ item, index, section: id, catalog: label, missing: missingInfo(item, { series: ['series','seriesNew'].includes(id) }) })));
     function findMatch(items, data, mediaType = data.tmdbType || 'movie') {
         const typed = item => (item.tmdbType || item.mediaType || (item.tituloSerie ? 'tv' : 'movie')) === mediaType;
         if (data.tmdbId) {
@@ -57,7 +58,7 @@
     }
     function draft(data, existing, destination) {
         const result = { ...(existing || { urlDrive: '', qualityTag: '', codigo: null }), ...data, title: data.titulo, image: data.imagen, id: existing?.id, isNew: !existing };
-        if (destination === 'series' || destination === 'animados' || destination === 'doramas') { result.tituloSerie = data.titulo; result.temporadas = existing?.temporadas || []; }
+        if (destination === 'series' || destination === 'seriesNew' || destination === 'animados' || destination === 'doramas') { result.tituloSerie = data.titulo; result.temporadas = existing?.temporadas || []; }
         if (destination === 'tudum') Object.assign(result,{ synopsis: data.sinopsis, releaseDate: data.fechaEstreno, genre: data.generosTexto, score: data.rating });
         return result;
     }
