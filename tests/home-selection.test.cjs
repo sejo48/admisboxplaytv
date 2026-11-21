@@ -22,6 +22,7 @@ async function mount(){
  return {renderer,button,config:()=>config,writes:()=>writes,storage,
   choose:async i=>Renderer.act(async()=>renderer.root.findByProps({'aria-label':'Elegir '+catalog[i].titulo}).props.onClick()),
   changeImage:async image=>Renderer.act(async()=>renderer.root.findAllByType('input').find(node=>node.props.type==='url').props.onChange({target:{value:image}})),
+  changePosition:async value=>Renderer.act(async()=>renderer.root.findByProps({id:'home-poster-position'}).props.onChange({target:{value}})),
   connect:async()=>Renderer.act(async()=>button('Comprobar conexión').props.onClick()),
   publish:async()=>Renderer.act(async()=>button('Publicar película de inicio').props.onClick()),
   loseResponse:()=>{loseResponse=true;},
@@ -54,4 +55,17 @@ test('a lost publication response retries by confirming the same saved movie wit
  assert.equal(h.writes(),1);assert.match(h.renderer.root.findByProps({role:'alert'}).children.join(''),/No se confirmó/);
  await h.publish();assert.equal(h.writes(),1);assert.equal(h.button('Publicar película de inicio').props.disabled,true);
  Renderer.act(()=>h.renderer.unmount());
+});
+test('poster placement updates the preview, draft and publication without changing the chosen movie',async()=>{
+ const h=await mount();await h.connect();
+ for(const posterPosition of ['right','inline','left']){
+  await h.changePosition(posterPosition);
+  assert.equal(h.renderer.root.findByProps({className:'home-selection-overview'}).props['data-poster-position'],posterPosition);
+  assert.equal(JSON.parse(h.storage.get('boxplay_admin_home_feature_draft_v2')).items[0].posterPosition,posterPosition);
+  await h.publish();
+  assert.equal(h.config().items[0].posterPosition,posterPosition);
+  assert.equal(h.config().items[0].movieKey,C.key(catalog[0]));
+  assert.equal(h.config().items[0].backdrop,catalog[0].backdrop);
+ }
+ assert.equal(h.writes(),3);Renderer.act(()=>h.renderer.unmount());
 });

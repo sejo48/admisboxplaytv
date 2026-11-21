@@ -85,7 +85,7 @@ const server=http.createServer((req,res)=>{
   for(const width of [320,390,1280]){
    await admin.setViewportSize({width,height:900});
    assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Selected cover editor must fit at ${width}px`);
-   const previews=await editor.locator('[data-cover-slot] img').evaluateAll(images=>images.map(img=>({width:img.clientWidth,height:img.clientHeight,fit:getComputedStyle(img).objectFit})));
+   const previews=await editor.locator('[data-cover-slot] .home-selection-backdrop').evaluateAll(images=>images.map(img=>({width:img.clientWidth,height:img.clientHeight,fit:getComputedStyle(img).objectFit})));
    assert.equal(previews.length,1);assert(previews.every(img=>img.width>0&&img.height>0&&img.fit==='contain'));
   }
   await admin.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await admin.screenshot({path:'/tmp/box-admin-home-covers.png'});

@@ -72,10 +72,14 @@ fieldset{min-inline-size:0}form,form>*{min-width:0}input,textarea,select{min-wid
 /* The preview uses the same paired artwork and movie information as the home page. */
 .home-selection-status{padding:10px 16px;border:1px solid var(--admin-border);border-radius:12px;background:var(--admin-raised);color:var(--admin-accent);font-size:14px;font-weight:700}
 .home-selection-overview{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr);align-items:center;background:var(--admin-raised)}
-.home-selection-panorama{width:100%;aspect-ratio:16/9;min-width:0;overflow:hidden}
+.home-selection-panorama{position:relative;width:100%;aspect-ratio:16/9;min-width:0;overflow:hidden}
 .home-selection-panorama img{display:block;width:100%;height:100%;object-fit:contain}
 .home-selection-info{display:flex;align-items:center;gap:16px;padding:24px;min-width:0}
 .home-selection-info>div{min-width:0}
 .home-selection-poster{display:block;width:58px;aspect-ratio:2/3;flex-shrink:0;object-fit:contain;border-radius:7px;background:var(--admin-panel)}
-@media(max-width:1023px){.home-selection-overview{grid-template-columns:minmax(0,1fr)}}
+.home-selection-panorama>.home-selection-poster-floating{position:absolute;left:4%;top:50%;transform:translateY(-50%);width:22%;max-width:160px;max-height:70%;height:auto;border:2px solid #e2e8f080;border-radius:10px;box-shadow:0 12px 30px #0009;pointer-events:none}
+.home-selection-overview[data-poster-position=right] .home-selection-poster-floating{left:auto;right:4%}
+.home-selection-overview[data-poster-position=inline] .home-selection-poster-floating{display:none}
+@media(min-width:1024px){.home-selection-overview:not([data-poster-position=inline]) .home-selection-poster-inline{display:none}}
+@media(max-width:1023px){.home-selection-overview{grid-template-columns:minmax(0,1fr)}.home-selection-panorama>.home-selection-poster-floating{display:none}}
 @media(max-width:639px){.home-selection-info{gap:13px;padding:18px 16px}.home-selection-poster{width:54px}}
