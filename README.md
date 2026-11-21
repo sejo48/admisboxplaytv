@@ -55,7 +55,7 @@ El panel abre en **modo oscuro**. El botón de tema permite elegir modo claro y 
 
 - **Catálogo:** Resumen, Películas, Estrenos 2026, Series, Animados y Netflix Tudum.
 - **Descubrir:** Explorar TMDB y Tendencias.
-- **Publicar:** Portadas de inicio y Avisos.
+- **Publicar:** Película de inicio y Avisos.
 - **En vivo y música:** TV, Radios y BoxPlayMusic.
 
 Las colecciones de cine y series se muestran en una cuadrícula de portadas con título y datos básicos. Se puede buscar sin tildes, filtrar por género/año y ordenar por título, año o puntuación. La ordenación visual no reescribe el orden publicado del catálogo. Series y Animados abren sus temporadas y episodios debajo de la cuadrícula.
@@ -73,30 +73,24 @@ npm run build
 
 Las pruebas cubren búsqueda, filtros sin mutar datos, duplicados/remakes, conservación de enlaces y temporadas, destinos TMDB y renderizado de cuadrículas. Las pruebas no publican cambios en el catálogo de clientes.
 
-## Portadas de inicio
+## Película de inicio
 
 Enlace directo: https://sejo48.github.io/admisboxplaytv/#portadas
 
-Abre **Publicar → Portadas**, o **Herramientas → Portadas de inicio**. Elige exactamente cinco películas del catálogo publicado de **Estrenos 2026**. Cada selección tiene una vista previa y un campo para sustituir el fondo panorámico. Las imágenes se comprueban antes de habilitar la publicación; los fondos verticales, cuadrados o que no cargan bloquean el guardado.
+Abre **Publicar → Película de inicio** o el botón del encabezado. Elige una película del catálogo publicado de **Estrenos 2026**. Elegir otra sustituye la selección anterior. La película queda fija en Inicio hasta publicar un cambio.
 
-1. Busca y elige cinco estrenos. Puedes quitar uno para reemplazarlo.
-2. Revisa sus imágenes panorámicas. El borrador se conserva en este navegador al cambiar de sección o recargar.
-3. Comprueba la conexión de GitHub con una credencial que tenga permiso Contents: escritura en StreamTube-V20.
-4. Pulsa **Publicar cinco portadas**. La selección se guarda en `portadas-inicio.json` de StreamTube-V20, rama main. No modifica los catálogos ni los avisos.
+1. Busca y elige la película.
+2. Revisa la panorámica y el póster en miniatura. Puedes sustituir el enlace de la panorámica. Una imagen vertical, cuadrada o que no carga bloquea la publicación.
+3. Comprueba la conexión de GitHub.
+4. Pulsa **Publicar película de inicio**.
 
-Box Play TV elige una portada entre esas cinco al abrir Inicio, evita repetir la que estaba visible y mantiene la imagen fija mientras se navega. Una película fuera de las cinco no se añade automáticamente si se elimina un estreno elegido o falla una imagen. Antes de la primera selección publicada se conserva la selección automática de los últimos estrenos.
+La aplicación muestra la panorámica completa, conservando sus proporciones, y debajo una franja con el póster pequeño, el título, los datos y «Ver ahora». En móvil el botón y las acciones se distribuyen debajo de la ficha. El póster y la información tienen su propio espacio.
 
-El selector usa únicamente estrenos que ya están publicados en la aplicación principal. Si acabas de crear uno en el editor, publícalo con GitHub Sync y pulsa **Actualizar Estrenos** para poder elegirlo. Las referencias son independientes de la posición del catálogo y los identificadores temporales del administrador.
+La publicación actualiza únicamente `portadas-inicio.json` en StreamTube-V20. El formato nuevo (`schemaVersion: 2`) guarda una referencia y su panorámica, sin duplicar ni modificar catálogos. Los lectores también admiten el formato anterior de cinco portadas y utilizan únicamente su primera película durante la transición. Si falta la película o falla su panorámica, no se sustituye por otro título.
 
-La nueva sección reutiliza la credencial existente de GitHub Sync y no guarda credenciales nuevas. Se comprueba la versión publicada antes de escribir para impedir que un borrador antiguo sustituya cambios de otra sesión. Un reintento después de una respuesta perdida confirma el mismo guardado sin duplicarlo. **Cargar selección publicada** permite reemplazar expresamente el borrador local.
+Los borradores de esta selección se guardan por separado de los antiguos. La credencial de GitHub Sync, la comprobación de versiones y el reintento después de una respuesta perdida conservan su funcionamiento. Publica nuevos estrenos con GitHub Sync y pulsa **Actualizar Estrenos** para poder elegirlos.
 
-Los archivos `home-covers.js` de ambos repositorios implementan el mismo contrato. El componente está en `src/home-covers.jsx`; el proceso de compilación lo incluye junto con `src/app.jsx`. Las salidas estáticas generadas se incluyen en el commit.
-
-Prueba integrada, sin escrituras reales en GitHub:
-
-```sh
-NODE_PATH=/workspace/streamtube-tools/node_modules BOXPLAY_TEST_CSS=/workspace/streamtube-tools/browser-test.css node tests/home-covers-browser.cjs
-```
+Los archivos `home-covers.js` de ambos repositorios mantienen el mismo contrato. El editor está en `src/home-covers.jsx`; `npm run build` genera los archivos estáticos de producción.
 
 ## Avisos
 

@@ -4046,7 +4046,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
             const tabs = [
                 { id: 'review', label: 'Revisar fichas', icon: 'search', count: BoxCatalog.reviewRows({ movies, estrenos, series, seriesNew, animados, doramas }).filter(row => row.missing.length > 0).length, color: 'text-amber-500' },
                 { id: 'overview', label: 'Resumen', icon: 'grip', count: 0, color: 'text-cyan-500' },
-                { id: 'homecovers', label: 'Portadas', icon: 'film', count: 5, color: 'text-cyan-500' },
+                { id: 'homecovers', label: 'Película de inicio', icon: 'film', count: 1, color: 'text-cyan-500' },
                 { id: 'notices', label: 'Avisos', icon: 'chat', count: 0, color: 'text-cyan-500' },
                 { id: 'tmdb', label: 'Explorar TMDB', icon: 'search', count: 0, color: 'text-teal-500' },
                 { id: 'movies', label: 'Películas', icon: 'clapperboard', count: movies.length, color: 'text-blue-500' },
@@ -4073,7 +4073,7 @@ const { useState, useEffect, useRef, useMemo, useCallback, Component } = React;
                     <header className="admin-header">
                         <div className="admin-topbar"><a className="admin-brand" href="#overview" onClick={() => selectSection('overview')}><span className="admin-logo" aria-hidden="true">▶</span><span><strong>BOXPLAY<span>TV</span></strong><small>Administrador de contenidos</small></span></a>
                             <div className="admin-primary-actions"><ThemeToggle/><button className="admin-add-button" onClick={() => openTmdbFor(activeTab)}>＋ Añadir desde TMDB</button><details className="admin-actions-menu"><summary>Herramientas ▾</summary><div>
-                                <button onClick={() => selectSection('homecovers')} className="text-xs bg-cyan-950 hover:bg-cyan-900 text-cyan-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><Icon name="film" size={14}/><span>Portadas de inicio</span></button>
+                                <button onClick={() => selectSection('homecovers')} className="text-xs bg-cyan-950 hover:bg-cyan-900 text-cyan-100 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><Icon name="film" size={14}/><span>Película de inicio</span></button>
                                 <button onClick={() => selectSection('notices')} className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2" title="Crear y publicar avisos en Box Play TV">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
                                     <span>Enviar avisos</span>

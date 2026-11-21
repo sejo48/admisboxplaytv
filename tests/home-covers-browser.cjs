@@ -64,35 +64,34 @@ const server=http.createServer((req,res)=>{
   const editor=admin.getByRole('region',{name:'Editor de portadas de inicio'});await editor.getByRole('heading',{name:'Elegir desde Estrenos 2026'}).waitFor();
   assert.equal(apiReads,0);assert.equal(writes,0);
   assert.equal(await editor.locator('[aria-label="Estrenos disponibles"] article').count(),6);
-  for(const width of [1280,390]){await admin.setViewportSize({width,height:900});assert(await admin.getByRole('button',{name:'Portadas de inicio',exact:true}).isVisible());assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
-  for(let i=0;i<5;i++)await editor.getByRole('button',{name:'Elegir '+catalog[i].titulo,exact:true}).click();
-  await admin.waitForFunction(()=>Array.from(document.querySelectorAll('[data-cover-slot]')).filter(el=>el.textContent.includes('Panorámica verificada')).length===5);
-  assert(await editor.getByRole('button',{name:'Elegir '+catalog[5].titulo,exact:true}).isDisabled());
-  await editor.getByRole('button',{name:'Quitar '+catalog[4].titulo,exact:true}).click();
+  for(const width of [1280,390]){await admin.setViewportSize({width,height:900});assert(await admin.getByRole('button',{name:/Película de inicio/}).isVisible());assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+  await editor.getByRole('button',{name:'Elegir '+catalog[1].titulo,exact:true}).click();
+  await editor.getByRole('button',{name:'Elegir '+catalog[0].titulo,exact:true}).click();
+  await editor.getByText('Panorámica verificada',{exact:true}).waitFor();
+  assert.equal(await editor.locator('[data-cover-slot]').count(),1);
   assert(!(await editor.getByRole('button',{name:'Elegir '+catalog[5].titulo,exact:true}).isDisabled()));
-  await editor.getByRole('button',{name:'Elegir '+catalog[5].titulo,exact:true}).click();
   const firstImage=editor.getByRole('textbox',{name:'Imagen panorámica de '+catalog[0].titulo,exact:true});
   await firstImage.fill('https://images.test/portrait.jpg');await editor.getByText('La imagen es vertical o cuadrada. Usa una panorámica.',{exact:true}).waitFor();
   await firstImage.fill('https://images.test/broken.jpg');await editor.getByText('No se pudo cargar la imagen. Revisa el enlace.',{exact:true}).waitFor();
   await firstImage.fill('https://images.test/custom-wide.jpg');
   await admin.reload();await editor.getByRole('heading',{name:'Elegir desde Estrenos 2026'}).waitFor();
   assert.equal(await editor.getByRole('textbox',{name:'Imagen panorámica de '+catalog[0].titulo,exact:true}).inputValue(),'https://images.test/custom-wide.jpg');
-  assert.equal(await editor.locator('[data-cover-slot] input').count(),5);
+  assert.equal(await editor.locator('[data-cover-slot] input').count(),1);
   await editor.getByRole('button',{name:'Comprobar conexión',exact:true}).click();
   await editor.getByRole('alert').filter({hasText:'GitHub rechazó el token'}).waitFor();assert.equal(writes,0);
   await editor.getByLabel('Token personal de GitHub (PAT)').fill('example-valid-credential');
   await editor.getByRole('button',{name:'Comprobar conexión',exact:true}).click();await editor.getByRole('status').filter({hasText:'Conexión verificada'}).waitFor();
-  await editor.getByRole('button',{name:'Publicar cinco portadas',exact:true}).click();await editor.getByRole('status').filter({hasText:'Cinco portadas publicadas'}).waitFor();
+  await editor.getByRole('button',{name:'Publicar película de inicio',exact:true}).click();await editor.getByRole('status').filter({hasText:'Película de inicio publicada'}).waitFor();
   for(const width of [320,390,1280]){
    await admin.setViewportSize({width,height:900});
    assert(await admin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Selected cover editor must fit at ${width}px`);
    const previews=await editor.locator('[data-cover-slot] img').evaluateAll(images=>images.map(img=>({width:img.clientWidth,height:img.clientHeight,fit:getComputedStyle(img).objectFit})));
-   assert.equal(previews.length,5);assert(previews.every(img=>img.width>0&&Math.abs(img.width/img.height-16/9)<.03&&img.fit==='contain'));
+   assert.equal(previews.length,1);assert(previews.every(img=>img.width>0&&img.height>0&&img.fit==='contain'));
   }
   await admin.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await admin.screenshot({path:'/tmp/box-admin-home-covers.png'});
-  assert.equal(writes,1);assert.equal(config.mode,'manual');assert.deepEqual(config.items.map(item=>item.movieKey),[0,1,2,3,5].map(i=>Covers.key(catalog[i])));
+  assert.equal(writes,1);assert.equal(config.mode,'manual');assert.deepEqual(config.items.map(item=>item.movieKey),[Covers.key(catalog[0])]);
   assert.equal(await admin.evaluate(()=>localStorage.getItem('boxplay_github_pat')),'example-expired-credential');
-  console.log('PASS: visible Portadas entry, five-only selection, portrait/broken-image validation, draft persistence, explicit credential verification and isolated publication');
+  console.log('PASS: visible Portadas entry, single-movie replacement, portrait/broken-image validation, draft persistence, explicit credential verification and isolated publication');
   const primary=await context.newPage();primary.on('pageerror',error=>errors.push(error.message));
   await primary.addInitScript(()=>Math.random=()=>.99999999);
   await primary.goto(origin+'/principal/');const hero=primary.getByRole('region',{name:'Película recomendada'});await hero.locator('h1').waitFor();
@@ -100,22 +99,22 @@ const server=http.createServer((req,res)=>{
   assert.equal(await hero.locator('.home-feature-backdrop').getAttribute('src'),'https://images.test/custom-wide.jpg');
   for(let i=0;i<4;i++){
    const previous=(await hero.locator('h1').textContent()).trim();await primary.reload();await hero.locator('h1').waitFor();
-   const next=(await hero.locator('h1').textContent()).trim();assert.notEqual(next,previous);assert(config.items.some(item=>item.title===next));
+   const next=(await hero.locator('h1').textContent()).trim();assert.equal(next,previous);assert(config.items.some(item=>item.title===next));
   }
-  console.log('PASS: principal honors selected older Estrenos and custom panoramas; every reopening alternates exclusively among the published five');
+  console.log('PASS: principal honors selected older Estrenos and custom panoramas; every reopening retains the same published movie');
   await editor.getByRole('textbox',{name:'Imagen panorámica de '+catalog[0].titulo,exact:true}).fill('https://images.test/changed-wide.jpg');
   // Another administrator publishes after this draft was opened.
   config={...config,updatedAt:'2026-10-18T12:34:56.000Z'};sha='other-session';files.set(Covers.FILE,JSON.stringify(config));
-  await editor.getByRole('button',{name:'Publicar cinco portadas',exact:true}).click();
+  await editor.getByRole('button',{name:'Publicar película de inicio',exact:true}).click();
   await editor.getByRole('alert').filter({hasText:'La selección publicada cambió'}).waitFor();assert.equal(writes,1);
   assert.equal(await editor.getByRole('textbox',{name:'Imagen panorámica de '+catalog[0].titulo,exact:true}).inputValue(),'https://images.test/changed-wide.jpg');
   await editor.getByRole('button',{name:'Cargar selección publicada',exact:true}).click();await admin.getByRole('button',{name:'Confirmar',exact:true}).click();
   await editor.getByRole('heading',{name:'Elegir desde Estrenos 2026'}).waitFor();
   const updatedInput=editor.getByRole('textbox',{name:'Imagen panorámica de '+catalog[0].titulo,exact:true});
   await updatedInput.fill('https://images.test/retry-wide.jpg');dropResponse=true;
-  await editor.getByRole('button',{name:'Publicar cinco portadas',exact:true}).click();
+  await editor.getByRole('button',{name:'Publicar película de inicio',exact:true}).click();
   await editor.getByRole('alert').filter({hasText:'No se confirmó'}).waitFor();assert.equal(writes,2);
-  await editor.getByRole('button',{name:'Publicar cinco portadas',exact:true}).click();await editor.getByRole('status').filter({hasText:'Cinco portadas publicadas'}).waitFor();assert.equal(writes,2);
+  await editor.getByRole('button',{name:'Publicar película de inicio',exact:true}).click();await editor.getByRole('status').filter({hasText:'Película de inicio publicada'}).waitFor();assert.equal(writes,2);
   console.log('PASS: stale drafts cannot overwrite a newer selection; lost-response retry confirms the existing publication without another commit');
   const retained=(await hero.locator('h1').textContent()).trim();failConfig=true;
   await primary.waitForTimeout(1100);await primary.evaluate(()=>window.dispatchEvent(new Event('focus')));
