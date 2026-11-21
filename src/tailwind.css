@@ -81,5 +81,5 @@ fieldset{min-inline-size:0}form,form>*{min-width:0}input,textarea,select{min-wid
 .home-selection-overview[data-poster-position=right] .home-selection-poster-floating{left:auto;right:4%}
 .home-selection-overview[data-poster-position=inline] .home-selection-poster-floating{display:none}
 @media(min-width:1024px){.home-selection-overview:not([data-poster-position=inline]) .home-selection-poster-inline{display:none}}
-@media(max-width:1023px){.home-selection-overview{grid-template-columns:minmax(0,1fr)}.home-selection-panorama>.home-selection-poster-floating{display:none}}
+@media(max-width:1023px){.home-selection-overview{grid-template-columns:minmax(0,1fr)}.home-selection-overview .home-selection-panorama>.home-selection-poster-floating{display:block;left:4%;right:auto;width:20%;max-width:84px;max-height:64%;border-width:1px;border-radius:7px;box-shadow:0 6px 16px #0008}.home-selection-overview .home-selection-poster-inline{display:none}}
 @media(max-width:639px){.home-selection-info{gap:13px;padding:18px 16px}.home-selection-poster{width:54px}}
