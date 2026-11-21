@@ -84,7 +84,7 @@ Abre **Publicar → Película de inicio** o el botón del encabezado. Elige una 
 3. Comprueba la conexión de GitHub.
 4. Pulsa **Publicar película de inicio**.
 
-La aplicación muestra la panorámica completa, conservando sus proporciones, y debajo una franja con el póster pequeño, el título, los datos y «Ver ahora». En móvil el botón y las acciones se distribuyen debajo de la ficha. El póster y la información tienen su propio espacio.
+La aplicación reúne la panorámica completa y una ficha compacta en un solo panel. En PC, la imagen se muestra a la izquierda y la ficha a la derecha, con el póster pequeño, el título, los datos y «Ver ahora». En móvil, la imagen aparece arriba y la ficha debajo. La información siempre tiene su propio espacio y la panorámica conserva sus proporciones.
 
 La publicación actualiza únicamente `portadas-inicio.json` en StreamTube-V20. El formato nuevo (`schemaVersion: 2`) guarda una referencia y su panorámica, sin duplicar ni modificar catálogos. Los lectores también admiten el formato anterior de cinco portadas y utilizan únicamente su primera película durante la transición. Si falta la película o falla su panorámica, no se sustituye por otro título.
 

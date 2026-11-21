@@ -75,7 +75,7 @@ const HomeCoversEditor = ({ requestConfirm, showToast }) => {
     const filtered=catalog.filter(movie=>(api.title(movie)+' '+(movie.year||'')+' '+(movie.director||'')).toLocaleLowerCase('es').includes(search.toLocaleLowerCase('es')));
     return <section className="space-y-6 bg-white p-4 sm:p-7 rounded-3xl border border-slate-200 shadow-sm" aria-label="Editor de portadas de inicio">
         <div className="flex flex-wrap items-start justify-between gap-4">
-            <div><h2 className="text-xl font-extrabold">Película de inicio</h2><p className="text-sm text-slate-600 mt-2">Elige una película de Estrenos 2026. Su panorámica completa aparecerá en Inicio, con el póster pequeño, el título y el botón debajo.</p></div>
+            <div><h2 className="text-xl font-extrabold">Película de inicio</h2><p className="text-sm text-slate-600 mt-2">Elige una película de Estrenos 2026. En Inicio, la panorámica completa y su ficha se muestran juntas: lado a lado en PC y una debajo de la otra en móvil.</p></div>
             <span className="home-selection-status" role="status" aria-label="Película seleccionada">{draft.length ? 'Una película elegida' : 'Sin selección'}</span>
         </div>
         <p className="text-sm text-slate-600">{published?.mode==='manual'?'La película publicada se mantiene fija en Inicio.':'Elige y publica la película que aparecerá en Inicio.'} Los cambios de esta pantalla son un borrador hasta pulsar «Publicar película de inicio».</p>
@@ -87,10 +87,12 @@ const HomeCoversEditor = ({ requestConfirm, showToast }) => {
                 const movie=item&&movies.get(item.movieKey),poster=movie?.imagen||movie?.image;
                 return <article key={item?.movieKey||index} className="min-w-0 rounded-2xl border border-slate-200 overflow-hidden" data-cover-slot={index+1}>
                     {item?<>
+                        <div className="home-selection-overview">
                         <div className="home-selection-panorama"><img src={item.backdrop||undefined} alt={'Vista previa de '+item.title}/></div>
                         <div className="home-selection-info">
                             {poster&&<img src={poster} alt={'Portada de '+item.title} className="home-selection-poster"/>}
                             <div><p className="text-sm text-cyan-700">Película destacada</p><h3 className="font-bold text-lg break-words">{api.title(movie)||item.title}</h3><p className="text-sm text-slate-500 mt-2">En Inicio, el botón «Ver ahora» abrirá esta película.</p></div>
+                        </div>
                         </div>
                         <div className="p-4 space-y-3"><label className="block text-sm font-bold text-slate-600">Imagen panorámica<input type="url" aria-label={'Imagen panorámica de '+item.title} value={item.backdrop} disabled={busy} onChange={event=>change([{...item,backdrop:event.target.value}])} placeholder="https://…" className="mt-1 w-full min-w-0 rounded-lg border border-slate-300 p-3 font-normal text-sm"/></label>
                         <p className={'text-sm '+(missing||status===null||status&&!api.panoramic(status)?'text-rose-700':'text-slate-600')}>{missing?'Ya no está en Estrenos. Reemplaza esta película.':!item.backdrop?'Añade una imagen panorámica.':status===undefined?'Comprobando imagen…':api.panoramic(status)?'Panorámica verificada':status?'La imagen es vertical o cuadrada. Usa una panorámica.':'No se pudo cargar la imagen. Revisa el enlace.'}</p>
